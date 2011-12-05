@@ -8,4 +8,7 @@
     <key>CFBundleGetInfoString</key>      <string>1.0 Appified by Thomas Aylott on Sat Dec 3 2011</string>
     <key>CFBundleShortVersionString</key> <string>1.0</string>
 
+    <key>NSPrincipalClass</key><string>NSApplication</string>
+    <key>NSMainNibFile</key><string>MainMenu</string>
+
 </dict></plist>

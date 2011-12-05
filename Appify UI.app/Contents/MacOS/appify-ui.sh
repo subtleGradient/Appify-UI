@@ -124,7 +124,11 @@ EOF
 
 
 # async HTTP server
-waitForFormData | handleForm
+waitForFormData | handleForm &
+
+# launch the cocoa app
+cd "$(dirname "$0")"
+./apache-callback-mac
 
 # close nc just in case
 nc localhost 9999

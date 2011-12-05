@@ -1,0 +1,60 @@
+<!doctype html><meta charset=utf-8>
+<title>Appify</title>
+
+
+<style>
+html,body,input
+{font-family:"Lucida Grande"; font-size:12px;}
+
+html{color:#999;}
+html.focus{color:#555;}
+
+body{background:transparent;}
+html{background:#E8E8E8;}
+
+html{border-top:1px solid #8A8A8A;}
+
+h1,h2,h3,h4,h5,h6{font-weight:normal; margin:0; padding:0;}
+html{padding:1rem;}
+h3{font-family:Georgia;}
+
+h1>sub{font-size:1ex;}
+
+a:link{color:inherit;}
+.focus a:link{color:#00A;}
+
+.focus h1>strong{color:#000;}
+
+h1{border-bottom:1px dotted;padding-bottom:.5ex;margin-bottom:.5ex;}
+h2{font-size:1.2rem;letter-spacing:.3ex;word-spacing:.51ex;}
+
+body{text-align:center;}
+
+form{text-align:right;display:inline-block;}
+input:not([type=submit]){width:40ex;}
+</style>
+
+
+<script>
+onblur = function(){document.documentElement.className='blur'}
+onfocus = function(){document.documentElement.className='focus'}
+onload = function(){
+    onfocus()
+}
+</script>
+
+<form action=http://localhost:9999>
+    <label>CFBundleName <input name=CFBundleName value="My Appified App"></label>
+    <br>
+    <label>CFBundleExecutable <input name=CFBundleExecutable value="app.sh"></label>
+    <br>
+    <label>CFBundleIdentifier <input name=CFBundleIdentifier value="my.appified.app"></label>
+    <br>
+    <label>CFBundleVersion <input name=CFBundleVersion value="0.1"></label>
+    <br>
+    <label>CFBundleGetInfoString <input name=CFBundleGetInfoString value="0.1 Appified by Me Today"></label>
+    <br>
+    <label>CFBundleShortVersionString <input name=CFBundleShortVersionString value="0.1"></label>
+    <br><br>
+    <input type=submit value="Appify!">
+</form>
