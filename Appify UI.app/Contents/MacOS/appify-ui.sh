@@ -67,7 +67,7 @@ function appify () {
 #!/usr/bin/env bash
 # launch the cocoa app
 cd "\$(dirname "\$0")"
-./apache-callback-mac
+./apache-callback-mac -url "file://\$(dirname "\$0")/../Resources/index.html"
 EOF
     echo "Created blank '$appify_ROOT/$appify_FILE' be sure to edit this file to make it do things and stuff" 1>&2
 
