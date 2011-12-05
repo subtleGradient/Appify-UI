@@ -1,10 +1,28 @@
-<!doctype html><html><head>
+<!doctype html>
+<meta charset=utf-8>
+<title>Howdy World</title>
 
-    <meta charset=utf-8>
-    <title>Howdy World</title>
 
-</head><body>
+<style>
+html,body,input{font-family:"Lucida Grande";font-size:12px;}
+html{color:#999;}html.focus{color:#555;}
+body{background:transparent;}
+html{background:#E8E8E8;border-top:1px solid #8A8A8A;padding:1rem;}
+a:link{color:inherit;}
+.focus a:link{color:#00A;}
 
-Ahoy
+body{text-align:center;}
+</style>
 
-</body></html>
+
+<script>
+onblur = function(){document.documentElement.className='blur'}
+onfocus = function(){document.documentElement.className='focus'}
+onload = function(){
+    onfocus()
+}
+</script>
+
+
+<h1>Ahoy from node.js!</h1>
+<p><code><script>document.write(''+location)</script></code>

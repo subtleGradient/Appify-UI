@@ -24,18 +24,22 @@ config.url = 'http://' + config.hostname + ':' + config.port
 
 ////////////////////////////////////////////////////////////////////////////////
 
-var navigator = require('./navigator')
+var spawn = require('child_process').spawn
+
+webview.bin = __dirname + '/apache-callback-mac'
+function webview(url, callback){
+    spawn(webview.bin, process.argv.slice(2).concat(['-url',url]))
+    .on('exit', callback)
+}
 
 var server = require(config.serverjs)
 server.listen(config.port, config.hostname, function(){
-    navigator.start(config.url)
+    webview(config.url, function(){
+        console.log('exited the navigator')
+        server.close()
+        process.exit()
+    })
 })
-
-navigator.onExit = function(){
-    console.log('exited the navigator')
-    server.close()
-    process.exit()
-}
 
 process.on('exit', function(){
     console.log('exited the whole app')
