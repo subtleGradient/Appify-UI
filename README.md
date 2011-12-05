@@ -66,3 +66,11 @@ It's about as simple as you can get.
 
 I may update this section later.
 
+
+
+
+Similar Projects
+----------------
+
+https://github.com/rsms/cocui is similar, except it actually has features.
+
