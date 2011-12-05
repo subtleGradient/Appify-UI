@@ -49,6 +49,10 @@ function appify () {
     local appify_ROOT="$appify_NAME.appify/Contents/MacOS"
     local appify_INFO="$appify_ROOT/../Info.plist"
 
+    if [[ "$appify_FILE" == "" ]]; then
+        echo "CFBundleExecutable is required. Aborting" 1>&2
+        exit 1
+    fi
 
     # Create the bundle
     if [[ -a "$appify_NAME.appify" ]]; then
@@ -131,4 +135,4 @@ cd "$(dirname "$0")"
 ./apache-callback-mac
 
 # close nc just in case
-nc localhost 9999
+nc localhost 9999 > /dev/null
