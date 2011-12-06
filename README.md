@@ -72,4 +72,4 @@ I may update this section later.
 Similar Projects
 ----------------
 
-https://github.com/rsms/cocui is probly better in every imaginable way.
+https://github.com/rsms/cocui is probably better in every imaginable way.
