@@ -14,15 +14,15 @@ That's all that is required.
 
 An Appify UI app is
 
-1. a folder structure
-    * that conforms to the Cocoa Application Bundle standard
-2. a config file
-3. a shell script
-4. a compiled binary  
-    to load the interface
-5. an interface  
-    a compiled nib file with a single WebKit WebView
-6. a url
+1. A folder structure
+    * That conforms to the Cocoa Application Bundle standard
+2. A config file
+3. A shell script
+4. A compiled binary  
+    * To load the interface
+5. An interface  
+    * A compiled nib file with a single WebKit WebView
+6. A url
 
 
 Appify UI.app
