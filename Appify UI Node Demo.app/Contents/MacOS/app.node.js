@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!node
 /*jshint asi:true, nodejs:true, laxbreak:true*//*!
 
 Created by Thomas Aylott <thomas@subtlegradient.com>
@@ -34,6 +34,7 @@ function webview(url, callback){
 
 var server = require(config.serverjs)
 server.listen(config.port, config.hostname, function(){
+    console.log(process.execPath)
     webview(config.url, function(){
         console.log('exited the navigator')
         server.close()
