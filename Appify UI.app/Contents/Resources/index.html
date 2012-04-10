@@ -32,6 +32,9 @@ body{text-align:center;}
 
 form{text-align:right;display:inline-block;}
 input:not([type=submit]){width:40ex;}
+input[type=submit]{font-size:2em;}
+
+p{max-width:44ex; text-align:left; margin-left:auto}
 </style>
 
 
@@ -45,16 +48,18 @@ onload = function(){
 
 <form action=http://localhost:9999>
     <label>CFBundleName <input name=CFBundleName value="My Appified App"></label>
-    <br>
-    <label>CFBundleExecutable <input name=CFBundleExecutable value="app.sh"></label>
-    <br>
-    <label>CFBundleIdentifier <input name=CFBundleIdentifier value="my.appified.app"></label>
-    <br>
-    <label>CFBundleVersion <input name=CFBundleVersion value="0.1"></label>
-    <br>
-    <label>CFBundleGetInfoString <input name=CFBundleGetInfoString value="0.1 Appified by Me Today"></label>
-    <br>
-    <label>CFBundleShortVersionString <input name=CFBundleShortVersionString value="0.1"></label>
-    <br><br>
+    <p></p>
+    <label>CFBundleExecutable <input name=CFBundleExecutable value=app.sh></label>
+    <p></p>
+    <label>CFBundleIdentifier <input name=CFBundleIdentifier value=my.appified.app></label>
+    <p></p>
+    <label>CFBundleIconFile <input name=CFBundleIconFile value=MyAwesomeIcon.icns></label>
+    <p></p>
+    <label>NSHumanReadableCopyright <input name=NSHumanReadableCopyright value="© Copyright 2012 My Name Here"></label>
+    <p></p>
+    <label>CFBundleShortVersionString <input name=CFBundleShortVersionString value=0.1></label>
+    <p><small>Marketing version number for users to see.</small></p>
+    <label>CFBundleVersion <input name=CFBundleVersion placeholder=00001.00.00d value=0.1></label>
+    <p><small>Launch Services expects the following format: <code>nnnnn[.nn[.nn]][X]</code> where n is a digit 0-9, square brackets indicate optional components, and X is any string not starting with a digit. X is ignored when present.</small></p>
     <input type=submit value="Appify!">
 </form>

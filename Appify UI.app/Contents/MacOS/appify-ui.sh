@@ -88,12 +88,14 @@ EOF
     cat <<-EOF > "$appify_INFO"
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 
+    <key>CFBundleIconFile</key>           <string>$CGI_CFBundleIconFile</string>
+
     <key>CFBundleName</key>               <string>$CGI_CFBundleName</string>
     <key>CFBundleExecutable</key>         <string>$CGI_CFBundleExecutable</string>
     <key>CFBundleIdentifier</key>         <string>$CGI_CFBundleIdentifier</string>
 
     <key>CFBundleVersion</key>            <string>$CGI_CFBundleVersion</string>
-    <key>CFBundleGetInfoString</key>      <string>$CGI_CFBundleGetInfoString</string>
+    <key>NSHumanReadableCopyright</key>   <string>$CGI_NSHumanReadableCopyright</string>
     <key>CFBundleShortVersionString</key> <string>$CGI_CFBundleShortVersionString</string>
 
     <!-- Needed for Apache Callback -->
