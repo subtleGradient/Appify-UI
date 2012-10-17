@@ -72,4 +72,6 @@ I may update this section later.
 Similar Projects
 ----------------
 
-https://github.com/rsms/cocui is probably better in every imaginable way.
+https://github.com/rogerwang/node-webkit is probably what you should be using.
+
+https://github.com/rsms/cocui
