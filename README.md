@@ -72,6 +72,6 @@ I may update this section later.
 Similar Projects
 ----------------
 
-https://github.com/rogerwang/node-webkit is probably what you should be using.
+https://github.com/maccman/macgap is probably what you should be using.
 
-https://github.com/rsms/cocui
+https://github.com/rogerwang/node-webkit is awesome, but large.
