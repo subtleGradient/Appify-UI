@@ -6,14 +6,17 @@ var webviewServer = require('./lib/http-webview').create(function(request, respo
   
   response.write("<h1>Hello from Node!</h1>")
   
+  response.write('<p>')
   response.write('<a href="txmt://open?url=file://' + __filename + '">')
   response.write("Edit this app in TextMate")
   response.write('</a>')
   
+  response.write('<p>')
   response.write('<a href="file://' + __filename + '">')
   response.write("Edit this app")
   response.write('</a>')
   
+  response.write('<p>')
   response.write('<a href="txmt://open?url=file://' + __filename + '/../../Info.plist">')
   response.write("Be sure to change the CFBundleIdentifier")
   response.write('</a>')
