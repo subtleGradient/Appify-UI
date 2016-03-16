@@ -12,6 +12,8 @@ function NodeNotFound () {
 
 Node="$App/Contents/MacOS/node"
 [[ -f "$Node" ]] || Node="`which node`"
+[[ -f "$Node" ]] || Node="/Applications/Adobe Photoshop CC 2016/Adobe Photoshop CC 2016.app/Contents/MacOS/node"
+[[ -f "$Node" ]] || Node="/Applications/Adobe Photoshop CC 2015/Adobe Photoshop CC 2015.app/Contents/MacOS/node"
 [[ -f "$Node" ]] || Node="/Applications/Adobe Photoshop CC 2014/Adobe Photoshop CC 2014.app/Contents/MacOS/node"
 [[ -f "$Node" ]] || Node="/Applications/Adobe Photoshop CC/Adobe Photoshop CC.app/Contents/MacOS/Photoshop-node"
 [[ -f "$Node" ]] || Node="/usr/local/bin/node"
