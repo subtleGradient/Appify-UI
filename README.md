@@ -75,3 +75,5 @@ Similar Projects
 https://github.com/maccman/macgap is probably what you should be using.
 
 https://github.com/rogerwang/node-webkit is awesome, but large.
+
+https://github.com/sveinbjornt/Platypus makes an app from terminal script, wraps it's output in the GUI window, handles `CMD`+`Q` etc
