@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
-# launch the cocoa app
-cd "$(dirname "$0")"
-./apache-callback-mac -url "http://mail.google.com"
+<key>CFBundleIconFile</key><string>insta.icns</string>
+<key>CFBundleName</key><string>insta</string>
+<key>CFBundleExecutable</key><string>App.sh</string>
+./apache-callback-mac -url "http://instagram.com"
