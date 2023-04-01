@@ -5,7 +5,19 @@ Create Mac apps.
 Use HTML5 for the UI.  
 Script it with anything.  
 Can not possibly be simpler.
+This is dumb and bad and old.
+You should not use this.
 
+But after a decade or so, I still use this thing and it works great for me.
+
+
+New in 2023: Appify-AI
+----------------------
+
+Appify-AI is a new Appify-UI demo that uses GPT-3.5 or GPT-4 to mutate itself while you use it. It's pretty hip.
+
+
+---
 
 What is this?
 -------------
