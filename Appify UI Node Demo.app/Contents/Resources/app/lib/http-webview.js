@@ -1,39 +1,36 @@
-/*jshint asi:true, nodejs:true, laxbreak:true*/
+const http = require("http")
+const webview = require("./webview")
 
-var http = require('http')
-var webview = require('./webview')
+exports.create = connectionListener => {
+  let port = 8444
 
-exports.create = function(connectionListener){
-  
-  var port = 8444
-  
-  var server = http.createServer(connectionListener)
-  
-  server.on('listening', function(){
-    var address = server.address()
-    
-    var window = webview.open('http://' + address.address + ':' + address.port)
-    
-    window.on('exit', function(){
-      process.exit(0)
-    })
+  const server = http.createServer(connectionListener)
+
+  server.on("listening", () => {
+    const address = server.address()
+    if (address.address == "::") address.address = "localhost"
+    const window = webview.open("http://" + address.address + ":" + address.port)
+
+    window.on("exit", () => process.exit(0))
   })
-  
-  server.on('error', function(error){
-    if (error.code == 'EADDRINUSE'){
+
+  server.on("error", error => {
+    if (error.code == "EADDRINUSE") {
       port++
       server.listen(port)
       return
     }
     throw error
   })
-  
+
   server.listen(port)
-  
+
   return server
 }
 
-if (!module.parent) exports.create(function(request, response){
-  response.write("Hello from Node!")
-  response.end()
-})
+if (require.main === module) {
+  exports.create((request, response) => {
+    response.write("Hello from Node!")
+    response.end()
+  })
+}
