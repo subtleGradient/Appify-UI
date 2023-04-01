@@ -1,12 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"><plist version="1.0"><dict><key>CFBundlePackageType</key><string>APPL</string><key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
 
-    <key>CFBundleName</key>               <string>Appify UI Demo</string>
-    <key>CFBundleExecutable</key>         <string>app.sh</string>
-    <key>CFBundleIdentifier</key>         <string>com.SubtleGradient.appify-ui-demo</string>
+    <key>CFBundleIconFile</key>           <string>Appify-AI.icns</string>
 
-    <key>CFBundleVersion</key>            <string>1.0</string>
-    <key>CFBundleGetInfoString</key>      <string>1.0</string>
-    <key>CFBundleShortVersionString</key> <string>1.0</string>
+    <key>CFBundleName</key>               <string>Appify AI</string>
+    <key>CFBundleExecutable</key>         <string>Appify-AI.sh</string>
+    <key>CFBundleIdentifier</key>         <string>com.ThingsThatDoStuff.Appify-AI</string>
+
+    <key>CFBundleVersion</key>            <string>0.1.0</string>
+    <key>NSHumanReadableCopyright</key>   <string>© Copyright 2023 Things That So Stuff, LLC</string>
+    <key>CFBundleShortVersionString</key> <string>0.1.0</string>
 
     <!-- Needed for Apache Callback -->
     <key>NSPrincipalClass</key><string>NSApplication</string>
