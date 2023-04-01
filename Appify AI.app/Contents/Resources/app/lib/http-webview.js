@@ -26,7 +26,7 @@ exports.create = connectionListener => {
 
   server.listen(port)
 
-  server.on("close", () => webview.close())
+  server.on("close", () => process.exit(0))
 
   return server
 }
