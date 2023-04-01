@@ -3,13 +3,14 @@ const webview = require("./webview")
 
 exports.create = connectionListener => {
   let port = 8444
+  // PROBLEM: localStorage will not be shared between different ports
 
   const server = http.createServer(connectionListener)
 
   server.on("listening", () => {
-    const address = server.address()
-    if (address.address == "::") address.address = "localhost"
-    const window = webview.open("http://" + address.address + ":" + address.port)
+    let { address, port } = server.address()
+    if (address == "::") address = "localhost"
+    const window = webview.open(`http://${address}:${port}`)
 
     window.on("exit", () => process.exit(0))
   })
@@ -24,6 +25,8 @@ exports.create = connectionListener => {
   })
 
   server.listen(port)
+
+  server.on("close", () => webview.close())
 
   return server
 }
