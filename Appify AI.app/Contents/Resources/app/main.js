@@ -12,7 +12,7 @@ const fs = require("fs")
 const serverModTime = fs.statSync(__filename).mtime
 const serverStartTime = new Date()
 function indexPage() {
-  return `
+  return html`
     <!DOCTYPE html>
     <meta charset="utf-8" />
     <title>Hello from Node!</title>
