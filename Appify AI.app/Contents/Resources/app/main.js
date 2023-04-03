@@ -124,7 +124,7 @@ const router = (request, response) => {
   }
 
   if (request.url === "/edit" && request.method === "POST") {
-    exec(`/usr/local/bin/code "${__filename}"`, err => {
+    exec(`/usr/local/bin/code "${__dirname}"`, err => {
       response.writeHead(err ? 500 : 200, { "Content-Type": "application/json" });
       response.write(JSON.stringify(err ? { error: "Failed to execute the command." } : { success: "Command executed successfully." }));
       response.end();
