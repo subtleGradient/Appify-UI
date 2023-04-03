@@ -9,6 +9,8 @@ function html(strings, ...values) {
     .join("")
 }
 const fs = require("fs")
+const { exec } = require("child_process");
+
 const serverModTime = fs.statSync(__filename).mtime
 const serverStartTime = new Date()
 function indexPage() {
@@ -20,7 +22,10 @@ function indexPage() {
     <h1>Hello from Node!</h1>
     <p>
       Edit this app
-      <input type="text" value="${__filename}" readonly style="width:80%" />
+      <button onclick="editCode()">Edit Code</button>
+      <script>
+        const editCode = async () => await fetch("/edit", { method: "POST" });
+      </script>
     </p>
 
     <form id="apiForm">
@@ -116,6 +121,15 @@ const router = (request, response) => {
     })
 
     return
+  }
+
+  if (request.url === "/edit" && request.method === "POST") {
+    exec(`/usr/local/bin/code "${__filename}"`, err => {
+      response.writeHead(err ? 500 : 200, { "Content-Type": "application/json" });
+      response.write(JSON.stringify(err ? { error: "Failed to execute the command." } : { success: "Command executed successfully." }));
+      response.end();
+    });
+    return;
   }
 
   response.writeHead(404)
