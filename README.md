@@ -11,7 +11,7 @@ You should not use this.
 But after a decade or so, I still use this thing and it works great for me.
 
 
-New in 2023: Appify-AI
+New in 2023: Appify-AI (work in progress)
 ----------------------
 
 Appify-AI is a new Appify-UI demo that uses GPT-3.5 or GPT-4 to mutate itself while you use it. It's pretty hip.
