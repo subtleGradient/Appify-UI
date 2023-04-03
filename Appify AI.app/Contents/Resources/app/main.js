@@ -1,18 +1,8 @@
-function html(strings, ...values) {
-  return strings
-    .map((string, index) => {
-      let value = values[index]
-      if (value === undefined) return string
-      if (typeof value === "function") value = value()
-      return string + value
-    })
-    .join("")
-}
 const fs = require("fs")
 const serverModTime = fs.statSync(__filename).mtime
 const serverStartTime = new Date()
 function indexPage() {
-  return html`
+  return `
     <!DOCTYPE html>
     <meta charset="utf-8" />
     <title>Hello from Node!</title>
