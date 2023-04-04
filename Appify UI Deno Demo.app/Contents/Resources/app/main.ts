@@ -1,17 +1,12 @@
-function html(strings, ...values) {
-  return strings
-    .map((string, index) => {
-      let value = values[index]
-      if (value === undefined) return string
-      if (typeof value === "function") value = value()
-      return string + value
-    })
-    .join("")
-}
-const fs = require("fs")
-const { exec } = require("child_process")
+import { exec } from "https://deno.land/x/exec/mod.ts"
+import { html } from "./lib/html.ts";
+const statSync = Deno.statSync
+const url = new URL(import.meta.url);
+const __filename = decodeURIComponent(url.pathname);
+const __dirname = __filename.slice(0, __filename.lastIndexOf("/"));
+console.log({ __dirname, __filename });
 
-const serverModTime = fs.statSync(__filename).mtime
+const serverModTime = statSync(__filename).mtime
 const serverStartTime = new Date()
 function indexPage() {
   return html`
@@ -101,7 +96,7 @@ const router = (request, response) => {
     response.writeHead(200, { "Content-Type": "text/html" })
     response.write("Killing server...")
     response.end()
-    setTimeout(() => webviewServer.close(), 0)
+    setTimeout(() => webviewServerInstance.close(), 0)
     return
   }
 
@@ -111,7 +106,7 @@ const router = (request, response) => {
       body += chunk
     })
 
-    request.on("end", async () => {
+    request.on("end", () => {
       const { text } = JSON.parse(body)
       const transformedText = text.split("").reverse().join("")
 
@@ -138,4 +133,4 @@ const router = (request, response) => {
   response.end(`Not found: ${request.url}`)
 }
 
-const webviewServer = require("./lib/http-webview").create(router)
+// const webviewServerInstance = WebviewServer.create(router)
