@@ -1,20 +1,25 @@
-import { exec } from "https://deno.land/x/exec/mod.ts"
-import { html } from "./lib/html.ts";
-const statSync = Deno.statSync
-const url = new URL(import.meta.url);
-const __filename = decodeURIComponent(url.pathname);
-const __dirname = __filename.slice(0, __filename.lastIndexOf("/"));
-console.log({ __dirname, __filename });
+const __filename = decodeURIComponent(new URL(import.meta.url).pathname)
+const __dirname = __filename.slice(0, __filename.lastIndexOf("/"))
 
-const serverModTime = statSync(__filename).mtime
-const serverStartTime = new Date()
-function indexPage() {
-  return html`
-    <!DOCTYPE html>
-    <meta charset="utf-8" />
-    <title>Hello from Node!</title>
+import * as webviewServer from "./lib/http-webview.ts"
+import { html, css } from "./lib/html.ts"
 
-    <h1>Hello from Node!</h1>
+const handlerMainView = (_req: Request): Response => {
+  console.log("webview works!")
+
+  const styles = css`
+    :root {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+        "Helvetica Neue", sans-serif;
+    }
+  `
+  const body = html`
+    <style>
+      ${styles}
+    </style>
+
+    <h1>Appify UI (powered by Deno)</h1>
+
     <p>
       Edit this app
       <button onclick="editCode()">Edit Code</button>
@@ -22,115 +27,44 @@ function indexPage() {
         const editCode = async () => await fetch("/edit", { method: "POST" })
       </script>
     </p>
-
-    <form id="apiForm">
-      <label for="inputText">Type something:</label>
-      <input type="text" id="inputText" />
-      <button type="submit">Send to server</button>
-    </form>
-    <div id="outputBox">
-      <h3>Server response:</h3>
-      <pre id="outputText"></pre>
-    </div>
-
-    <li>
-      Address:
-      <script>
-        document.write(location)
-      </script>
-    </li>
-    <li>Modified at: ${serverModTime}</li>
-    <li>Started at: ${serverStartTime}</li>
-    <li>
-      Loaded at: ${new Date()}
-
-      <h3>use fetch to load JSON when I click this button: <button onclick="loadJson()">Load JSON</button></h3>
-      <pre id="json"></pre>
-      <script>
-        const loadJson = () =>
-          fetch("/index.json")
-            .then(r => r.json())
-            .then(j => (document.querySelector("#json").innerText = JSON.stringify(j, null, 2)))
-      </script>
-
-      <form action="/kill" method="post">Don't <button type="submit">Kill the server</button></form>
-    </li>
-
-    <script>
-      document.querySelector("#apiForm").addEventListener("submit", async e => {
-        e.preventDefault()
-
-        const inputText = document.querySelector("#inputText").value
-        const response = await fetch("/api", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ text: inputText }),
-        })
-
-        const transformedText = await response.json()
-        document.querySelector("#outputText").innerText = transformedText.text
-      })
-    </script>
   `
+  return new Response(body, { status: 200, headers: { "content-type": "text/html" } })
 }
 
-const router = (request, response) => {
-  if (request.url === "/") request.url = "/index.html"
-  if (request.url === "/index.html") {
-    response.writeHead(200, { "Content-Type": "text/html" })
-    response.write(indexPage(request))
-    response.end()
-    return
+const handlerEdit = async (req: Request): Promise<Response> => {
+  console.log("handlerEdit")
+  if (req.method !== "POST") {
+    console.warn("Error; Endpoint requires POST")
+    return new Response("Error; Endpoint requires POST", { status: 400, headers: { "content-type": "text/html" } })
   }
-
-  if (request.url === "/index.json") {
-    response.writeHead(200, { "Content-Type": "application/json" })
-    response.write(JSON.stringify({ hello: "world", time: new Date() }))
-    response.end()
-    return
-  }
-
-  if (request.url === "/kill" && request.method === "POST") {
-    response.writeHead(200, { "Content-Type": "text/html" })
-    response.write("Killing server...")
-    response.end()
-    setTimeout(() => webviewServerInstance.close(), 0)
-    return
-  }
-
-  if (request.url === "/api" && request.method === "POST") {
-    let body = ""
-    request.on("data", chunk => {
-      body += chunk
+  if (Deno.build.os !== "darwin") {
+    console.warn("NOT IMPLEMENTED")
+    return new Response("NOT IMPLEMENTED", { status: 400, headers: { "content-type": "text/html" } })
+  } else {
+    console.log("Opening VSCode…")
+    const vscode = Deno.run({
+      cmd: ["/usr/local/bin/code", `${__dirname}/../..`],
+      stdout: "piped",
+      stderr: "piped",
     })
-
-    request.on("end", () => {
-      const { text } = JSON.parse(body)
-      const transformedText = text.split("").reverse().join("")
-
-      response.writeHead(200, { "Content-Type": "application/json" })
-      response.write(JSON.stringify({ text: transformedText }))
-      response.end()
-    })
-
-    return
+    const { code } = await vscode.status()
+    console.log("VSCode exited with code", code)
+    if (code !== 0) {
+      const rawError = await vscode.stderrOutput()
+      const errorString = new TextDecoder().decode(rawError)
+      return new Response(errorString, { status: 500, headers: { "content-type": "text/html" } })
+    }
+    return new Response("Done", { status: 200, headers: { "content-type": "text/html" } })
   }
-
-  if (request.url === "/edit" && request.method === "POST") {
-    exec(`/usr/local/bin/code "${__dirname}/../.."`, err => {
-      response.writeHead(err ? 500 : 200, { "Content-Type": "application/json" })
-      response.write(
-        JSON.stringify(err ? { error: "Failed to execute the command." } : { success: "Command executed successfully." }),
-      )
-      response.end()
-    })
-    return
-  }
-
-  response.writeHead(404)
-  response.end(`Not found: ${request.url}`)
 }
 
-// const webviewServerInstance = WebviewServer.create(router)
+const handlerRouter = async (req: Request): Promise<Response> => {
+  console.log("handlerRouter", req.url)
+  if (new URL(req.url).pathname === "/edit") return await handlerEdit(req)
+  return handlerMainView(req)
+}
+
+if (import.meta.main) {
+  console.log("starting webview server…")
+  webviewServer.create(handlerRouter)
+}

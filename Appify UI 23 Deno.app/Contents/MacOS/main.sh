@@ -6,7 +6,7 @@ cd "$App";App="$PWD"
 function denoNotFound () {
   URL="file://$App/Contents/Resources/Deno not found Error.html"
   URL="${URL// /%20}"
-  "$App/Contents/MacOS/appify-ui-webview" -url "${URL}"
+  "$App/Contents/MacOS/Appify UI 23.app/Contents/MacOS/Appify UI 23" --url "${URL}"
   exit 1
 }
 
