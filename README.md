@@ -1,10 +1,4 @@
-# Appify UI 2023 (NEW)
-
-TOOD: Update this README
-
----
-
-# Appify UI 2011
+# Appify UI 2011–2024
 
 Create Mac apps.  
 Use HTML5 for the UI.  
@@ -15,9 +9,9 @@ You should not use this.
 
 But after a decade or so, I still use this thing and it works great for me.
 
-## New in 2023: Appify-AI (work in progress)
+## New in 2023: rebuilt Appify UI native innards
 
-Appify-AI is a new Appify-UI demo that uses GPT-3.5 or GPT-4 to mutate itself while you use it. It's pretty hip.
+Back in 2023, I recreated the native innards of Appify UI using Swift and SwiftUI.
 
 ---
 
