@@ -1,27 +1,32 @@
 #!/usr/bin/env bash
 
 App="$(dirname "$0")/../.."
-cd "$App";App="$PWD"
+cd "$App"
+App="$PWD"
 
-function denoNotFound () {
+denoNotFound() {
   URL="file://$App/Contents/Resources/Deno not found Error.html"
   URL="${URL// /%20}"
   "$App/Contents/MacOS/Appify UI 23.app/Contents/MacOS/Appify UI 23" --url "${URL}"
   exit 1
 }
 
-function installDeno () {
-  curl -fsSL https://deno.land/x/install/install.sh | sh
+installDeno() {
+  curl -fsSL https://deno.land/install.sh | sh
 }
 
-deno="$App/Contents/MacOS/deno"                 # for packaging deno with the app
-[[ -f "$deno" ]] || deno="$HOME/.deno/bin/deno" # default install location
-[[ -f "$deno" ]] || deno="`which deno`"         # in PATH
-[[ -f "$deno" ]] || installDeno
-[[ -f "$deno" ]] || deno="$HOME/.deno/bin/deno" # default install location
-[[ -f "$deno" ]] || deno="`which deno`"         # in PATH
-[[ -f "$deno" ]] || denoNotFound
+main() {
+  deno="$App/Contents/MacOS/deno"                 # for packaging deno with the app
+  [[ -f "$deno" ]] || deno="$HOME/.deno/bin/deno" # default install location
+  [[ -f "$deno" ]] || deno="$(which deno)"        # in PATH
+  [[ -f "$deno" ]] || installDeno
+  [[ -f "$deno" ]] || deno="$HOME/.deno/bin/deno" # default install location
+  [[ -f "$deno" ]] || deno="$(which deno)"        # in PATH
+  [[ -f "$deno" ]] || denoNotFound
 
-MAIN="$App/Contents/Resources/app/main.ts"
+  MAIN="$App/Contents/Resources/app/main.ts"
 
-"$deno" run --allow-read --allow-write --allow-net --allow-env --allow-run "$MAIN" "$@"
+  "$deno" run --allow-read --allow-write --allow-net --allow-env --allow-run "$MAIN" "$@"
+}
+
+main "$@" >"$App.log" 2>&1
