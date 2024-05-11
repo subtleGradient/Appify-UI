@@ -4,8 +4,8 @@
 const __filename = decodeURIComponent(new URL(import.meta.url).pathname)
 const __dirname = __filename.slice(0, __filename.lastIndexOf("/"))
 
+import { css, html } from "./lib/html.ts"
 import * as webviewServer from "./lib/http-webview.ts"
-import { html, css } from "./lib/html.ts"
 
 const styles = css`
   :root {
@@ -27,8 +27,9 @@ const handlerMainView = (_req: Request): Response => {
     <p>
       Edit this app
       <button onclick="editCode()">Edit Code</button>
+      <button onclick="editCode(true)">Edit Code (Insiders)</button>
       <script>
-        const editCode = async () => await fetch("/edit", { method: "POST" })
+        const editCode = async (insiders = false) => await fetch("/edit?insiders=" + (insiders ? 1 : 0), { method: "POST" })
       </script>
     </p>
   `
@@ -36,6 +37,9 @@ const handlerMainView = (_req: Request): Response => {
 }
 
 const handlerEdit = async (req: Request): Promise<Response> => {
+  const url = new URL(req.url)
+  const wantsInsiders = url.searchParams.get("insiders") === "1"
+
   console.log("handlerEdit")
   if (req.method !== "POST") {
     console.warn("Error; Endpoint requires POST")
@@ -47,7 +51,7 @@ const handlerEdit = async (req: Request): Promise<Response> => {
   } else {
     console.log("Opening VSCode…")
     const vscode = Deno.run({
-      cmd: ["/usr/local/bin/code", `${__dirname}/../..`],
+      cmd: ["/usr/local/bin/code" + (wantsInsiders ? "-insiders" : ""), `${__dirname}/../..`],
       stdout: "piped",
       stderr: "piped",
     })
