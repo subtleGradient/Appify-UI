@@ -1,17 +1,17 @@
 const __filename = decodeURIComponent(new URL(import.meta.url).pathname)
 const __dirname = __filename.slice(0, __filename.lastIndexOf("/"))
 
+import { type Handler, Server } from "https://deno.land/std@0.224.0/http/server.ts"
 import { open } from "./webview.ts"
-import { type Handler, Server } from "https://deno.land/std@0.182.0/http/server.ts"
 
 export function create(handler: Handler) {
-  let port = 8444
+  const port = 8444
   // TODO: try this port first, if it's not available, try the next one, and so on
 
   const server = new Server({ port, handler })
   server.listenAndServe()
 
-  const window = open(`http://0.0.0.0:${port}`)
+  const window = open(`http://localhost:${port}`)
   window.status().then(status => {
     // kill the server when the window closes
     server.close()
@@ -22,7 +22,7 @@ export function create(handler: Handler) {
   return server
 }
 
-import { html, css } from "./html.ts"
+import { css, html } from "./html.ts"
 
 if (import.meta.main) {
   console.log("webview works?")
