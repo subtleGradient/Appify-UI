@@ -1,9 +1,6 @@
 import SwiftUI
 import WebKit
 
-import SwiftUI
-import WebKit
-
 struct WebView: NSViewRepresentable {
 
     let url: URL
