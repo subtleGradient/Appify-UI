@@ -3,6 +3,7 @@
 App="$(dirname "$0")/../.."
 cd "$App"
 App="$PWD"
+AppName="$(basename "$App")"
 
 bunNotFound() {
   echo "bun not found. Show error" >&2
@@ -34,4 +35,4 @@ main() {
   bun_run "$MAIN" "$@"
 }
 
-main "$@" >"$App.$$.log" 2>&1
+main "$@" >"$App/../.$AppName.$$.log" 2>&1
