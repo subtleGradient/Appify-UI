@@ -1,5 +1,26 @@
-load("@prelude//toolchains:demo.bzl", "system_demo_toolchains")
+# toolchains/BUCK
+load("@prelude//toolchains/apple:defs.bzl", "apple_toolchain")
+load("@prelude//toolchains/swift:defs.bzl", "swift_toolchain")
 
-# All the default toolchains, suitable for a quick demo or early prototyping.
-# Most real projects should copy/paste the implementation to configure them.
-system_demo_toolchains()
+apple_toolchain(
+    name = "apple", 
+    # You can use different architectures for universal binaries.
+    # For now, let's keep it simple with just arm64.
+    architecture = "arm64",
+    platform_path = "$(xcrun --show-sdk-platform-path)",
+    sdk_path = "$(xcrun --show-sdk-path)",
+    sdk_name = "macosx", 
+    # Set the minimum macOS version your app supports.
+    min_version = "13.0",
+    swift_toolchain = ":swift",
+    visibility = ["PUBLIC"],
+)
+
+swift_toolchain(
+    name = "swift",
+    platform_path = "$(xcrun --show-sdk-platform-path)",
+    sdk_path = "$(xcrun --show-sdk-path)",
+    swiftc = "$(xcrun --find swiftc)",
+    swift_stdlib_tool = "$(xcrun --find swift-stdlib-tool)",
+    visibility = ["PUBLIC"],
+)
