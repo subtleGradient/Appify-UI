@@ -30,7 +30,7 @@ bun_run() {
 }
 
 main() {
-  MAIN="$App/Contents/Resources/app/main.ts"
+  MAIN="$App/Contents/app/main.ts"
   bun_run "$MAIN" "$@"
 }
 

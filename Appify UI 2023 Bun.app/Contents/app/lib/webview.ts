@@ -13,6 +13,10 @@ export function webviewOpen(url: URL | string) {
     stdio: ["ignore", "inherit", "inherit"],
     cwd: APP_ROOT,
   })
+  // const webview = Bun.spawn(["open", "--wait-apps", `${APP_ROOT}/Contents/MacOS/webview.app`], {
+  //   stdio: ["ignore", "inherit", "inherit"],
+  //   cwd: APP_ROOT,
+  // })
 
   console.log("webview pid", webview.pid)
 
