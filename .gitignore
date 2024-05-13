@@ -3,3 +3,4 @@
 *.log
 **/xcuserdata/**
 buck-out
+.build
