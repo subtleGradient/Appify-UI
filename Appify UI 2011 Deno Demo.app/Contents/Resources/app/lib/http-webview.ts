@@ -1,8 +1,8 @@
 const __filename = decodeURIComponent(new URL(import.meta.url).pathname)
 const __dirname = __filename.slice(0, __filename.lastIndexOf("/"))
 
-import { open } from "./webview.ts"
 import { type Handler, Server } from "https://deno.land/std@0.182.0/http/server.ts"
+import { open } from "./webview.ts"
 
 export function create(handler: Handler) {
   let port = 8444
@@ -22,7 +22,7 @@ export function create(handler: Handler) {
   return server
 }
 
-import { html, css } from "./html.ts"
+import { css, html } from "./html.ts"
 
 if (import.meta.main) {
   console.log("webview works?")
@@ -32,6 +32,7 @@ if (import.meta.main) {
 
     const styles = css`
       :root {
+        color-scheme: light dark;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
           "Helvetica Neue", sans-serif;
       }

@@ -9,6 +9,7 @@ import * as webviewServer from "./lib/http-webview.ts"
 
 const styles = css`
   :root {
+    color-scheme: light dark;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
       "Helvetica Neue", sans-serif;
   }

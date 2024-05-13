@@ -1,14 +1,15 @@
 const __filename = decodeURIComponent(new URL(import.meta.url).pathname)
 const __dirname = __filename.slice(0, __filename.lastIndexOf("/"))
 
+import { css, html } from "./lib/html.ts"
 import * as webviewServer from "./lib/http-webview.ts"
-import { html, css } from "./lib/html.ts"
 
 const handlerMainView = (_req: Request): Response => {
   console.log("webview works!")
 
   const styles = css`
     :root {
+      color-scheme: light dark;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
         "Helvetica Neue", sans-serif;
     }
