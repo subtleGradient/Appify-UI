@@ -1,0 +1,17 @@
+{
+  "name": "frens-devtools-macos",
+  "module": "src/frens-devtools.appify.bun.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.0"
+  },
+  "peerDependencies": {
+    "typescript": "latest"
+  },
+  "dependencies": {
+    "react": "^19.0.0-beta-04b058868c-20240508",
+    "react-dom": "^19.0.0-beta-04b058868c-20240508"
+  }
+}

@@ -1,3 +1,21 @@
+AppName="HelloWorldApp"
+echo "AppName: $AppName"
+
+BundleRoot="."
+SourceAppRoot=".."
+SourceAppBuildRoot="$SourceAppRoot/.build/release"
+BundleBuildRoot="$BundleRoot/.build"
+
+DiskTemplate="$BundleRoot/Install HelloWorldApp.dmg.bundle"
+Disk="$BundleBuildRoot/FakeInstallDisk"
+DiskImage="$Disk.dmg"
+DiskImageTitle="Install $AppName"
+SourceInstallScript="$DiskTemplate/Install HelloWorldApp.app (Right-click, Open).command"
+TargetInstallScript="$Disk/Install HelloWorldApp.app (Right-click, Open).command"
+App="$Disk/.quarantined/$AppName.app"
+SourceAppBuild="$SourceAppBuildRoot/$AppName"
+SourceInfoPlist="$SourceAppRoot/Info.plist"
+
 Build() {
   [[ -f "$SourceAppBuild" ]] || swift build -c release
 }
@@ -15,8 +33,11 @@ Prepare_disk() {
   echo "Preparing disk"
   rm -rf "$Disk"
   # copy everything from the template, including hidden files and .DS_Store
-  cp -r "$DiskTemplate" "$Disk"
+  mkdir -p "$Disk"
+  cp -r "$DiskTemplate"/* "$Disk"
+  # WIP
   cp "$DiskTemplate/.DS_Store" "$Disk"
+  ls -lar "$Disk"
 
   cat "$SourceInstallScript" | sed "s/HelloWorldApp/$AppName/g" >"$TargetInstallScript"
   chmod +x "$TargetInstallScript"
