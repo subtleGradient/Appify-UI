@@ -1,39 +1,34 @@
 import Cocoa
 
+// @NSApplicationMain
 class AppDelegate: NSObject, NSApplicationDelegate {
-  var window: NSWindow!
-
-  func applicationDidFinishLaunching(_ aNotification: Notification) {
-    // Create the main application window
-    let screenSize = NSScreen.main!.frame
-    window = NSWindow(
-      contentRect: NSRect(
-        x: screenSize.midX - 200, y: screenSize.midY - 100, width: 400, height: 200),
-      styleMask: [.titled, .closable, .resizable, .miniaturizable],
-      backing: .buffered, defer: false)
-    window.title = "HelloWorldApp"
-    window.makeKeyAndOrderFront(nil)
-
-    // Create a label and add it to the window
-    let label = NSTextField(labelWithString: "Hello, world!")
-    label.frame = NSRect(x: 100, y: 80, width: 200, height: 40)
-    label.alignment = .center
-    window.contentView?.addSubview(label)
-
-    // Set up the menu bar
+  func applicationDidFinishLaunching(_ notification: Notification) {
     setupMenuBar()
+    createWindow()
   }
-
-  func applicationWillTerminate(_ aNotification: Notification) {
-    // Insert code here to tear down your application
+  func applicationWillTerminate(_ notification: Notification) {
+    // Handle termination
   }
-
-  func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+  func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
     return true
+  }
+
+  @objc func newWindow(_ sender: Any?) {
+    createWindow()
+  }
+  func createWindow() {
+    let window = NSWindow(
+      contentRect: NSMakeRect(0, 0, 800, 600),
+      styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false
+    )
+    window.center()
+    window.title = "New Window"
+    window.makeKeyAndOrderFront(nil)
   }
 
   func setupMenuBar() {
     let mainMenu = NSMenu()
+    NSApp.mainMenu = mainMenu
 
     let appMenuItem = NSMenuItem()
     mainMenu.addItem(appMenuItem)
@@ -55,6 +50,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     fileMenu.addItem(closeMenuItem)
     fileMenuItem.submenu = fileMenu
 
-    NSApp.mainMenu = mainMenu
+    // let newItem = fileMenu.addItem(
+    //   withTitle: "New Window", action: #selector(newWindow(_:)), keyEquivalent: "n")
+    // newItem.keyEquivalentModifierMask = [.command]
   }
 }
