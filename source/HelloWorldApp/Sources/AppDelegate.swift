@@ -19,6 +19,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     label.frame = NSRect(x: 100, y: 80, width: 200, height: 40)
     label.alignment = .center
     window.contentView?.addSubview(label)
+
+    // Set up the menu bar
+    setupMenuBar()
   }
 
   func applicationWillTerminate(_ aNotification: Notification) {
@@ -27,5 +30,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
   func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
     return true
+  }
+
+  func setupMenuBar() {
+    let mainMenu = NSMenu()
+
+    let appMenuItem = NSMenuItem()
+    mainMenu.addItem(appMenuItem)
+
+    let appMenu = NSMenu()
+    let appName = ProcessInfo.processInfo.processName
+    let quitTitle = "Quit \(appName)"
+    let quitMenuItem = NSMenuItem(
+      title: quitTitle, action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+    appMenu.addItem(quitMenuItem)
+    appMenuItem.submenu = appMenu
+
+    let fileMenuItem = NSMenuItem()
+    mainMenu.addItem(fileMenuItem)
+
+    let fileMenu = NSMenu(title: "File")
+    let closeMenuItem = NSMenuItem(
+      title: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
+    fileMenu.addItem(closeMenuItem)
+    fileMenuItem.submenu = fileMenu
+
+    NSApp.mainMenu = mainMenu
   }
 }
