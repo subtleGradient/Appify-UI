@@ -17,7 +17,8 @@ SourceAppBuild="$SourceAppBuildRoot/$AppName"
 SourceInfoPlist="$SourceAppRoot/Info.plist"
 
 Build() {
-  [[ -f "$SourceAppBuild" ]] || swift build -c release
+  # [[ -f "$SourceAppBuild" ]] ||
+  swift build -c release
 }
 Bundle() {
   rm -rf "$App"
@@ -36,7 +37,7 @@ Prepare_disk() {
   mkdir -p "$Disk"
   cp -r "$DiskTemplate"/* "$Disk"
   # WIP
-  cp "$DiskTemplate/.DS_Store" "$Disk"
+  # cp "$DiskTemplate/.DS_Store" "$Disk"
   ls -lar "$Disk"
 
   cat "$SourceInstallScript" | sed "s/HelloWorldApp/$AppName/g" >"$TargetInstallScript"
