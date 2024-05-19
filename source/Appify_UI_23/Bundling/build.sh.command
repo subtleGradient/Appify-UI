@@ -15,6 +15,7 @@ main() {
 
   Prepare_disk
   Build
+  BuildIcon
   Bundle
   # Create_dmg
   open --reveal "$App"
@@ -32,4 +33,9 @@ ANSI_FG_BLUE="\033[34m"
 ANSI_RESET="\033[0m"
 ANSI_FG_BLACK="\033[30m"
 
-main
+# if no args, run main
+if [ $# -eq 0 ]; then
+  main
+else # otherwise, run the function named by the first arg
+  "$@"
+fi

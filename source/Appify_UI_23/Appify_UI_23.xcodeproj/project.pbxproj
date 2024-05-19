@@ -7,22 +7,22 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		E25DD81B29DC8EF200087910 /* Appify_UI_23App.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25DD81A29DC8EF200087910 /* Appify_UI_23App.swift */; };
+		E2226A072BFA5C4E0012FF63 /* main.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2226A062BFA5C4E0012FF63 /* main.swift */; };
 		E25DD81D29DC8EF200087910 /* ContentWebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E25DD81C29DC8EF200087910 /* ContentWebView.swift */; };
-		E25DD81F29DC8EF300087910 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E25DD81E29DC8EF300087910 /* Assets.xcassets */; };
 		E25DD82229DC8EF300087910 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E25DD82129DC8EF300087910 /* Preview Assets.xcassets */; };
 		E25DD84729DC99F700087910 /* WebKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E25DD84629DC99F700087910 /* WebKit.framework */; };
+		E2FB14B92BFAB66600BEF7B6 /* cli.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FB14B82BFAB66600BEF7B6 /* cli.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		E2226A062BFA5C4E0012FF63 /* main.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = main.swift; sourceTree = "<group>"; };
 		E25DD81729DC8EF200087910 /* Appify_UI_23.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Appify_UI_23.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E25DD81A29DC8EF200087910 /* Appify_UI_23App.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Appify_UI_23App.swift; sourceTree = "<group>"; };
 		E25DD81C29DC8EF200087910 /* ContentWebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentWebView.swift; sourceTree = "<group>"; };
-		E25DD81E29DC8EF300087910 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E25DD82129DC8EF300087910 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		E25DD82329DC8EF300087910 /* Appify_UI_23.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Appify_UI_23.entitlements; sourceTree = "<group>"; };
 		E25DD84629DC99F700087910 /* WebKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WebKit.framework; path = System/Library/Frameworks/WebKit.framework; sourceTree = SDKROOT; };
 		E25DD84829DCABCA00087910 /* Appify_UI_23-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Appify_UI_23-Info.plist"; sourceTree = SOURCE_ROOT; };
+		E2FB14B82BFAB66600BEF7B6 /* cli.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = cli.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,9 +58,9 @@
 			isa = PBXGroup;
 			children = (
 				E25DD84829DCABCA00087910 /* Appify_UI_23-Info.plist */,
-				E25DD81A29DC8EF200087910 /* Appify_UI_23App.swift */,
+				E2FB14B82BFAB66600BEF7B6 /* cli.swift */,
+				E2226A062BFA5C4E0012FF63 /* main.swift */,
 				E25DD81C29DC8EF200087910 /* ContentWebView.swift */,
-				E25DD81E29DC8EF300087910 /* Assets.xcassets */,
 				E25DD82329DC8EF300087910 /* Appify_UI_23.entitlements */,
 				E25DD82029DC8EF300087910 /* Preview Content */,
 			);
@@ -142,7 +142,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				E25DD82229DC8EF300087910 /* Preview Assets.xcassets in Resources */,
-				E25DD81F29DC8EF300087910 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,8 +152,9 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E2FB14B92BFAB66600BEF7B6 /* cli.swift in Sources */,
 				E25DD81D29DC8EF200087910 /* ContentWebView.swift in Sources */,
-				E25DD81B29DC8EF200087910 /* Appify_UI_23App.swift in Sources */,
+				E2226A072BFA5C4E0012FF63 /* main.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
