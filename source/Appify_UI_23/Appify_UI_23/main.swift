@@ -52,7 +52,7 @@ struct Appify_UI_23App: App {
             let specifiedURL = parseCommandLine(CommandLine.arguments)
             let defaultURL = Bundle.main.url(forResource: "index", withExtension: "html") ?? URL(string: "https://double.observer/")!
             let url = specifiedURL ?? defaultURL
-            ContentView(url: url)
+            ContentWebView(url: url)
         }
     }
 }

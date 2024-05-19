@@ -28,7 +28,7 @@ struct WebView: NSViewRepresentable {
     }
 }
 
-struct ContentView: View {
+struct ContentWebView: View {
     let url: URL
 
     var body: some View {
@@ -40,6 +40,6 @@ struct ContentView: View {
 
 struct ContentView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView(url: URL(string: "https://double.observer/")!)
+        ContentWebView(url: URL(string: "https://double.observer/")!)
     }
 }

@@ -1,4 +1,4 @@
-AppName="HelloWorldApp"
+AppName="Appify_UI_23"
 echo "AppName: $AppName"
 
 BundleRoot="."
@@ -18,7 +18,7 @@ SourceInfoPlist="$SourceAppRoot/Info.plist"
 
 Build() {
   # [[ -f "$SourceAppBuild" ]] ||
-  swift build -c release
+  swift build -c release -Xswiftc -parse-as-library
 }
 Bundle() {
   rm -rf "$App"
