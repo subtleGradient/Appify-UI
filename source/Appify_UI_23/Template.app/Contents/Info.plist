@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+
+    <key>CFBundleExecutable</key><string>Appify_UI_23</string>
+    <key>CFBundleIdentifier</key><string>com.ThingsThatDoStuff.Appify-UI-23</string>
+    <key>CFBundleName</key><string>Appify UI 23</string>
+    <key>CFBundleVersion</key><string>2</string>
+    <key>CFBundleShortVersionString</key><string>1.0</string>
+
+    <key>CFBundleIconFile</key><string>Appify UI</string>
+    <key>CFBundleIconName</key><string>Appify UI</string>
+
+    <key>LSMinimumSystemVersion</key><string>13.0</string>
+  </dict>
+</plist>

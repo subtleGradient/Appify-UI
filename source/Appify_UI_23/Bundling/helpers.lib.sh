@@ -12,11 +12,14 @@ DiskImage="$Disk.dmg"
 DiskImageTitle="Install $AppName"
 SourceInstallScript="$DiskTemplate/Install HelloWorldApp.app (Right-click, Open).command"
 TargetInstallScript="$Disk/Install HelloWorldApp.app (Right-click, Open).command"
-App="$Disk/.quarantined/$AppName.app"
+AppRoot="$Disk/.quarantined"
+App="$AppRoot/$AppName.app"
 SourceAppBuild="$SourceAppBuildRoot/$AppName"
-SourceInfoPlist="$SourceAppRoot/Info.plist"
-SourceIcon="$SourceAppRoot/Appify UI.icns"
 SourceIconSet="../../Appify UI iconset-assets"
+
+AppTemplate="$SourceAppRoot/Template.app"
+SourceInfoPlist="$AppTemplate/Contents/Info.plist"
+SourceIcon="$AppTemplate/Contents/Resources/Appify UI.icns"
 
 Build() {
   # [[ -f "$SourceAppBuild" ]] ||
@@ -29,14 +32,15 @@ BuildIcon() {
 }
 Bundle() {
   rm -rf "$App"
-  mkdir -p "$App"
-  mkdir -p "$App"/Contents/MacOS
-  mkdir -p "$App"/Contents/Resources
+  mkdir -p "$AppRoot"
+  cp -r "$AppTemplate" "$App"
+  # mkdir -p "$App"/Contents/MacOS
+  # mkdir -p "$App"/Contents/Resources
 
   cp "$SourceAppBuild" "$App/Contents/MacOS"
-  [[ -f "$SourceInfoPlist" ]] || cp "$SourceAppBuild/Info.plist" "$SourceInfoPlist"
-  cp "$SourceInfoPlist" "$App/Contents"
-  cp "$SourceIcon" "$App/Contents/Resources"
+  # [[ -f "$SourceInfoPlist" ]] || cp "$SourceAppBuild/Info.plist" "$SourceInfoPlist"
+  # cp "$SourceInfoPlist" "$App/Contents"
+  # cp "$SourceIcon" "$App/Contents/Resources"
 }
 Prepare_disk() {
   echo "Preparing disk"

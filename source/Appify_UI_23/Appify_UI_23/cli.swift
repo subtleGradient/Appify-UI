@@ -1,4 +1,5 @@
 import AppKit
+import Cocoa
 import Foundation
 
 func showHelpMessage() {

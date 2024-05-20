@@ -1,0 +1,12 @@
+{
+  "name": "appify-ui-23",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@jxa/global-type": "^1.3.6",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
