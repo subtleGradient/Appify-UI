@@ -18,6 +18,7 @@ var uiWindow = $.NSWindow.alloc.initWithContentRectStyleMaskBackingDefer(
 
 // Configure the uiWindow
 uiWindow.title = "WebView Window"
+uiWindow.center
 uiWindow.makeKeyAndOrderFront(null)
 
 // Create a WebView and set it to fill the entire uiWindow
@@ -30,43 +31,17 @@ var url = $.NSURL.URLWithString("https://www.opdex.app/")
 var request = $.NSURLRequest.requestWithURL(url)
 webView.loadRequest(request)
 
-// Define a function to execute JavaScript after the page loads
-function executeJavaScript() {
-  webView.evaluateJavaScriptCompletionHandler(
-    "document.title",
-    // $block("void, id, NSError*", ),
-    (result, error) => {
-      console.log("Executing JavaScript...")
-      if (error !== null) {
-        console.log("Error: " + error.localizedDescription)
-      } else {
-        console.log("Result: " + result)
-      }
-    },
-  )
-}
-
-executeJavaScript()
-
-// Delay the JavaScript execution to ensure the page has loaded
-$.NSTimer.scheduledTimerWithTimeIntervalRepeatsBlock(3.0, false, executeJavaScript)
-
-// Necessary to keep the application running
-app.run
-
 {
-  // https://stackoverflow.com/a/41087510
-  function timer(repeats, func, delay) {
-    const args = Array.prototype.slice.call(arguments, 2, -1)
-    args.unshift(this)
-    const boundFunc = func.bind.apply(func, args)
+  // based on the code here: https://stackoverflow.com/a/41087510
+  function setTimeoutOrInterval(/**@type boolean*/ isRepeating, /** @type Function*/ callback, delay) {
+    const boundFunc = callback.bind(null)
     const operation = $.NSBlockOperation.blockOperationWithBlock(boundFunc)
     const timer = $.NSTimer.timerWithTimeIntervalTargetSelectorUserInfoRepeats(
       delay / 1000,
       operation,
       "main",
       null,
-      repeats,
+      isRepeating,
     )
     $.NSRunLoop.currentRunLoop.addTimerForMode(timer, "timer")
     return timer
@@ -77,8 +52,8 @@ app.run
   }
 
   Object.assign(this, {
-    setTimeout: timer.bind(undefined, false),
-    setInterval: timer.bind(undefined, true),
+    setTimeout: setTimeoutOrInterval.bind(undefined, false),
+    setInterval: setTimeoutOrInterval.bind(undefined, true),
     clearTimeout: invalidate,
     clearInterval: invalidate,
   })
