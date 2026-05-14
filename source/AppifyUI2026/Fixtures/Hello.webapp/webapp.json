@@ -3,7 +3,7 @@
   "version": 1,
   "title": "Hello Web App",
   "runner": {
-    "package": "github:subtleGradient/Appify-UI#2431121863f549c7b4965074ef0bd1f4f3248b65",
+    "package": "github:subtleGradient/Appify-UI#92daa721fd22d1bd12d4c46a67b61016627e94c5",
     "bin": "appify-ui-webapp-smoke",
     "args": []
   }
