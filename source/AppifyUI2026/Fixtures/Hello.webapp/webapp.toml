@@ -1,0 +1,8 @@
+type = "appify.webapp"
+version = 1
+title = "Hello Web App"
+
+[runner]
+package = "github:subtleGradient/web-native#e796a9c1f850d5984a6a1b46714b0869527249e9"
+bin = "web-native-openai"
+args = ["serve"]

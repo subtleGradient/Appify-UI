@@ -68,6 +68,39 @@ final class AppifyCoreTests: XCTestCase {
         }
     }
 
+    func testRejectsMissingRequiredManifestFields() throws {
+        let manifests = [
+            """
+            version = 1
+
+            [runner]
+            package = "github:subtleGradient/web-native#\(validCommit)"
+            bin = "web-native-chat"
+            args = []
+            """,
+            """
+            type = "appify.webapp"
+
+            [runner]
+            package = "github:subtleGradient/web-native#\(validCommit)"
+            bin = "web-native-chat"
+            args = []
+            """,
+            """
+            type = "appify.webapp"
+            version = 1
+
+            [runner]
+            bin = "web-native-chat"
+            args = []
+            """,
+        ]
+
+        for manifest in manifests {
+            XCTAssertThrowsError(try WebappManifestLoader.parse(manifest))
+        }
+    }
+
     func testBuildsExactBunXArguments() throws {
         let manifest = WebappManifest(
             type: "appify.webapp",
