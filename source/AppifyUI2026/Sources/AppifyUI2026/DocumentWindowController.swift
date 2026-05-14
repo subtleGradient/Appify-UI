@@ -3,8 +3,7 @@ import AppKit
 import Darwin
 import WebKit
 
-@MainActor
-final class DocumentWindowController: NSWindowController, NSWindowDelegate {
+final class DocumentWindowController: NSWindowController {
     var onClose: (() -> Void)?
 
     private let documentURL: URL
@@ -14,6 +13,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     private var stdoutBuffer = ""
     private var didLoadRunnerURL = false
     private var logHandle: FileHandle?
+    private var closeObserver: NSObjectProtocol?
 
     init(documentURL: URL) {
         self.documentURL = documentURL.standardizedFileURL
@@ -28,12 +28,26 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         window.minSize = NSSize(width: 520, height: 360)
 
         super.init(window: window)
-        window.delegate = self
+        closeObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.willCloseNotification,
+            object: window,
+            queue: .main
+        ) { [weak self] _ in
+            DispatchQueue.main.async { [weak self] in
+                self?.handleWindowWillClose()
+            }
+        }
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("DocumentWindowController does not support NSCoder.")
+    }
+
+    deinit {
+        if let closeObserver {
+            NotificationCenter.default.removeObserver(closeObserver)
+        }
     }
 
     func showAndStart() {
@@ -46,7 +60,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         startRunner()
     }
 
-    func windowWillClose(_ notification: Notification) {
+    private func handleWindowWillClose() {
         stopRunner()
         closeLog()
         onClose?()
@@ -81,7 +95,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
                 guard !data.isEmpty else {
                     return
                 }
-                Task { @MainActor [weak self] in
+                DispatchQueue.main.async { [weak self] in
                     self?.handleStdout(data)
                 }
             }
@@ -91,13 +105,13 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
                 guard !data.isEmpty else {
                     return
                 }
-                Task { @MainActor [weak self] in
+                DispatchQueue.main.async { [weak self] in
                     self?.handleStderr(data)
                 }
             }
 
             process.terminationHandler = { [weak self] process in
-                Task { @MainActor [weak self] in
+                DispatchQueue.main.async { [weak self] in
                     self?.handleRunnerTermination(process)
                 }
             }
@@ -105,7 +119,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
             runnerProcess = process
             try process.run()
             startupTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
-                Task { @MainActor [weak self] in
+                DispatchQueue.main.async { [weak self] in
                     self?.handleStartupTimeout()
                 }
             }

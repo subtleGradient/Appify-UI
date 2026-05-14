@@ -21,7 +21,7 @@ let package = Package(
             name: "AppifyUI2026",
             dependencies: ["AppifyUI2026Core"],
             swiftSettings: [
-                .swiftLanguageMode(.v6)
+                .swiftLanguageMode(.v5)
             ]
         ),
         .testTarget(

@@ -1,13 +1,14 @@
 import AppKit
 import UniformTypeIdentifiers
 
-@MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var documentControllers: [ObjectIdentifier: DocumentWindowController] = [:]
     private var didReceiveDocumentOpenEvent = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        configureMainMenu()
+        DispatchQueue.main.async { [weak self] in
+            self?.configureMainMenu()
+        }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
             guard let self, !self.didReceiveDocumentOpenEvent else {
@@ -18,11 +19,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        didReceiveDocumentOpenEvent = true
-        for url in urls {
-            openDocument(at: url)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            self.didReceiveDocumentOpenEvent = true
+            for url in urls {
+                self.openDocument(at: url)
+            }
+            NSApp.activate(ignoringOtherApps: true)
         }
-        NSApp.activate(ignoringOtherApps: true)
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
@@ -30,9 +36,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc private func openDocumentFromMenu(_ sender: Any?) {
-        showOpenPanel()
+        DispatchQueue.main.async { [weak self] in
+            self?.showOpenPanel()
+        }
     }
 
+    @MainActor
     private func showOpenPanel() {
         let panel = NSOpenPanel()
         panel.title = "Open Web App"
@@ -54,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @MainActor
     private func openDocument(at url: URL) {
         let controller = DocumentWindowController(documentURL: url)
         let identifier = ObjectIdentifier(controller)
@@ -67,6 +77,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.showAndStart()
     }
 
+    @MainActor
     private func configureMainMenu() {
         let mainMenu = NSMenu()
         NSApp.mainMenu = mainMenu
