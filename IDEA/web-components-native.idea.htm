@@ -1,0 +1,286 @@
+<!doctype html>
+<!--
+IDEA: web components native
+
+This is a proposal note, not an executable document. Keep HTML examples runnable
+through explicit SGML run comments rather than shebangs.
+-->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web Components Native</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        background: Canvas;
+        color: CanvasText;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.55;
+        margin: 0;
+      }
+      main {
+        display: grid;
+        gap: 1.5rem;
+        margin-inline: auto;
+        max-inline-size: 76rem;
+        padding: clamp(1rem, 4vw, 3rem);
+      }
+      section {
+        border: 1px solid color-mix(in oklch, CanvasText 14%, transparent);
+        border-radius: 1rem;
+        display: grid;
+        gap: 0.75rem;
+        padding: 1rem;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 6vw, 4.5rem); letter-spacing: 0; line-height: 0.95; }
+      h2 { font-size: 1.1rem; }
+      h3 { font-size: 1rem; }
+      pre, code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre {
+        background: color-mix(in oklch, CanvasText 8%, Canvas);
+        border-radius: 0.75rem;
+        overflow-x: auto;
+        padding: 1rem;
+        white-space: pre;
+      }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      .lede {
+        color: color-mix(in oklch, CanvasText 68%, transparent);
+        font-size: 1.1rem;
+        max-inline-size: 62rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Web Components Native</h1>
+        <p class="lede">
+          A ludicrously simple native app model: render real SwiftUI components, run JavaScript in a hidden <code>WKWebView</code>, describe the native tree with web components, and connect the two with <code>postMessage</code>. Let SwiftUI do what SwiftUI is good at. Let web technology do what web technology is good at.
+        </p>
+      </header>
+
+      <section aria-labelledby="origin-title">
+        <h2 id="origin-title">Origin</h2>
+        <p>
+          I was one of the original founding engineers on React Native. The project eventually went in a different direction than the one I originally proposed. This is a return to that earlier impulse, with the benefit of modern SwiftUI, modern WebKit, and modern web components.
+        </p>
+        <p>
+          React Native proved that JavaScript can productively drive native applications, but it drifted toward owning layout, rendering, reconciliation, and platform abstraction as if it were a game engine. That is a valid direction for a company that wants to minimize platform dependency. It is not the only direction.
+        </p>
+        <p>
+          This returns to the earlier root: JavaScript as the application brain, native frameworks as the application body. I do not mind being controlled by Apple when building Apple software. The operating system is the product surface. Use it.
+        </p>
+      </section>
+
+      <section aria-labelledby="principles-title">
+        <h2 id="principles-title">Principles</h2>
+        <ul>
+          <li>No React runtime.</li>
+          <li>No Yoga layout engine.</li>
+          <li>No custom renderer pretending to be the platform.</li>
+          <li>No attempt to make iOS, macOS, Android, and web look identical.</li>
+          <li>Use web components as the JavaScript-facing declaration ABI.</li>
+          <li>Use SwiftUI as the rendering, layout, animation, accessibility, focus, menu, and platform integration layer.</li>
+          <li>Use a hidden web view for JavaScript modules, async work, routing, storage, fetch, WebSocket, workers where available, and the broader web ecosystem.</li>
+          <li>Keep the bridge small enough that it can be understood in one sitting.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="architecture-title">
+        <h2 id="architecture-title">Architecture</h2>
+        <pre><code>Native app process
+  SwiftUI visible surface
+    WindowGroup
+    NavigationStack
+    List
+    Button
+    Toggle
+    TextField
+    WebView when real web content is wanted
+
+  Hidden WKWebView JavaScript runtime
+    ES modules
+    customElements
+    DOM tree as native view declaration
+    fetch / WebSocket / IndexedDB / localStorage
+    app state, routing, effects, package ecosystem
+
+  Bridge
+    window.webkit.messageHandlers.native.postMessage(...)
+    evaluateJavaScript(...)
+    small JSON patches
+    native events back to JavaScript</code></pre>
+      </section>
+
+      <section aria-labelledby="component-title">
+        <h2 id="component-title">JavaScript Surface</h2>
+        <p>
+          The application author writes plain HTML-shaped declarations. Custom elements do not render DOM pixels. They describe native SwiftUI views and keep JavaScript ergonomics: attributes, properties, slots, events, and composition.
+        </p>
+        <pre><code>&lt;script type="module"&gt;
+  import "web-components-native/swiftui/define.js"
+
+  document.body.innerHTML = `
+    &lt;native-app&gt;
+      &lt;native-window title="Settings"&gt;
+        &lt;native-vstack spacing="16" padding="20"&gt;
+          &lt;native-text font="title2"&gt;Account&lt;/native-text&gt;
+          &lt;native-text-field
+            id="email"
+            label="Email"
+            value="tom@example.com"&gt;
+          &lt;/native-text-field&gt;
+          &lt;native-toggle id="notifications" checked&gt;
+            Notifications
+          &lt;/native-toggle&gt;
+          &lt;native-button id="save" role="primary"&gt;
+            Save
+          &lt;/native-button&gt;
+        &lt;/native-vstack&gt;
+      &lt;/native-window&gt;
+    &lt;/native-app&gt;
+  `
+
+  document.getElementById("save").addEventListener("native:press", () =&gt; {
+    console.log("save", document.getElementById("email").value)
+  })
+&lt;/script&gt;</code></pre>
+      </section>
+
+      <section aria-labelledby="bridge-title">
+        <h2 id="bridge-title">Bridge Protocol</h2>
+        <p>
+          The hidden web view observes the custom-element tree, diffs it, and sends small patches to Swift. Swift keeps stable native identities and applies the patches to an observable model consumed by SwiftUI.
+        </p>
+        <pre><code>{
+  "type": "wcn.patch",
+  "transaction": 42,
+  "root": "document",
+  "ops": [
+    {
+      "op": "mount",
+      "id": "save",
+      "parent": "settings-stack",
+      "component": "Button",
+      "props": { "role": "primary", "title": "Save" }
+    },
+    {
+      "op": "set",
+      "id": "notifications",
+      "props": { "checked": true }
+    }
+  ]
+}</code></pre>
+        <pre><code>{
+  "type": "wcn.event",
+  "id": "save",
+  "event": "press",
+  "payload": {}
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="native-title">
+        <h2 id="native-title">Native Responsibilities</h2>
+        <ul>
+          <li>Render SwiftUI views from a decoded component tree.</li>
+          <li>Own native view identity, focus, accessibility, selection, keyboard behavior, sheets, menus, and window chrome.</li>
+          <li>Use platform-native controls before inventing custom controls.</li>
+          <li>Send user events, measurements, permission results, and lifecycle notifications back to JavaScript.</li>
+          <li>Expose capabilities explicitly: files, notifications, camera, pasteboard, shell, app menus, windows, and document packages.</li>
+          <li>Allow real visible <code>WKWebView</code> islands when the app actually needs web rendering.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="web-title">
+        <h2 id="web-title">Web Responsibilities</h2>
+        <ul>
+          <li>Own application state that benefits from JavaScript: data loading, syncing, routing, validation, local persistence, AI clients, and protocol glue.</li>
+          <li>Use DOM custom elements as the authoring model and bridge observation surface.</li>
+          <li>Use browser-native APIs where they are better than rebuilding infrastructure in Swift.</li>
+          <li>Keep component definitions as plain ESM, aligned with <code>web-native</code>: no bundler requirement, no framework runtime requirement, no TypeScript source requirement.</li>
+          <li>Make demos openable as plain HTML whenever possible.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="comparison-title">
+        <h2 id="comparison-title">React Native Contrast</h2>
+        <ul>
+          <li>React Native: JavaScript describes a React tree. A custom renderer maps that tree into host views.</li>
+          <li>Web Components Native: JavaScript describes a DOM tree. Custom elements map that tree into SwiftUI views.</li>
+          <li>React Native: cross-platform sameness is a core pressure.</li>
+          <li>Web Components Native: platform fit is the core pressure.</li>
+          <li>React Native: the framework often competes with the platform.</li>
+          <li>Web Components Native: the framework chooses the platform and then gets out of the way.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="first-components-title">
+        <h2 id="first-components-title">First Components</h2>
+        <pre><code>native-app
+native-window
+native-scene
+native-navigation-stack
+native-vstack
+native-hstack
+native-zstack
+native-list
+native-section
+native-text
+native-image
+native-button
+native-toggle
+native-text-field
+native-text-editor
+native-picker
+native-slider
+native-progress
+native-divider
+native-sheet
+native-alert
+native-menu
+native-web-view</code></pre>
+      </section>
+
+      <section aria-labelledby="prototype-title">
+        <h2 id="prototype-title">Prototype Path</h2>
+        <ol>
+          <li>Start macOS-only, inside the existing Appify UI SwiftUI/WebKit lineage.</li>
+          <li>Create a hidden <code>WKWebView</code> runtime with one registered message handler.</li>
+          <li>Load a local HTML document that imports <code>web-components-native/swiftui/define.js</code>.</li>
+          <li>Implement a custom-element observer that serializes the declaration tree into patches.</li>
+          <li>Decode patches into an <code>ObservableObject</code> Swift model.</li>
+          <li>Render a small set of SwiftUI components from that model.</li>
+          <li>Return button, toggle, text-field, lifecycle, and measurement events to JavaScript.</li>
+          <li>Ship one tiny settings-window demo and one document-style app demo.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="non-goals-title">
+        <h2 id="non-goals-title">Non-goals</h2>
+        <ul>
+          <li>Do not clone CSS layout in Swift.</li>
+          <li>Do not chase pixel parity across platforms.</li>
+          <li>Do not replace SwiftUI with a canvas.</li>
+          <li>Do not hide platform conventions behind generic widgets when native controls exist.</li>
+          <li>Do not require npm, bundlers, JSX, React, or a compile step for the simple path.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="open-questions-title">
+        <h2 id="open-questions-title">Open Questions</h2>
+        <ul>
+          <li>How much SwiftUI layout should be exposed directly versus wrapped in simpler custom elements?</li>
+          <li>How should native-only transient state be preserved across JavaScript patches?</li>
+          <li>Should the declaration tree be DOM-first, JSON-first, or dual?</li>
+          <li>How should backpressure work when JavaScript sends patches faster than SwiftUI should animate?</li>
+          <li>What is the smallest capability security model that still feels native and useful?</li>
+          <li>How much of this should become a standalone framework versus staying an Appify UI convention?</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
