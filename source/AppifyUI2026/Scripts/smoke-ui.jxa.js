@@ -3,6 +3,7 @@
 function run(argv) {
   const appPath = argv[0]
   const expectedBundleIdentifier = argv[1]
+  const documentPath = argv[2]
   const app = Application.currentApplication()
   app.includeStandardAdditions = true
 
@@ -30,12 +31,10 @@ function run(argv) {
       delaySeconds(0.2)
     } catch (_) {}
   }
-
-  quitApp()
-
-  try {
-    app.doShellScript(`open -n ${shellQuote(appPath)}`)
-
+  const openApp = extraArguments => {
+    app.doShellScript(`open -n -a ${shellQuote(appPath)}${extraArguments ? ` ${extraArguments}` : ""}`)
+  }
+  const assertLegitProcess = () => {
     const process = waitUntil("Appify UI process did not appear", () => appifyProcess())
     process.frontmost = true
 
@@ -59,10 +58,34 @@ function run(argv) {
       fail("Appify UI has no application menu")
     }
 
+    return process
+  }
+
+  quitApp()
+
+  try {
+    openApp("")
+    let process = assertLegitProcess()
     waitUntil("Appify UI did not present a window or open panel", () => process.windows.length > 0)
-    const windowName = process.windows[0].name()
+    let windowName = process.windows[0].name()
     if (windowName !== "Open Web App") {
       fail(`Expected direct-launch open panel named Open Web App but saw ${windowName}`)
+    }
+    quitApp()
+
+    if (documentPath) {
+      openApp(shellQuote(documentPath))
+      process = assertLegitProcess()
+      waitUntil("Appify UI did not present the document window", () => process.windows.length > 0)
+      windowName = process.windows[0].name()
+      if (windowName !== "Hello") {
+        fail(`Expected Hello document window but saw ${windowName}`)
+      }
+
+      delaySeconds(2)
+      if (appifyProcesses().length < 1) {
+        fail("Appify UI exited while opening Hello.webapp")
+      }
     }
 
     quitApp()

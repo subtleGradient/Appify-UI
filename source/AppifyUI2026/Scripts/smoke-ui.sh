@@ -4,6 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/dist/Appify UI.app"
 EXPECTED_BUNDLE_IDENTIFIER="com.subtlegradient.AppifyUI2026"
+DOCUMENT="$ROOT/Fixtures/Hello.webapp"
 
 if [[ "${APPIFY_SMOKE_SKIP_BUILD:-0}" != "1" ]]; then
   "$ROOT/Scripts/build-app.sh" >/dev/null
@@ -16,4 +17,4 @@ fi
 
 codesign -vvv --deep --strict "$APP" >/dev/null
 
-"$ROOT/Scripts/smoke-ui.jxa.js" "$APP" "$EXPECTED_BUNDLE_IDENTIFIER"
+"$ROOT/Scripts/smoke-ui.jxa.js" "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" "$DOCUMENT"
