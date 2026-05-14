@@ -18,7 +18,7 @@ if (!existsSync(indexPath)) {
   process.exit(66)
 }
 
-console.log(`APPIFY_OPEN_URL=${pathToFileURL(indexPath).href}`)
+console.log(`${path.basename(documentPath)}: ${pathToFileURL(indexPath).href}`)
 
 const stop = () => {
   process.exit(0)

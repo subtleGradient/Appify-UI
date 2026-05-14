@@ -250,10 +250,33 @@ public enum AppifyOpenURL {
 
     public static func extract(from line: String) -> URL? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.hasPrefix(outputPrefix) else {
+        if trimmed.hasPrefix(outputPrefix) {
+            return URL(string: String(trimmed.dropFirst(outputPrefix.count)))
+        }
+
+        return firstURL(in: trimmed)
+    }
+
+    private static func firstURL(in text: String) -> URL? {
+        let schemes = ["http://", "https://", "file://"]
+        let ranges = schemes.compactMap { scheme in
+            text.range(of: scheme, options: [.caseInsensitive])
+        }
+        guard let start = ranges.map(\.lowerBound).min() else {
             return nil
         }
-        return URL(string: String(trimmed.dropFirst(outputPrefix.count)))
+
+        var end = start
+        while end < text.endIndex, !text[end].isWhitespace {
+            text.formIndex(after: &end)
+        }
+
+        var candidate = String(text[start..<end])
+        while let last = candidate.last, "'\"),]}".contains(last) {
+            candidate.removeLast()
+        }
+
+        return URL(string: candidate)
     }
 
     public static func validate(_ url: URL, documentURL: URL) throws -> URL {

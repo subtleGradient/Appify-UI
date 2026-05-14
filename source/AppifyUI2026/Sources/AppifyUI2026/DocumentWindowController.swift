@@ -185,7 +185,7 @@ final class DocumentWindowController: NSWindowController {
         if !didLoadRunnerURL {
             showError(
                 title: "Runner Exited Before Opening",
-                message: "The trusted runner exited with status \(process.terminationStatus) before printing \(AppifyOpenURL.outputPrefix)<url>."
+                message: "The trusted runner exited with status \(process.terminationStatus) before printing a loopback HTTP(S) URL or package-local file:// URL."
             )
         }
     }
@@ -197,7 +197,7 @@ final class DocumentWindowController: NSWindowController {
 
         showError(
             title: "Runner Timed Out",
-            message: "The trusted runner did not print \(AppifyOpenURL.outputPrefix)<url> within 20 seconds."
+            message: "The trusted runner did not print a loopback HTTP(S) URL or package-local file:// URL within 20 seconds."
         )
         stopRunner()
     }
