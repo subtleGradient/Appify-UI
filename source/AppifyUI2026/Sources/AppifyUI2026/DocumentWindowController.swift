@@ -44,7 +44,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        loadStatusPage(title: "Opening \(documentURL.lastPathComponent)", message: "Validating webapp.toml and starting the trusted runner.")
+        loadStatusPage(title: "Opening \(documentURL.lastPathComponent)", message: "Validating webapp.json and starting the trusted runner.")
         startRunner()
     }
 
