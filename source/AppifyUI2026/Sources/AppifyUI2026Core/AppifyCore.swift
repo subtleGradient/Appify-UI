@@ -28,7 +28,7 @@ public struct RunnerManifest: Equatable, Sendable {
 
 public enum AppifyCoreError: Error, Equatable, CustomStringConvertible, Sendable {
     case invalidManifest(String)
-    case parseError(line: Int, String)
+    case parseError(String)
     case untrustedPackage(String)
     case unsafeRunnerToken(String)
     case missingBun(String)
@@ -37,9 +37,9 @@ public enum AppifyCoreError: Error, Equatable, CustomStringConvertible, Sendable
     public var description: String {
         switch self {
         case .invalidManifest(let message):
-            "Invalid webapp.toml: \(message)"
-        case .parseError(let line, let message):
-            "Could not parse webapp.toml line \(line): \(message)"
+            "Invalid webapp.json: \(message)"
+        case .parseError(let message):
+            "Could not parse webapp.json: \(message)"
         case .untrustedPackage(let package):
             "Runner package is not trusted: \(package)"
         case .unsafeRunnerToken(let token):
@@ -53,7 +53,7 @@ public enum AppifyCoreError: Error, Equatable, CustomStringConvertible, Sendable
 }
 
 public enum WebappManifestLoader {
-    public static let manifestFileName = "webapp.toml"
+    public static let manifestFileName = "webapp.json"
 
     public static func load(from documentURL: URL) throws -> WebappManifest {
         let manifestURL = documentURL.appendingPathComponent(manifestFileName, isDirectory: false)
@@ -68,31 +68,37 @@ public enum WebappManifestLoader {
     }
 
     public static func parse(_ source: String) throws -> WebappManifest {
-        let table = try TinyTOML.parse(source)
+        let data = Data(source.utf8)
+        let decoded: DecodedWebappManifest
+        do {
+            decoded = try JSONDecoder().decode(DecodedWebappManifest.self, from: data)
+        } catch {
+            throw AppifyCoreError.parseError(error.localizedDescription)
+        }
 
-        let type = try table.requiredString("type")
+        let type = decoded.type
         guard type == "appify.webapp" else {
             throw AppifyCoreError.invalidManifest("type must be \"appify.webapp\"")
         }
 
-        let version = try table.requiredInt("version")
+        let version = decoded.version
         guard version == 1 else {
             throw AppifyCoreError.invalidManifest("version must be 1")
         }
 
-        let package = try table.requiredString("runner.package")
+        let package = decoded.runner.package
         try validateTrustedPackage(package)
 
-        let bin = try table.requiredString("runner.bin")
+        let bin = decoded.runner.bin
         try validateBinToken(bin)
 
-        let args = try table.optionalStringArray("runner.args") ?? []
+        let args = decoded.runner.args
         try args.forEach(validateArgToken)
 
         return WebappManifest(
             type: type,
             version: version,
-            title: try table.optionalString("title"),
+            title: decoded.title,
             runner: RunnerManifest(package: package, bin: bin, args: args)
         )
     }
@@ -135,6 +141,19 @@ public enum WebappManifestLoader {
             throw AppifyCoreError.unsafeRunnerToken(token)
         }
     }
+}
+
+private struct DecodedWebappManifest: Decodable {
+    var type: String
+    var version: Int
+    var title: String?
+    var runner: DecodedRunnerManifest
+}
+
+private struct DecodedRunnerManifest: Decodable {
+    var package: String
+    var bin: String
+    var args: [String]
 }
 
 public struct RunnerCommand: Equatable, Sendable {
