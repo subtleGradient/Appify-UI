@@ -16,65 +16,77 @@ fi
 
 codesign -vvv --deep --strict "$APP" >/dev/null
 
-osascript - "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" <<'APPLESCRIPT'
-on run argv
-  set appPath to item 1 of argv
-  set expectedBundleIdentifier to item 2 of argv
-  set deadline to (current date) + 8
+osascript -l JavaScript - "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" <<'JXA'
+function run(argv) {
+  const appPath = argv[0]
+  const expectedBundleIdentifier = argv[1]
+  const app = Application.currentApplication()
+  app.includeStandardAdditions = true
 
-  try
-    tell application "Appify UI" to quit
-    delay 0.2
-  end try
+  const systemEvents = Application("System Events")
+  const deadline = Date.now() + 8000
 
-  try
-    do shell script "open -n " & quoted form of appPath
+  const shellQuote = value => `'${String(value).replace(/'/g, "'\\''")}'`
+  const delaySeconds = seconds => delay(seconds)
+  const appifyProcesses = () => systemEvents.processes.whose({ name: "Appify UI" })()
+  const appifyProcess = () => appifyProcesses()[0]
+  const fail = message => {
+    throw new Error(message)
+  }
+  const waitUntil = (message, predicate) => {
+    while (Date.now() <= deadline) {
+      const value = predicate()
+      if (value) return value
+      delaySeconds(0.1)
+    }
+    fail(message)
+  }
+  const quitApp = () => {
+    try {
+      Application("Appify UI").quit()
+      delaySeconds(0.2)
+    } catch (_) {}
+  }
 
-    tell application "System Events"
-      repeat until exists process "Appify UI"
-        if (current date) > deadline then error "Appify UI process did not appear"
-        delay 0.1
-      end repeat
+  quitApp()
 
-      tell process "Appify UI"
-        set frontmost to true
+  try {
+    app.doShellScript(`open -n ${shellQuote(appPath)}`)
 
-        repeat until bundle identifier is expectedBundleIdentifier
-          if (current date) > deadline then error "Appify UI bundle identifier was not visible"
-          delay 0.1
-        end repeat
+    const process = waitUntil("Appify UI process did not appear", () => appifyProcess())
+    process.frontmost = true
 
-        if bundle identifier is not expectedBundleIdentifier then
-          error "Expected bundle identifier " & expectedBundleIdentifier & " but saw " & bundle identifier
-        end if
+    waitUntil("Appify UI bundle identifier was not visible", () => process.bundleIdentifier())
+    const bundleIdentifier = process.bundleIdentifier()
+    if (bundleIdentifier !== expectedBundleIdentifier) {
+      fail(`Expected bundle identifier ${expectedBundleIdentifier} but saw ${bundleIdentifier}`)
+    }
 
-        repeat until frontmost
-          if (current date) > deadline then error "Appify UI process is not frontmost"
-          delay 0.1
-        end repeat
+    waitUntil("Appify UI process is not frontmost", () => process.frontmost())
 
-        if not (exists menu bar 1) then error "Appify UI has no menu bar"
-        if not (exists menu bar item "File" of menu bar 1) then error "Appify UI has no File menu"
-        if not (exists menu bar item "Appify UI" of menu bar 1) then error "Appify UI has no application menu"
+    if (process.menuBars.length < 1) {
+      fail("Appify UI has no menu bar")
+    }
 
-        repeat until (count of windows) > 0
-          if (current date) > deadline then error "Appify UI did not present a window or open panel"
-          delay 0.1
-        end repeat
+    const menuBar = process.menuBars[0]
+    if (menuBar.menuBarItems.whose({ name: "File" })().length < 1) {
+      fail("Appify UI has no File menu")
+    }
+    if (menuBar.menuBarItems.whose({ name: "Appify UI" })().length < 1) {
+      fail("Appify UI has no application menu")
+    }
 
-        if name of window 1 is not "Open Web App" then
-          error "Expected direct-launch open panel named Open Web App but saw " & name of window 1
-        end if
-      end tell
-    end tell
+    waitUntil("Appify UI did not present a window or open panel", () => process.windows.length > 0)
+    const windowName = process.windows[0].name()
+    if (windowName !== "Open Web App") {
+      fail(`Expected direct-launch open panel named Open Web App but saw ${windowName}`)
+    }
 
-    tell application "Appify UI" to quit
-    return "Appify UI smoke ok: " & appPath
-  on error errorMessage number errorNumber
-    try
-      tell application "Appify UI" to quit
-    end try
-    error errorMessage number errorNumber
-  end try
-end run
-APPLESCRIPT
+    quitApp()
+    return `Appify UI smoke ok: ${appPath}`
+  } catch (error) {
+    quitApp()
+    throw error
+  }
+}
+JXA
