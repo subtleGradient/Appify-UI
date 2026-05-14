@@ -4,16 +4,22 @@ import XCTest
 final class AppifyCoreTests: XCTestCase {
     private let validCommit = "e796a9c1f850d5984a6a1b46714b0869527249e9"
 
+    func testManifestFileNameIsJSON() {
+        XCTAssertEqual(WebappManifestLoader.manifestFileName, "webapp.json")
+    }
+
     func testParsesValidWebappManifest() throws {
         let manifest = try WebappManifestLoader.parse("""
-        type = "appify.webapp"
-        version = 1
-        title = "Hello"
-
-        [runner]
-        package = "github:subtleGradient/web-native#\(validCommit)"
-        bin = "web-native-chat"
-        args = ["serve", "--quiet"]
+        {
+          "type": "appify.webapp",
+          "version": 1,
+          "title": "Hello",
+          "runner": {
+            "package": "github:subtleGradient/web-native#\(validCommit)",
+            "bin": "web-native-chat",
+            "args": ["serve", "--quiet"]
+          }
+        }
         """)
 
         XCTAssertEqual(manifest.type, "appify.webapp")
@@ -36,13 +42,15 @@ final class AppifyCoreTests: XCTestCase {
 
         for package in invalidPackages {
             XCTAssertThrowsError(try WebappManifestLoader.parse("""
-            type = "appify.webapp"
-            version = 1
-
-            [runner]
-            package = "\(package)"
-            bin = "web-native-chat"
-            args = []
+            {
+              "type": "appify.webapp",
+              "version": 1,
+              "runner": {
+                "package": "\(package)",
+                "bin": "web-native-chat",
+                "args": []
+              }
+            }
             """), package)
         }
     }
@@ -57,13 +65,15 @@ final class AppifyCoreTests: XCTestCase {
 
         for (bin, arg) in unsafePairs {
             XCTAssertThrowsError(try WebappManifestLoader.parse("""
-            type = "appify.webapp"
-            version = 1
-
-            [runner]
-            package = "github:subtleGradient/web-native#\(validCommit)"
-            bin = "\(bin)"
-            args = ["\(arg)"]
+            {
+              "type": "appify.webapp",
+              "version": 1,
+              "runner": {
+                "package": "github:subtleGradient/web-native#\(validCommit)",
+                "bin": "\(bin)",
+                "args": ["\(arg)"]
+              }
+            }
             """), "\(bin) \(arg)")
         }
     }
@@ -71,28 +81,34 @@ final class AppifyCoreTests: XCTestCase {
     func testRejectsMissingRequiredManifestFields() throws {
         let manifests = [
             """
-            version = 1
-
-            [runner]
-            package = "github:subtleGradient/web-native#\(validCommit)"
-            bin = "web-native-chat"
-            args = []
+            {
+              "version": 1,
+              "runner": {
+                "package": "github:subtleGradient/web-native#\(validCommit)",
+                "bin": "web-native-chat",
+                "args": []
+              }
+            }
             """,
             """
-            type = "appify.webapp"
-
-            [runner]
-            package = "github:subtleGradient/web-native#\(validCommit)"
-            bin = "web-native-chat"
-            args = []
+            {
+              "type": "appify.webapp",
+              "runner": {
+                "package": "github:subtleGradient/web-native#\(validCommit)",
+                "bin": "web-native-chat",
+                "args": []
+              }
+            }
             """,
             """
-            type = "appify.webapp"
-            version = 1
-
-            [runner]
-            bin = "web-native-chat"
-            args = []
+            {
+              "type": "appify.webapp",
+              "version": 1,
+              "runner": {
+                "bin": "web-native-chat",
+                "args": []
+              }
+            }
             """,
         ]
 

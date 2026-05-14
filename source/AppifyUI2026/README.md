@@ -20,4 +20,4 @@ Build the macOS app bundle:
 Scripts/build-app.sh
 ```
 
-The bundle is emitted at `dist/Appify UI.app` and declares `.webapp` as a macOS document package. A `.webapp` folder must contain lowercase `webapp.toml` and a runner package pinned to a full commit SHA under `github:subtleGradient`.
+The bundle is emitted at `dist/Appify UI.app` and declares `.webapp` as a macOS document package. A `.webapp` folder must contain lowercase `webapp.json` and a runner package pinned to a full commit SHA under `github:subtleGradient`.
