@@ -180,6 +180,14 @@ final class AppifyCoreTests: XCTestCase {
         XCTAssertEqual(try AppifyOpenURL.validate(fileURL, documentURL: documentURL), fileURL)
     }
 
+    func testExtractsExistingRunnerURLOutput() throws {
+        let extracted = try XCTUnwrap(AppifyOpenURL.extract(
+            from: "2026-05-landing.canvas: http://127.0.0.1:53572/?t=caf701ffe98c4227b8b7175b9f130e8f"
+        ))
+
+        XCTAssertEqual(extracted.absoluteString, "http://127.0.0.1:53572/?t=caf701ffe98c4227b8b7175b9f130e8f")
+    }
+
     func testRejectsUnsafeRunnerOpenURLs() throws {
         let documentURL = URL(fileURLWithPath: "/tmp/Hello.webapp")
         let rejected = [
