@@ -8,7 +8,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     var onClose: (() -> Void)?
 
     private let documentURL: URL
-    private let webView: WKWebView
+    private var webView: WKWebView?
     private var runnerProcess: Process?
     private var startupTimer: Timer?
     private var stdoutBuffer = ""
@@ -17,7 +17,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
 
     init(documentURL: URL) {
         self.documentURL = documentURL.standardizedFileURL
-        self.webView = WKWebView(frame: .zero)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760),
@@ -27,7 +26,6 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
         )
         window.title = documentURL.deletingPathExtension().lastPathComponent
         window.minSize = NSSize(width: 520, height: 360)
-        window.contentView = webView
 
         super.init(window: window)
         window.delegate = self
@@ -150,7 +148,7 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
             didLoadRunnerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
-            webView.load(URLRequest(url: safeURL))
+            loadWebView(url: safeURL)
         } catch {
             showError(title: "Runner URL Was Rejected", message: String(describing: error))
             stopRunner()
@@ -241,10 +239,66 @@ final class DocumentWindowController: NSWindowController, NSWindowDelegate {
     }
 
     private func loadStatusPage(title: String, message: String) {
-        webView.loadHTMLString(AppifyHTML.statusPage(title: title, message: message), baseURL: nil)
+        showMessage(title: title, message: message, accent: NSColor.systemBlue)
     }
 
     private func showError(title: String, message: String) {
-        webView.loadHTMLString(AppifyHTML.errorPage(title: title, message: message), baseURL: nil)
+        showMessage(title: title, message: message, accent: NSColor.systemRed)
+    }
+
+    private func showMessage(title: String, message: String, accent: NSColor) {
+        webView = nil
+
+        let container = NSView()
+        container.translatesAutoresizingMaskIntoConstraints = false
+
+        let accentBar = NSView()
+        accentBar.wantsLayer = true
+        accentBar.layer?.backgroundColor = accent.cgColor
+        accentBar.translatesAutoresizingMaskIntoConstraints = false
+
+        let titleLabel = NSTextField(labelWithString: title)
+        titleLabel.font = NSFont.systemFont(ofSize: 24, weight: .semibold)
+        titleLabel.lineBreakMode = .byWordWrapping
+        titleLabel.maximumNumberOfLines = 0
+        titleLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let messageLabel = NSTextField(labelWithString: message)
+        messageLabel.font = NSFont.systemFont(ofSize: 14)
+        messageLabel.textColor = NSColor.secondaryLabelColor
+        messageLabel.lineBreakMode = .byWordWrapping
+        messageLabel.maximumNumberOfLines = 0
+        messageLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(views: [titleLabel, messageLabel])
+        stack.orientation = .vertical
+        stack.alignment = .leading
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+
+        container.addSubview(accentBar)
+        container.addSubview(stack)
+
+        NSLayoutConstraint.activate([
+            accentBar.leadingAnchor.constraint(equalTo: container.leadingAnchor, constant: 32),
+            accentBar.topAnchor.constraint(equalTo: stack.topAnchor, constant: 2),
+            accentBar.widthAnchor.constraint(equalToConstant: 4),
+            accentBar.heightAnchor.constraint(equalTo: stack.heightAnchor),
+
+            stack.leadingAnchor.constraint(equalTo: accentBar.trailingAnchor, constant: 20),
+            stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+            stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: 720),
+        ])
+
+        window?.contentView = container
+    }
+
+    private func loadWebView(url: URL) {
+        let webView = WKWebView(frame: window?.contentView?.bounds ?? .zero)
+        webView.autoresizingMask = [.width, .height]
+        self.webView = webView
+        window?.contentView = webView
+        webView.load(URLRequest(url: url))
     }
 }
