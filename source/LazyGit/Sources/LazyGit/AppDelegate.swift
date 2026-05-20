@@ -109,11 +109,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func createPackageIfNeeded(at packageURL: URL) throws {
-        var isDirectory: ObjCBool = false
-        if FileManager.default.fileExists(atPath: packageURL.path, isDirectory: &isDirectory) {
-            guard isDirectory.boolValue else {
-                throw LazyGitCoreError.invalidPackage("\(packageURL.lastPathComponent) already exists and is not a folder.")
-            }
+        if FileManager.default.fileExists(atPath: packageURL.path) {
+            _ = try LazyGitPackage.workingDirectory(forPackage: packageURL)
             return
         }
 

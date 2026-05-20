@@ -248,9 +248,13 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             return
         }
 
-        process.terminate()
         let pid = process.processIdentifier
+        let descendantPIDs = currentDescendantPIDs(rootPID: pid)
+        sendSignal(SIGTERM, toDescendants: descendantPIDs)
+        process.terminate()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            let latestDescendantPIDs = currentDescendantPIDs(rootPID: pid)
+            sendSignal(SIGKILL, toDescendants: uniquePIDs(descendantPIDs + latestDescendantPIDs))
             if process.isRunning {
                 kill(pid, SIGKILL)
             }
@@ -276,10 +280,10 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
         guard let url = navigationAction.request.url else {
-            decisionHandler(.allow)
+            decisionHandler(.cancel)
             return
         }
-        if url.scheme == "about" {
+        if url.absoluteString == "about:blank" {
             decisionHandler(.allow)
             return
         }
@@ -431,6 +435,46 @@ private func randomHex(byteCount: Int) throws -> String {
         throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
     }
     return bytes.map { String(format: "%02x", $0) }.joined()
+}
+
+private func currentDescendantPIDs(rootPID: pid_t) -> [pid_t] {
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/ps")
+    process.arguments = ["-axo", "pid=,ppid="]
+
+    let stdout = Pipe()
+    process.standardOutput = stdout
+    process.standardError = Pipe()
+
+    do {
+        try process.run()
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            return []
+        }
+        let output = String(decoding: data, as: UTF8.self)
+        let entries = ProcessTree.parsePSOutput(output)
+        return ProcessTree.descendantPIDs(rootPID: rootPID, entries: entries)
+    } catch {
+        return []
+    }
+}
+
+private func sendSignal(_ signal: Int32, toDescendants pids: [pid_t]) {
+    for pid in pids {
+        kill(pid, signal)
+    }
+}
+
+private func uniquePIDs(_ pids: [pid_t]) -> [pid_t] {
+    var seen = Set<pid_t>()
+    var result: [pid_t] = []
+    for pid in pids where !seen.contains(pid) {
+        seen.insert(pid)
+        result.append(pid)
+    }
+    return result
 }
 
 private extension String {

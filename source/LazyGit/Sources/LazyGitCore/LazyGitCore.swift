@@ -49,8 +49,23 @@ public enum LazyGitPackage {
 
     public static func workingDirectory(forPackage packageURL: URL) throws -> URL {
         let standardized = packageURL.standardizedFileURL
+        guard standardized.isFileURL else {
+            throw LazyGitCoreError.invalidPackage("Expected a local .\(pathExtension) package.")
+        }
         guard standardized.pathExtension == pathExtension else {
             throw LazyGitCoreError.invalidPackage("Expected a .\(pathExtension) package.")
+        }
+        let values: URLResourceValues
+        do {
+            values = try standardized.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+        } catch {
+            throw LazyGitCoreError.invalidPackage("\(standardized.lastPathComponent) is not a readable package folder.")
+        }
+        guard values.isSymbolicLink != true else {
+            throw LazyGitCoreError.invalidPackage("\(standardized.lastPathComponent) must be a real folder, not a symlink.")
+        }
+        guard values.isDirectory == true else {
+            throw LazyGitCoreError.invalidPackage("\(standardized.lastPathComponent) is not a folder.")
         }
 
         return standardized.deletingLastPathComponent()
@@ -224,10 +239,10 @@ public enum TerminalCommandBuilder {
                     lazygitCommand: lazygitURL.path
                 ),
                 pathPrefixes: unique([
-                    ttydURL.deletingLastPathComponent().path,
-                    lazygitURL.deletingLastPathComponent().path,
                     gitURL.deletingLastPathComponent().path,
                     gitLFSURL.deletingLastPathComponent().path,
+                    lazygitURL.deletingLastPathComponent().path,
+                    ttydURL.deletingLastPathComponent().path,
                 ]),
                 mode: mode
             )
@@ -275,7 +290,14 @@ public enum TerminalURLValidator {
             throw LazyGitCoreError.invalidTerminalURL("Credentials must not be embedded in the URL.")
         }
         let basePath = normalizedBasePath(expectedBasePath)
-        let path = url.path
+        let encodedPath = url.path(percentEncoded: true).lowercased()
+        if encodedPath.contains("%2f") || encodedPath.contains("%5c") {
+            throw LazyGitCoreError.invalidTerminalURL("Encoded path separators are not allowed.")
+        }
+        let path = url.path(percentEncoded: false)
+        if path.contains("\\") || pathComponents(path).contains(where: { $0 == "." || $0 == ".." }) {
+            throw LazyGitCoreError.invalidTerminalURL("Dot segments and backslashes are not allowed in terminal paths.")
+        }
         guard path == basePath || path.hasPrefix(basePath + "/") else {
             throw LazyGitCoreError.invalidTerminalURL("Path must stay under the generated terminal base path.")
         }
@@ -296,6 +318,10 @@ public enum TerminalURLValidator {
         }
         return normalized
     }
+
+    private static func pathComponents(_ path: String) -> [String] {
+        path.split(separator: "/", omittingEmptySubsequences: true).map(String.init)
+    }
 }
 
 public enum TerminalReadyLineDetector {
@@ -310,12 +336,37 @@ public enum RunnerEnvironmentBuilder {
         "BASH_ENV",
         "CDPATH",
         "ENV",
+        "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+        "GIT_ASKPASS",
+        "GIT_CONFIG",
+        "GIT_CONFIG_COUNT",
+        "GIT_CONFIG_GLOBAL",
+        "GIT_CONFIG_NOSYSTEM",
+        "GIT_CONFIG_PARAMETERS",
+        "GIT_DIR",
+        "GIT_EDITOR",
+        "GIT_EXEC_PATH",
+        "GIT_EXTERNAL_DIFF",
+        "GIT_INDEX_FILE",
+        "GIT_OBJECT_DIRECTORY",
+        "GIT_PROXY_COMMAND",
+        "GIT_SEQUENCE_EDITOR",
+        "GIT_SSH",
+        "GIT_SSH_COMMAND",
+        "GIT_TEMPLATE_DIR",
+        "GIT_WORK_TREE",
         "IFS",
+        "LAZYGIT_CONFIG_DIR",
+        "LAZYGIT_CONFIG_FILE",
+        "SSH_ASKPASS",
         "SHELLOPTS",
+        "SUDO_ASKPASS",
         "ZDOTDIR",
     ]
     public static let blockedPrefixes = [
         "DYLD_",
+        "GIT_CONFIG_KEY_",
+        "GIT_CONFIG_VALUE_",
         "LD_",
     ]
 
@@ -346,6 +397,52 @@ public enum RunnerEnvironmentBuilder {
             }
             return !blockedPrefixes.contains { key.hasPrefix($0) }
         }
+    }
+}
+
+public struct ProcessTableEntry: Equatable, Sendable {
+    public var pid: Int32
+    public var parentPID: Int32
+
+    public init(pid: Int32, parentPID: Int32) {
+        self.pid = pid
+        self.parentPID = parentPID
+    }
+}
+
+public enum ProcessTree {
+    public static func parsePSOutput(_ output: String) -> [ProcessTableEntry] {
+        output.split(whereSeparator: \.isNewline).compactMap { line in
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count >= 2,
+                  let pid = Int32(String(fields[0])),
+                  let parentPID = Int32(String(fields[1]))
+            else {
+                return nil
+            }
+            return ProcessTableEntry(pid: pid, parentPID: parentPID)
+        }
+    }
+
+    public static func descendantPIDs(rootPID: Int32, entries: [ProcessTableEntry]) -> [Int32] {
+        var childrenByParent: [Int32: [Int32]] = [:]
+        for entry in entries where entry.pid != rootPID {
+            childrenByParent[entry.parentPID, default: []].append(entry.pid)
+        }
+
+        var visited = Set<Int32>()
+        var result: [Int32] = []
+
+        func collect(_ parentPID: Int32) {
+            for childPID in childrenByParent[parentPID, default: []] where !visited.contains(childPID) {
+                visited.insert(childPID)
+                collect(childPID)
+                result.append(childPID)
+            }
+        }
+
+        collect(rootPID)
+        return result
     }
 }
 
