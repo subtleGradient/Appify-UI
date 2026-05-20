@@ -1,0 +1,9 @@
+{
+  "name": "@subtlegradient/appify-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "appify-ui-webapp-smoke": "./source/AppifyUI2026/Scripts/webapp-smoke-runner.js"
+  }
+}

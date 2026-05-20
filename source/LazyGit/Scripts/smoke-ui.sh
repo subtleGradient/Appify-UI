@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+APP="$ROOT/dist/LazyGit.app"
+EXPECTED_BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
+LOG_DIR="$HOME/Library/Logs/LazyGit"
+DIAGNOSTIC_REPORT_DIR="$HOME/Library/Logs/DiagnosticReports"
+STAMP_FILE="$(mktemp "${TMPDIR:-/tmp}/lazygit-app-smoke.XXXXXX")"
+SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lazygit-app-fixture.XXXXXX")"
+SMOKE_REPO="$SMOKE_ROOT/Sample Folder"
+DOCUMENT="$SMOKE_REPO/sample-folder.lazygit"
+
+cleanup() {
+  rm -f "$STAMP_FILE"
+  rm -rf "$SMOKE_ROOT"
+}
+trap cleanup EXIT
+
+mkdir -p "$DOCUMENT"
+git init -q "$SMOKE_REPO"
+
+if [[ "${LAZYGIT_SMOKE_SKIP_BUILD:-0}" != "1" ]]; then
+  "$ROOT/Scripts/build-app.sh" >/dev/null
+fi
+
+if [[ ! -x "$APP/Contents/MacOS/LazyGit" ]]; then
+  echo "Missing executable app bundle at $APP" >&2
+  exit 1
+fi
+
+codesign -vvv --deep --strict "$APP" >/dev/null
+
+status=0
+"$ROOT/Scripts/smoke-ui.jxa.js" "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" "$DOCUMENT" || status=$?
+
+declare -a new_logs=()
+if [[ -d "$LOG_DIR" ]]; then
+  while IFS= read -r log_path; do
+    new_logs+=("$log_path")
+  done < <(find "$LOG_DIR" -type f -name "*.log" -newer "$STAMP_FILE" -print | sort)
+fi
+
+for log_path in "${new_logs[@]}"; do
+  echo "== LazyGit.app log: $log_path =="
+  sed -n "1,220p" "$log_path"
+done
+
+declare -a new_crash_reports=()
+if [[ -d "$DIAGNOSTIC_REPORT_DIR" ]]; then
+  while IFS= read -r report_path; do
+    new_crash_reports+=("$report_path")
+  done < <(find "$DIAGNOSTIC_REPORT_DIR" -type f -name "LazyGit-*.ips" -newer "$STAMP_FILE" -print | sort)
+fi
+
+if [[ ${#new_crash_reports[@]} -gt 0 ]]; then
+  status=1
+  for report_path in "${new_crash_reports[@]}"; do
+    echo "== LazyGit.app crash report: $report_path =="
+    sed -n "1,180p" "$report_path"
+  done
+fi
+
+exit "$status"
