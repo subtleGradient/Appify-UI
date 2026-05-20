@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tldraw-schema-v1/source/TldrawApp/Runner/schemas/tldraw-canvas.schema.json",
+  "title": "tldraw canvas envelope",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "const": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tldraw-schema-v1/source/TldrawApp/Runner/schemas/tldraw-canvas.schema.json"
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "snapshot": {
+      "type": "object",
+      "properties": {
+        "store": {
+          "type": "object",
+          "additionalProperties": true
+        },
+        "schema": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": ["store", "schema"],
+      "additionalProperties": true
+    }
+  },
+  "required": ["$schema", "revision", "snapshot"],
+  "additionalProperties": false,
+  "$defs": {
+    "sidecarReference": {
+      "type": "object",
+      "properties": {
+        "$sidecar": {
+          "const": true
+        },
+        "path": {
+          "type": "string"
+        },
+        "attrs": true
+      },
+      "required": ["$sidecar", "path"],
+      "additionalProperties": true
+    }
+  }
+}
