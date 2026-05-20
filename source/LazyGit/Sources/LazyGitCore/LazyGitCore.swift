@@ -65,12 +65,20 @@ public enum RunnerMode: Equatable, Sendable {
 public struct RunnerCommand: Equatable, Sendable {
     public var executableURL: URL
     public var arguments: [String]
+    public var redactedArguments: [String]
     public var pathPrefixes: [String]
     public var mode: RunnerMode
 
-    public init(executableURL: URL, arguments: [String], pathPrefixes: [String], mode: RunnerMode) {
+    public init(
+        executableURL: URL,
+        arguments: [String],
+        redactedArguments: [String],
+        pathPrefixes: [String],
+        mode: RunnerMode
+    ) {
         self.executableURL = executableURL
         self.arguments = arguments
+        self.redactedArguments = redactedArguments
         self.pathPrefixes = pathPrefixes
         self.mode = mode
     }
@@ -79,10 +87,12 @@ public struct RunnerCommand: Equatable, Sendable {
 public struct TerminalRunnerRequest: Equatable, Sendable {
     public var workingDirectory: URL
     public var port: Int
+    public var basePath: String
 
-    public init(workingDirectory: URL, port: Int) {
+    public init(workingDirectory: URL, port: Int, basePath: String) {
         self.workingDirectory = workingDirectory.standardizedFileURL
         self.port = port
+        self.basePath = basePath
     }
 }
 
@@ -176,15 +186,24 @@ public enum TerminalCommandBuilder {
     public static func command(mode: RunnerMode, request: TerminalRunnerRequest) -> RunnerCommand {
         switch mode {
         case .nixShell(let nixShellURL):
-            let ttydArguments = ttydArguments(
+            let ttydArgs = ttydArguments(
                 workingDirectory: request.workingDirectory,
                 port: request.port,
+                basePath: request.basePath,
                 lazygitCommand: "lazygit"
             )
-            let runCommand = "exec " + Shell.join(["ttyd"] + ttydArguments)
+            let redactedTTYDArguments = ttydArguments(
+                workingDirectory: request.workingDirectory,
+                port: request.port,
+                basePath: "/<redacted>",
+                lazygitCommand: "lazygit"
+            )
+            let runCommand = "exec " + Shell.join(["ttyd"] + ttydArgs)
+            let redactedRunCommand = "exec " + Shell.join(["ttyd"] + redactedTTYDArguments)
             return RunnerCommand(
                 executableURL: nixShellURL,
                 arguments: ["-p", "ttyd", "lazygit", "git", "git-lfs", "--run", runCommand],
+                redactedArguments: ["-p", "ttyd", "lazygit", "git", "git-lfs", "--run", redactedRunCommand],
                 pathPrefixes: [nixShellURL.deletingLastPathComponent().path],
                 mode: mode
             )
@@ -195,6 +214,13 @@ public enum TerminalCommandBuilder {
                 arguments: ttydArguments(
                     workingDirectory: request.workingDirectory,
                     port: request.port,
+                    basePath: request.basePath,
+                    lazygitCommand: lazygitURL.path
+                ),
+                redactedArguments: ttydArguments(
+                    workingDirectory: request.workingDirectory,
+                    port: request.port,
+                    basePath: "/<redacted>",
                     lazygitCommand: lazygitURL.path
                 ),
                 pathPrefixes: unique([
@@ -211,6 +237,7 @@ public enum TerminalCommandBuilder {
     private static func ttydArguments(
         workingDirectory: URL,
         port: Int,
+        basePath: String,
         lazygitCommand: String
     ) -> [String] {
         [
@@ -218,7 +245,9 @@ public enum TerminalCommandBuilder {
             "--port", String(port),
             "--writable",
             "--check-origin",
+            "--once",
             "--max-clients", "1",
+            "--base-path", basePath,
             "--cwd", workingDirectory.path,
             lazygitCommand,
             "--path", workingDirectory.path,
@@ -227,11 +256,12 @@ public enum TerminalCommandBuilder {
 }
 
 public enum TerminalURLValidator {
-    public static func terminalURL(port: Int) -> URL {
-        URL(string: "http://127.0.0.1:\(port)/")!
+    public static func terminalURL(port: Int, basePath: String) -> URL {
+        let normalized = normalizedBasePath(basePath)
+        return URL(string: "http://127.0.0.1:\(port)\(normalized)/")!
     }
 
-    public static func validate(_ url: URL, expectedPort: Int) throws -> URL {
+    public static func validate(_ url: URL, expectedPort: Int, expectedBasePath: String) throws -> URL {
         guard url.scheme?.lowercased() == "http" else {
             throw LazyGitCoreError.invalidTerminalURL("Only the generated http://127.0.0.1 terminal origin is allowed.")
         }
@@ -244,11 +274,27 @@ public enum TerminalURLValidator {
         if url.user != nil || url.password != nil {
             throw LazyGitCoreError.invalidTerminalURL("Credentials must not be embedded in the URL.")
         }
+        let basePath = normalizedBasePath(expectedBasePath)
+        let path = url.path
+        guard path == basePath || path.hasPrefix(basePath + "/") else {
+            throw LazyGitCoreError.invalidTerminalURL("Path must stay under the generated terminal base path.")
+        }
         return url
     }
 
-    public static func isAllowed(_ url: URL, expectedPort: Int) -> Bool {
-        (try? validate(url, expectedPort: expectedPort)) != nil
+    public static func isAllowed(_ url: URL, expectedPort: Int, expectedBasePath: String) -> Bool {
+        (try? validate(url, expectedPort: expectedPort, expectedBasePath: expectedBasePath)) != nil
+    }
+
+    private static func normalizedBasePath(_ basePath: String) -> String {
+        var normalized = basePath
+        if !normalized.hasPrefix("/") {
+            normalized = "/" + normalized
+        }
+        while normalized.count > 1, normalized.hasSuffix("/") {
+            normalized.removeLast()
+        }
+        return normalized
     }
 }
 
@@ -256,6 +302,50 @@ public enum TerminalReadyLineDetector {
     public static func isReadyLine(_ line: String, port: Int) -> Bool {
         let lowercased = line.lowercased()
         return lowercased.contains("listening") && lowercased.contains(String(port))
+    }
+}
+
+public enum RunnerEnvironmentBuilder {
+    public static let blockedExactKeys: Set<String> = [
+        "BASH_ENV",
+        "CDPATH",
+        "ENV",
+        "IFS",
+        "SHELLOPTS",
+        "ZDOTDIR",
+    ]
+    public static let blockedPrefixes = [
+        "DYLD_",
+        "LD_",
+    ]
+
+    public static func build(
+        base: [String: String],
+        pathPrefixes: [String],
+        additional: [String: String]
+    ) -> [String: String] {
+        var environment = sanitized(base)
+        for (key, value) in additional {
+            environment[key] = value
+        }
+
+        let prefix = pathPrefixes.filter { !$0.isEmpty }.joined(separator: ":")
+        guard !prefix.isEmpty else {
+            return environment
+        }
+
+        let currentPath = environment["PATH", default: ""]
+        environment["PATH"] = currentPath.isEmpty ? prefix : "\(prefix):\(currentPath)"
+        return environment
+    }
+
+    public static func sanitized(_ environment: [String: String]) -> [String: String] {
+        environment.filter { key, _ in
+            if blockedExactKeys.contains(key) {
+                return false
+            }
+            return !blockedPrefixes.contains { key.hasPrefix($0) }
+        }
     }
 }
 

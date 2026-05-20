@@ -8,7 +8,7 @@ function run(argv) {
   app.includeStandardAdditions = true
 
   const systemEvents = Application("System Events")
-  const deadline = Date.now() + 8000
+  const deadline = Date.now() + 20000
 
   const shellQuote = value => `'${String(value).replace(/'/g, "'\\''")}'`
   const delaySeconds = seconds => delay(seconds)
@@ -46,17 +46,10 @@ function run(argv) {
 
     waitUntil("LazyGit process is not frontmost", () => process.frontmost())
 
-    if (process.menuBars.length < 1) {
-      fail("LazyGit has no menu bar")
-    }
-
+    waitUntil("LazyGit has no menu bar", () => process.menuBars.length >= 1)
     const menuBar = process.menuBars[0]
-    if (menuBar.menuBarItems.whose({ name: "File" })().length < 1) {
-      fail("LazyGit has no File menu")
-    }
-    if (menuBar.menuBarItems.whose({ name: "LazyGit" })().length < 1) {
-      fail("LazyGit has no application menu")
-    }
+    waitUntil("LazyGit has no File menu", () => menuBar.menuBarItems.whose({ name: "File" })().length >= 1)
+    waitUntil("LazyGit has no application menu", () => menuBar.menuBarItems.whose({ name: "LazyGit" })().length >= 1)
 
     return process
   }

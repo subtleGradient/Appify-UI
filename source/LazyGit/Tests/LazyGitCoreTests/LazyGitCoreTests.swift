@@ -71,7 +71,8 @@ final class LazyGitCoreTests: XCTestCase {
             mode: .nixShell(nixShellURL: URL(fileURLWithPath: "/nix/bin/nix-shell")),
             request: TerminalRunnerRequest(
                 workingDirectory: URL(fileURLWithPath: "/tmp/My Repo"),
-                port: 49152
+                port: 49152,
+                basePath: "/lazygit-secret"
             )
         )
 
@@ -79,7 +80,11 @@ final class LazyGitCoreTests: XCTestCase {
         XCTAssertEqual(command.arguments.prefix(6), ["-p", "ttyd", "lazygit", "git", "git-lfs", "--run"])
         XCTAssertEqual(
             command.arguments.last,
-            "exec ttyd --interface 127.0.0.1 --port 49152 --writable --check-origin --max-clients 1 --cwd '/tmp/My Repo' lazygit --path '/tmp/My Repo'"
+            "exec ttyd --interface 127.0.0.1 --port 49152 --writable --check-origin --once --max-clients 1 --base-path /lazygit-secret --cwd '/tmp/My Repo' lazygit --path '/tmp/My Repo'"
+        )
+        XCTAssertEqual(
+            command.redactedArguments.last,
+            "exec ttyd --interface 127.0.0.1 --port 49152 --writable --check-origin --once --max-clients 1 --base-path '/<redacted>' --cwd '/tmp/My Repo' lazygit --path '/tmp/My Repo'"
         )
     }
 
@@ -93,7 +98,8 @@ final class LazyGitCoreTests: XCTestCase {
             ),
             request: TerminalRunnerRequest(
                 workingDirectory: URL(fileURLWithPath: "/tmp/My Repo"),
-                port: 49152
+                port: 49152,
+                basePath: "/lazygit-secret"
             )
         )
 
@@ -103,28 +109,59 @@ final class LazyGitCoreTests: XCTestCase {
             "--port", "49152",
             "--writable",
             "--check-origin",
+            "--once",
             "--max-clients", "1",
+            "--base-path", "/lazygit-secret",
             "--cwd", "/tmp/My Repo",
             "/tools/lazygit",
             "--path", "/tmp/My Repo",
         ])
+        XCTAssertEqual(Array(command.redactedArguments[9...10]), ["--base-path", "/<redacted>"])
         XCTAssertEqual(command.pathPrefixes, ["/tools", "/usr/bin", "/lfs/bin"])
     }
 
+    func testRunnerEnvironmentSanitizesShellAndLoaderHooks() {
+        let environment = RunnerEnvironmentBuilder.build(
+            base: [
+                "PATH": "/usr/local/bin",
+                "HOME": "/Users/test",
+                "BASH_ENV": "/tmp/payload",
+                "ENV": "/tmp/env",
+                "DYLD_INSERT_LIBRARIES": "/tmp/lib.dylib",
+                "LD_PRELOAD": "/tmp/lib.so",
+            ],
+            pathPrefixes: ["/tools/bin"],
+            additional: ["LAZYGIT_APP_PACKAGE": "/tmp/repo/repo.lazygit"]
+        )
+
+        XCTAssertEqual(environment["PATH"], "/tools/bin:/usr/local/bin")
+        XCTAssertEqual(environment["HOME"], "/Users/test")
+        XCTAssertEqual(environment["LAZYGIT_APP_PACKAGE"], "/tmp/repo/repo.lazygit")
+        XCTAssertNil(environment["BASH_ENV"])
+        XCTAssertNil(environment["ENV"])
+        XCTAssertNil(environment["DYLD_INSERT_LIBRARIES"])
+        XCTAssertNil(environment["LD_PRELOAD"])
+    }
+
     func testTerminalURLValidation() throws {
-        let allowed = URL(string: "http://127.0.0.1:49152/path")!
-        XCTAssertEqual(try TerminalURLValidator.validate(allowed, expectedPort: 49152), allowed)
+        let terminalURL = TerminalURLValidator.terminalURL(port: 49152, basePath: "/lazygit-secret")
+        XCTAssertEqual(terminalURL.absoluteString, "http://127.0.0.1:49152/lazygit-secret/")
+
+        let allowed = URL(string: "http://127.0.0.1:49152/lazygit-secret/path")!
+        XCTAssertEqual(try TerminalURLValidator.validate(allowed, expectedPort: 49152, expectedBasePath: "/lazygit-secret"), allowed)
 
         let rejected = [
-            URL(string: "https://127.0.0.1:49152/")!,
-            URL(string: "http://localhost:49152/")!,
-            URL(string: "http://127.0.0.1:49153/")!,
-            URL(string: "http://example.com:49152/")!,
-            URL(string: "http://user:pass@127.0.0.1:49152/")!,
+            URL(string: "https://127.0.0.1:49152/lazygit-secret/")!,
+            URL(string: "http://localhost:49152/lazygit-secret/")!,
+            URL(string: "http://127.0.0.1:49153/lazygit-secret/")!,
+            URL(string: "http://example.com:49152/lazygit-secret/")!,
+            URL(string: "http://user:pass@127.0.0.1:49152/lazygit-secret/")!,
+            URL(string: "http://127.0.0.1:49152/")!,
+            URL(string: "http://127.0.0.1:49152/lazygit-secret-suffix/")!,
         ]
 
         for url in rejected {
-            XCTAssertThrowsError(try TerminalURLValidator.validate(url, expectedPort: 49152), url.absoluteString)
+            XCTAssertThrowsError(try TerminalURLValidator.validate(url, expectedPort: 49152, expectedBasePath: "/lazygit-secret"), url.absoluteString)
         }
     }
 

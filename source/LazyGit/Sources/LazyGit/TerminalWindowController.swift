@@ -1,6 +1,7 @@
 import AppKit
 import Darwin
 import LazyGitCore
+import Security
 import WebKit
 
 final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
@@ -19,6 +20,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
     private var logHandle: FileHandle?
     private var terminalURL: URL?
     private var expectedPort: Int?
+    private var terminalBasePath: String?
 
     init(packageURL: URL) {
         self.packageURL = packageURL.standardizedFileURL
@@ -78,21 +80,24 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         do {
             let workingDirectory = try LazyGitPackage.workingDirectory(forPackage: packageURL)
             let port = try allocateLoopbackPort()
+            let basePath = try makeTerminalBasePath()
             let mode = try TerminalToolResolver().resolve()
             let request = TerminalRunnerRequest(
                 workingDirectory: workingDirectory,
-                port: port
+                port: port,
+                basePath: basePath
             )
             let command = TerminalCommandBuilder.command(mode: mode, request: request)
-            let url = TerminalURLValidator.terminalURL(port: port)
+            let url = TerminalURLValidator.terminalURL(port: port, basePath: basePath)
 
             self.expectedPort = port
+            self.terminalBasePath = basePath
             self.terminalURL = url
 
             try openLog()
             writeLog("LazyGit.app opening \(packageURL.path)\n")
             writeLog("Working directory: \(workingDirectory.path)\n")
-            writeLog("Runner: \(command.executableURL.path) \(command.arguments.joined(separator: " "))\n")
+            writeLog("Runner: \(command.executableURL.path) \(command.redactedArguments.joined(separator: " "))\n")
 
             let stdout = Pipe()
             let stderr = Pipe()
@@ -144,24 +149,21 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
     }
 
     private func runnerEnvironment(command: RunnerCommand) -> [String: String] {
-        var environment = ProcessInfo.processInfo.environment
-        environment["LAZYGIT_APP_PACKAGE"] = packageURL.path
+        var additional = ["LAZYGIT_APP_PACKAGE": packageURL.path]
         if let workingDirectory {
-            environment["LAZYGIT_APP_WORKDIR"] = workingDirectory.path
+            additional["LAZYGIT_APP_WORKDIR"] = workingDirectory.path
         }
 
-        let currentPath = environment["PATH", default: ""]
-        let prefix = command.pathPrefixes.joined(separator: ":")
-        if prefix.isEmpty {
-            return environment
-        }
-        environment["PATH"] = currentPath.isEmpty ? prefix : "\(prefix):\(currentPath)"
-        return environment
+        return RunnerEnvironmentBuilder.build(
+            base: ProcessInfo.processInfo.environment,
+            pathPrefixes: command.pathPrefixes,
+            additional: additional
+        )
     }
 
     private func handleProcessOutput(_ data: Data, isStdout: Bool) {
         let text = String(decoding: data, as: UTF8.self)
-        writeLog(text)
+        writeLog(redactForLog(text))
 
         if isStdout {
             stdoutBuffer.append(text)
@@ -281,7 +283,10 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             decisionHandler(.allow)
             return
         }
-        guard let expectedPort, TerminalURLValidator.isAllowed(url, expectedPort: expectedPort) else {
+        guard let expectedPort,
+              let terminalBasePath,
+              TerminalURLValidator.isAllowed(url, expectedPort: expectedPort, expectedBasePath: terminalBasePath)
+        else {
             decisionHandler(.cancel)
             return
         }
@@ -307,6 +312,13 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             return
         }
         logHandle?.write(data)
+    }
+
+    private func redactForLog(_ text: String) -> String {
+        guard let terminalBasePath else {
+            return text
+        }
+        return text.replacingOccurrences(of: terminalBasePath, with: "/<redacted>")
     }
 
     private func closeLog() {
@@ -406,6 +418,19 @@ private func allocateLoopbackPort() throws -> Int {
     }
 
     return Int(UInt16(bigEndian: address.sin_port))
+}
+
+private func makeTerminalBasePath() throws -> String {
+    "/lazygit-\(try randomHex(byteCount: 18))"
+}
+
+private func randomHex(byteCount: Int) throws -> String {
+    var bytes = [UInt8](repeating: 0, count: byteCount)
+    let status = SecRandomCopyBytes(kSecRandomDefault, bytes.count, &bytes)
+    guard status == errSecSuccess else {
+        throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+    }
+    return bytes.map { String(format: "%02x", $0) }.joined()
 }
 
 private extension String {
