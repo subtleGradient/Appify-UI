@@ -95,24 +95,23 @@ something boring and established.
 
 ## No pull requests
 
-I do not accept pull requests for this repo.
+I do not accept pull requests for this repo anymore.
 
-Not because patches are bad. Because a PR button tells a well-meaning person a
-tiny social lie: maybe if this is good enough, Tom will review it, secure it,
-merge it, and carry the maintenance weight afterward.
+Patches are good, generally. But for toy software like this, a PR button makes me feel like I'm promising to review, secure,
+merge, and maintain stuff forever.
 
-I cannot honestly promise that. The 2026 AI threat model is too large, I do not
+i WANT to promise that, but the 2026 AI threat model is too large, I do not
 have the attention to guarantee security review, and I am too much of a
-perfectionist to pretend otherwise. So the mechanism has to match the truth.
+perfectionist to pretend otherwise. So I disabled PRs to avoid lying that I'm going to maintain this like a real OSS project. It's not "real" it's just a silly goofy toy that just happens to be SUPER useful for me
 
 Fork it. Change anything. Ship your version. Brag. Show me what you made. I may
-copy good ideas someday.
+copy your ideas someday.
 
-Do not wait for me.
+Do not wait for me
 
-Issues are still welcome. Bugs, praise, feedback, ideas, random chatter,
+Issues are still welcome !! Bugs, praise, feedback, ideas, random chatter,
 screenshots, "look what I made" notes: yes. Please. I am desperate to see other
-cool kids do cool stuff with this kind of thing. An issue does not imply a
+kool kids do cool stuff with stuff like this. An issue does not imply a
 response, fix, roadmap slot, support obligation, or security review. It just
 keeps the hallway open without pretending there is a merge queue behind it.
 
