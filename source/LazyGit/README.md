@@ -20,3 +20,5 @@ Scripts/package-release.sh 0.1.0
 ```
 
 The release script signs with Developer ID hardened runtime, submits the app zip for Apple notarization, staples the ticket, validates with `spctl`, and emits `dist/release/LazyGit.app.zip`. It intentionally fails if Developer ID signing or notarization credentials are not available.
+
+For this project, double-click `Scripts/sign-and-notarize.command` to run the signed/notarized release flow. It uses Apple ID `eng.aop@gmail.com`, Team ID `343ZZ763EA`, and stores/uses the `subtlegradient-notary` notarization profile.
