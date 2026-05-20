@@ -41,6 +41,19 @@ and eventually native UI described from web-shaped code.
 
 ## Questions before you use it
 
+**Is this serious software or a toy?**
+
+Both, but not in the confusing way.
+
+This is serious software for me. I have used some version of this all day every
+day for about 15 years. The serious part is that the idea has survived contact
+with real work.
+
+It is also intentionally whimsical, weird, and toy-like in public posture. The
+toy part means proof-of-concept, show-and-tell, no implied support contract, no
+merge promise, and no security guarantee. The point is to show off what is
+working for me in the hope that something like it might work for you too.
+
 **Should I rely on this for important stuff?**
 
 Only if "rely" means you have inspected the code path you care about and are
@@ -79,6 +92,29 @@ CLI reading and changing your repo.
 If you need a polished consumer app, a cross-platform runtime, an updater,
 a marketplace, a support contract, or an enterprise security story, use
 something boring and established.
+
+## No pull requests
+
+I do not accept pull requests for this repo.
+
+Not because patches are bad. Because a PR button tells a well-meaning person a
+tiny social lie: maybe if this is good enough, Tom will review it, secure it,
+merge it, and carry the maintenance weight afterward.
+
+I cannot honestly promise that. The 2026 AI threat model is too large, I do not
+have the attention to guarantee security review, and I am too much of a
+perfectionist to pretend otherwise. So the mechanism has to match the truth.
+
+Fork it. Change anything. Ship your version. Brag. Show me what you made. I may
+copy good ideas someday.
+
+Do not wait for me.
+
+Issues are still welcome. Bugs, praise, feedback, ideas, random chatter,
+screenshots, "look what I made" notes: yes. Please. I am desperate to see other
+cool kids do cool stuff with this kind of thing. An issue does not imply a
+response, fix, roadmap slot, support obligation, or security review. It just
+keeps the hallway open without pretending there is a merge queue behind it.
 
 ## AppifyUI2026
 

@@ -1,0 +1,38 @@
+name: Feedback, ideas, chatter, and show-and-tell
+description: Praise, ideas, screenshots, forks, weird notes, cool experiments, or loose thoughts.
+title: "Note: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Yes, this is welcome.
+
+        Praise, ideas, feedback, random chatter, screenshots, forks, "look what I made" notes: put them here. This is the warm social surface. It is not a merge queue.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of note is this?
+      options:
+        - I made something cool
+        - Idea
+        - Feedback
+        - Praise
+        - Question or chatter
+        - Weird observation
+    validations:
+      required: true
+  - type: textarea
+    id: note
+    attributes:
+      label: Tell me
+      description: Links, screenshots, repo forks, half-formed thoughts, and enthusiastic rambling are all fine.
+      placeholder: I forked this and made...
+    validations:
+      required: true
+  - type: checkboxes
+    id: no_contract
+    attributes:
+      label: Maintainer boundary
+      options:
+        - label: I understand this issue is welcome, but it does not imply a response, fix, roadmap, support, merge, or security-review obligation.
+          required: true

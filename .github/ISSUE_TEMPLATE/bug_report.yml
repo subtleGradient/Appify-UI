@@ -1,0 +1,76 @@
+name: Bug report
+description: Something broke, crashed, surprised you, or did not behave like the README says.
+title: "Bug: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting it.
+
+        Bugs are welcome here. A bug report does not imply a response, fix, release, support obligation, or security review, but real breakage is useful signal.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of the project were you using?
+      options:
+        - AppifyUI2026
+        - LazyGit
+        - Old Appify UI app bundle
+        - README or docs
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version, tag, or commit
+      description: Use a tag like lazygit-v0.1.0, a commit SHA, or "current master".
+      placeholder: lazygit-v0.1.0
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: macOS 15.5
+    validations:
+      required: false
+  - type: textarea
+    id: steps
+    attributes:
+      label: What did you do?
+      description: Please include exact steps, commands, files opened, or the package/app you double-clicked.
+      placeholder: |
+        1. Built ...
+        2. Opened ...
+        3. Saw ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: What actually happened?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs, screenshots, crash reports, or notes
+      description: Paste anything useful. Appify UI logs usually live under ~/Library/Logs/Appify-UI and LazyGit logs under ~/Library/Logs/LazyGit.
+      render: text
+    validations:
+      required: false
+  - type: checkboxes
+    id: no_contract
+    attributes:
+      label: Maintainer boundary
+      options:
+        - label: I understand this report does not create a response, fix, roadmap, support, merge, or security-review obligation.
+          required: true
