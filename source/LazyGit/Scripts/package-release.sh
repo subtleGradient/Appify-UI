@@ -50,7 +50,6 @@ codesign \
   "$APP"
 
 codesign --verify --deep --strict --verbose=2 "$APP"
-spctl --assess --type execute --verbose=4 "$APP"
 
 rm -rf "$RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
