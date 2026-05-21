@@ -14,6 +14,9 @@ interface AppProps {
 const SAVE_DEBOUNCE_MS = 250;
 const UPSTREAM_USER_DATA_KEY = "TLDRAW_USER_DATA_v3";
 const isTestEnv = process.env.NODE_ENV === "test";
+const SNAPSHOT_DEBOUNCE_MS = isTestEnv ? 50 : 4000;
+const MIN_SNAPSHOT_WRITE_INTERVAL_MS = isTestEnv ? 100 : 30000;
+const SNAPSHOT_API_PATH = "/api/snapshot";
 const REMOTE_SYNC_POLL_MS = isTestEnv ? 250 : 1200;
 
 function hasCompatiblePersistedUserPreferences(value: unknown) {
@@ -123,6 +126,15 @@ function getCanvasApiUrl() {
   return new URL(CANVAS_API_PATH, locationHref).toString();
 }
 
+function getSnapshotApiUrl() {
+  const locationHref =
+    typeof window === "undefined" || !window.location?.href
+      ? "http://localhost"
+      : window.location.href;
+
+  return new URL(SNAPSHOT_API_PATH, locationHref).toString();
+}
+
 function isEditableKeyboardTarget(target: EventTarget | null) {
   if (!(target instanceof Element)) {
     return false;
@@ -150,6 +162,11 @@ export function App({ onMount }: AppProps) {
   const syncedSnapshotKeyRef = useRef<string | null>(null);
   const pendingSnapshotRef = useRef<TLStoreSnapshot | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const queueSnapshotPreviewRef = useRef<() => void>(() => {});
+  const lastSnapshotWriteAtRef = useRef(0);
+  const isSnapshottingRef = useRef(false);
+  const hasPendingSnapshotRef = useRef(false);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const editorRef = useRef<Editor | null>(null);
   const didZoomToInitialContentRef = useRef(false);
@@ -266,6 +283,97 @@ export function App({ onMount }: AppProps) {
     }
   }, [fetchCanvasState, store, zoomToInitialContent]);
 
+  const writeSnapshotPreview = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor || isUnmountedRef.current) {
+      return;
+    }
+
+    const shapeIds = [...editor.getCurrentPageShapeIds()];
+    if (shapeIds.length === 0) {
+      return;
+    }
+
+    isSnapshottingRef.current = true;
+
+    try {
+      const result = await editor.toImage(shapeIds, {
+        format: "png",
+        background: true,
+        pixelRatio: 1,
+      });
+
+      if (!result || isUnmountedRef.current) {
+        return;
+      }
+
+      const response = await fetch(getSnapshotApiUrl(), {
+        method: "PUT",
+        headers: {
+          "Content-Type": result.blob.type || "image/png",
+        },
+        body: result.blob,
+      });
+
+      if (response.ok) {
+        lastSnapshotWriteAtRef.current = Date.now();
+      }
+    } catch (error) {
+      if (!isTestEnv) {
+        console.error("Failed to write canvas snapshot", error);
+      }
+    } finally {
+      isSnapshottingRef.current = false;
+      if (hasPendingSnapshotRef.current && !isUnmountedRef.current) {
+        hasPendingSnapshotRef.current = false;
+        queueSnapshotPreviewRef.current();
+      }
+    }
+  }, []);
+
+  const queueSnapshotPreview = useCallback(() => {
+    if (isUnmountedRef.current) {
+      return;
+    }
+
+    if (snapshotTimerRef.current !== null) {
+      clearTimeout(snapshotTimerRef.current);
+    }
+
+    const elapsedSinceLastSnapshot = Date.now() - lastSnapshotWriteAtRef.current;
+    const delay = Math.max(
+      SNAPSHOT_DEBOUNCE_MS,
+      MIN_SNAPSHOT_WRITE_INTERVAL_MS - elapsedSinceLastSnapshot,
+    );
+
+    snapshotTimerRef.current = setTimeout(() => {
+      snapshotTimerRef.current = null;
+
+      if (isSnapshottingRef.current) {
+        hasPendingSnapshotRef.current = true;
+        return;
+      }
+
+      void writeSnapshotPreview();
+    }, delay);
+  }, [writeSnapshotPreview]);
+  queueSnapshotPreviewRef.current = queueSnapshotPreview;
+
+  const ensureSnapshotPreview = useCallback(async () => {
+    try {
+      const response = await fetch(getSnapshotApiUrl(), {
+        method: "HEAD",
+        cache: "no-store",
+      });
+
+      if (response.status === 404) {
+        queueSnapshotPreview();
+      }
+    } catch {
+      queueSnapshotPreview();
+    }
+  }, [queueSnapshotPreview]);
+
   const persistCanvas = useCallback(
     async (snapshot: TLStoreSnapshot, revision: number) => {
       pendingSnapshotRef.current = snapshot;
@@ -322,6 +430,8 @@ export function App({ onMount }: AppProps) {
           ) {
             pendingSnapshotRef.current = null;
           }
+
+          queueSnapshotPreview();
         }
       } catch (error) {
         if (!isTestEnv) {
@@ -331,7 +441,7 @@ export function App({ onMount }: AppProps) {
         isPersistingRef.current = false;
       }
     },
-    [syncFromServer, store],
+    [queueSnapshotPreview, syncFromServer, store],
   );
 
   const queuePersist = useCallback(() => {
@@ -380,6 +490,7 @@ export function App({ onMount }: AppProps) {
         loadSnapshot(store, nextSnapshot);
       });
       zoomToInitialContent();
+      void ensureSnapshotPreview();
     };
 
     void loadInitialState();
@@ -387,7 +498,7 @@ export function App({ onMount }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [fetchCanvasState, store, zoomToInitialContent]);
+  }, [ensureSnapshotPreview, fetchCanvasState, store, zoomToInitialContent]);
 
   useEffect(() => {
     const unsubscribe = store.listen(() => {
@@ -438,6 +549,9 @@ export function App({ onMount }: AppProps) {
       }
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
+      }
+      if (snapshotTimerRef.current) {
+        clearTimeout(snapshotTimerRef.current);
       }
     };
   }, [syncFromServer]);

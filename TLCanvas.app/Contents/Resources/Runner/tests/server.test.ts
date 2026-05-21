@@ -221,6 +221,51 @@ test("server initializes a starter canvas.json5 with a CDN schema link", async (
   }
 });
 
+test("server creates portable README metadata", async () => {
+  const { process } = await startServer();
+
+  try {
+    const readme = await Bun.file(join(documentPath, "README.md")).text();
+
+    expect(readme).toContain(`# ${documentPath.split("/").at(-1)}`);
+    expect(readme).toContain("![TLCanvas snapshot](snapshot.png)");
+    expect(readme).toContain("canvas.json5");
+    expect(readme).toContain("records/");
+    expect(readme).toContain("Double-click this package with TLCanvas.app installed.");
+  } finally {
+    await stopServer(process);
+  }
+});
+
+test("server stores portable snapshot images", async () => {
+  const { process, url } = await startServer();
+  const snapshotUrl = new URL("/api/snapshot", url).toString();
+  const pngSignature = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+  const snapshotBytes = new Uint8Array([...pngSignature, 0x00, 0x00, 0x00, 0x00]);
+
+  try {
+    expect((await fetch(snapshotUrl, { method: "HEAD" })).status).toBe(404);
+
+    const putResponse = await fetch(snapshotUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "image/png",
+      },
+      body: snapshotBytes,
+    });
+    expect(putResponse.status).toBe(204);
+    expect((await fetch(snapshotUrl, { method: "HEAD" })).status).toBe(204);
+
+    const getResponse = await fetch(snapshotUrl);
+    expect(getResponse.status).toBe(200);
+    expect(getResponse.headers.get("Content-Type")).toBe("image/png");
+    expect(Array.from(new Uint8Array(await getResponse.arrayBuffer()))).toEqual(Array.from(snapshotBytes));
+    expect(Array.from(await Bun.file(join(documentPath, "snapshot.png")).bytes())).toEqual(Array.from(snapshotBytes));
+  } finally {
+    await stopServer(process);
+  }
+});
+
 test("server enforces revision checks and persists JSON5", async () => {
   const { process, url } = await startServer();
 
@@ -327,7 +372,7 @@ test("server emits oversized media as record sidecars and reconstructs them", as
     expect(putResponse.status).toBe(200);
 
     const entries = await readdir(documentPath);
-    expect(entries.sort()).toEqual([CANVAS_FILE_NAME, "records"].sort());
+    expect(entries.sort()).toEqual([CANVAS_FILE_NAME, "README.md", "records"].sort());
     expect(await Bun.file(join(documentPath, mediaSidecarPath)).exists()).toBe(true);
     const persistedText = await Bun.file(join(documentPath, CANVAS_FILE_NAME)).text();
     expect(persistedText).not.toContain(oversizedDataUrl);

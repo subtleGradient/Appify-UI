@@ -3,7 +3,7 @@ import { createTLStore, toRichText } from "tldraw";
 import { mkdir, rename } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
-import { dirname, extname, join, relative, resolve } from "node:path";
+import { basename, dirname, extname, join, relative, resolve } from "node:path";
 import index from "./index.html";
 import {
   type CanvasStatePayload,
@@ -18,6 +18,11 @@ import { createStarterCanvasState } from "./starterCanvas";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const MAX_INLINE_PERSISTED_VALUE_LENGTH = 100_000;
+const MAX_SNAPSHOT_IMAGE_BYTES = 15_000_000;
+const README_FILE_NAME = "README.md";
+const SNAPSHOT_FILE_NAME = "snapshot.png";
+const SNAPSHOT_API_PATH = "/api/snapshot";
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const canvasReadErrorTracker = createCanvasReadErrorTracker();
 
 type PersistedSidecarReference = {
@@ -246,6 +251,38 @@ function createInitialCanvasState(): CanvasStatePayload {
   return createStarterCanvasState();
 }
 
+function createPortableReadme(documentPath: string): string {
+  const documentName = basename(documentPath);
+
+  return `# ${documentName}
+
+![TLCanvas snapshot](snapshot.png)
+
+This is a TLCanvas document package. It is a folder that macOS shows as a single document.
+
+## Open on macOS
+
+Double-click this package with TLCanvas.app installed.
+
+## Open without TLCanvas.app
+
+- The canvas data is in \`canvas.json5\`.
+- Large assets and editable text sidecars live under \`records/\`.
+- \`snapshot.png\` is a generated preview image from the last saved TLCanvas session.
+
+TLCanvas is built with the tldraw SDK and stores its document data as local files for portability.
+`;
+}
+
+async function ensurePortableDocumentFiles(documentPath: string): Promise<void> {
+  await mkdir(documentPath, { recursive: true });
+
+  const readmeFilePath = join(documentPath, README_FILE_NAME);
+  if (!existsSync(readmeFilePath)) {
+    await Bun.write(readmeFilePath, createPortableReadme(documentPath));
+  }
+}
+
 function trimTrailingMarkdownNewlines(value: string): string {
   return value.replace(/(?:\r?\n)+$/g, "");
 }
@@ -379,6 +416,7 @@ async function getCanvasState(canvasFilePath: string): Promise<CanvasStatePayloa
 
 async function writeCanvasState(canvasFilePath: string, state: CanvasStatePayload): Promise<void> {
   await mkdir(dirname(canvasFilePath), { recursive: true });
+  await ensurePortableDocumentFiles(dirname(canvasFilePath));
 
   const persistedSnapshot = (await extractOversizedPersistedValues(
     canvasFilePath,
@@ -403,6 +441,35 @@ function createJsonResponse(data: unknown, init?: ResponseInit) {
   });
 }
 
+async function writeSnapshotImage(documentPath: string, request: Request): Promise<Response> {
+  const contentType = request.headers.get("content-type")?.split(";")[0]?.trim().toLowerCase();
+  if (contentType !== "image/png") {
+    return createJsonResponse({ error: "Snapshot must be image/png." }, { status: 415 });
+  }
+
+  const bytes = Buffer.from(await request.arrayBuffer());
+  if (bytes.length === 0 || bytes.length > MAX_SNAPSHOT_IMAGE_BYTES) {
+    return createJsonResponse({ error: "Snapshot image size is invalid." }, { status: 413 });
+  }
+
+  if (!bytes.subarray(0, PNG_SIGNATURE.length).equals(PNG_SIGNATURE)) {
+    return createJsonResponse({ error: "Snapshot is not a PNG image." }, { status: 400 });
+  }
+
+  await ensurePortableDocumentFiles(documentPath);
+  const snapshotFilePath = join(documentPath, SNAPSHOT_FILE_NAME);
+  const tempFilePath = `${snapshotFilePath}.${randomUUID()}.tmp`;
+  await Bun.write(tempFilePath, bytes);
+  await rename(tempFilePath, snapshotFilePath);
+  return new Response(null, { status: 204 });
+}
+
+function snapshotExistsResponse(documentPath: string): Response {
+  return new Response(null, {
+    status: existsSync(join(documentPath, SNAPSHOT_FILE_NAME)) ? 204 : 404,
+  });
+}
+
 function resolveDocumentPath() {
   const documentPath = process.argv[2] || process.env.APPIFY_HOST_DOCUMENT_PATH;
   if (!documentPath) {
@@ -422,6 +489,7 @@ for (const signal of ["SIGTERM", "SIGINT"] as const) {
 }
 
 await mkdir(documentPath, { recursive: true });
+await ensurePortableDocumentFiles(documentPath);
 
 const server = serve({
   hostname: "127.0.0.1",
@@ -488,6 +556,28 @@ const server = serve({
           console.error("Failed to persist canvas", error);
           return createJsonResponse({ error: "Failed to persist canvas." }, { status: 500 });
         }
+      },
+    },
+
+    [SNAPSHOT_API_PATH]: {
+      HEAD() {
+        return snapshotExistsResponse(documentPath);
+      },
+      GET() {
+        const snapshotFilePath = join(documentPath, SNAPSHOT_FILE_NAME);
+        if (!existsSync(snapshotFilePath)) {
+          return createJsonResponse({ error: "Snapshot image does not exist." }, { status: 404 });
+        }
+
+        return new Response(Bun.file(snapshotFilePath), {
+          headers: {
+            "Content-Type": "image/png",
+            "Cache-Control": "no-store",
+          },
+        });
+      },
+      async PUT(req) {
+        return await writeSnapshotImage(documentPath, req);
       },
     },
 
