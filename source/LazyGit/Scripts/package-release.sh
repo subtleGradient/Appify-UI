@@ -47,7 +47,7 @@ codesign \
   --timestamp \
   --options runtime \
   --sign "$developer_id_identity" \
-  "$APP/Contents/MacOS/tui-host"
+  "$APP/Contents/MacOS/appify-host"
 
 codesign \
   --force \

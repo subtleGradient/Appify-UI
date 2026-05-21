@@ -70,17 +70,27 @@ assert_file_lists_equal "$expected_legacy_apps" "$actual_legacy_apps" "archived 
 
 diff -qr \
   -x '.build' \
-  -x '.tui-host-source-hash' \
-  "$ROOT/source/TuiHost" \
-  "$ROOT/LazyGit.app/Contents/Resources/TuiHostSource" >/dev/null \
-  || fail "LazyGit.app bundled TuiHostSource does not match source/TuiHost"
+  -x '.appify-host-source-hash' \
+  "$ROOT/source/AppifyHost" \
+  "$ROOT/LazyGit.app/Contents/Resources/AppifyHostSource" >/dev/null \
+  || fail "LazyGit.app bundled AppifyHostSource does not match source/AppifyHost"
 
 diff -qr \
   -x '.build' \
-  -x '.webapp-host-source-hash' \
-  "$ROOT/source/WebappHost" \
-  "$ROOT/TLCanvas.app/Contents/Resources/WebappHostSource" >/dev/null \
-  || fail "TLCanvas.app bundled WebappHostSource does not match source/WebappHost"
+  -x '.appify-host-source-hash' \
+  "$ROOT/source/AppifyHost" \
+  "$ROOT/TLCanvas.app/Contents/Resources/AppifyHostSource" >/dev/null \
+  || fail "TLCanvas.app bundled AppifyHostSource does not match source/AppifyHost"
+
+diff -qr \
+  "$ROOT/source/LazyGit/AppServer" \
+  "$ROOT/LazyGit.app/Contents/Resources/AppServer" >/dev/null \
+  || fail "LazyGit.app bundled AppServer does not match source/LazyGit/AppServer"
+
+diff -qr \
+  "$ROOT/source/TLCanvasApp/AppServer" \
+  "$ROOT/TLCanvas.app/Contents/Resources/AppServer" >/dev/null \
+  || fail "TLCanvas.app bundled AppServer does not match source/TLCanvasApp/AppServer"
 
 diff -qr \
   -x 'node_modules' \
@@ -89,7 +99,7 @@ diff -qr \
   "$ROOT/TLCanvas.app/Contents/Resources/Runner" >/dev/null \
   || fail "TLCanvas.app bundled Runner does not match source/TLCanvasApp/Runner"
 
-TUI_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LazyGit.app/Contents/MacOS/main.sh"
-WEBAPP_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"
+APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LazyGit.app/Contents/MacOS/main.sh"
+APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"
 
 echo "root app verification ok"

@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-WEBAPP_HOST_ROOT="$REPO_ROOT/source/WebappHost"
+APPIFY_HOST_ROOT="$REPO_ROOT/source/AppifyHost"
+APP_SERVER_ROOT="$ROOT/AppServer"
 RUNNER_ROOT="$ROOT/Runner"
 APP_NAME="TLCanvas"
 EXECUTABLE_NAME="main.sh"
@@ -26,8 +27,13 @@ source_hash() {
   ) | shasum -a 256 | awk '{print $1}'
 }
 
-if [[ ! -f "$WEBAPP_HOST_ROOT/Package.swift" ]]; then
-  echo "Missing WebappHost source at $WEBAPP_HOST_ROOT" >&2
+if [[ ! -f "$APPIFY_HOST_ROOT/Package.swift" ]]; then
+  echo "Missing AppifyHost source at $APPIFY_HOST_ROOT" >&2
+  exit 1
+fi
+
+if [[ ! -x "$APP_SERVER_ROOT/main.sh" ]]; then
+  echo "Missing TLCanvas app server at $APP_SERVER_ROOT" >&2
   exit 1
 fi
 
@@ -36,28 +42,32 @@ if [[ ! -f "$RUNNER_ROOT/package.json" ]]; then
   exit 1
 fi
 
-swift build --package-path "$WEBAPP_HOST_ROOT" -c release --product webapp-host
-WEBAPP_HOST_SOURCE_HASH="$(source_hash "$WEBAPP_HOST_ROOT")"
+swift build --package-path "$APPIFY_HOST_ROOT" -c release --product appify-host
+APPIFY_HOST_SOURCE_HASH="$(source_hash "$APPIFY_HOST_ROOT")"
 
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
-WEBAPP_HOST_SOURCE="$RESOURCES/WebappHostSource"
+APPIFY_HOST_SOURCE="$RESOURCES/AppifyHostSource"
+APP_SERVER="$RESOURCES/AppServer"
 RUNNER="$RESOURCES/Runner"
 
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
 
-cp "$WEBAPP_HOST_ROOT/.build/release/webapp-host" "$MACOS/webapp-host"
-chmod +x "$MACOS/webapp-host"
+cp "$APPIFY_HOST_ROOT/.build/release/appify-host" "$MACOS/appify-host"
+chmod +x "$MACOS/appify-host"
 
-cp "$WEBAPP_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
+cp "$APPIFY_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
 chmod +x "$MACOS/main.sh"
 
-mkdir -p "$WEBAPP_HOST_SOURCE"
-rsync -a --delete --exclude ".build" "$WEBAPP_HOST_ROOT/" "$WEBAPP_HOST_SOURCE/"
-printf '%s\n' "$WEBAPP_HOST_SOURCE_HASH" > "$WEBAPP_HOST_SOURCE/.webapp-host-source-hash"
-printf '%s\n' "$WEBAPP_HOST_SOURCE_HASH" > "$MACOS/.webapp-host-binary-source-hash"
+mkdir -p "$APPIFY_HOST_SOURCE"
+rsync -a --delete --exclude ".build" "$APPIFY_HOST_ROOT/" "$APPIFY_HOST_SOURCE/"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$APPIFY_HOST_SOURCE/.appify-host-source-hash"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$MACOS/.appify-host-binary-source-hash"
+
+mkdir -p "$APP_SERVER"
+rsync -a --delete "$APP_SERVER_ROOT/" "$APP_SERVER/"
 
 mkdir -p "$RUNNER"
 rsync -a --delete \
@@ -99,18 +109,24 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 subtleGradient</string>
 
-  <key>WebappHost</key>
+  <key>AppifyHost</key>
   <dict>
-    <key>RunnerInstallDirectory</key>
-    <string>Contents/Resources/Runner</string>
-    <key>RunnerEntry</key>
-    <string>src/index.ts</string>
-    <key>RunnerArguments</key>
+    <key>DocumentMode</key>
+    <string>contentPackage</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
     <array/>
     <key>DocumentKindEnvironmentValue</key>
     <string>com.subtlegradient.tlcanvas</string>
     <key>LogName</key>
     <string>TLCanvas</string>
+    <key>WindowTitlePrefix</key>
+    <string>TLCanvas</string>
+    <key>WebViewDataStore</key>
+    <string>persistent</string>
     <key>AboutNotice</key>
     <dict>
       <key>Message</key>
@@ -168,7 +184,7 @@ This developer bundle is intended for local development use. Production distribu
         <string>com.subtlegradient.tlcanvas</string>
       </array>
       <key>NSDocumentClass</key>
-      <string>WebappHostDocument</string>
+      <string>AppifyHostDocument</string>
     </dict>
   </array>
 </dict>
@@ -181,7 +197,7 @@ PKGINFO
 
 if [[ "$SIGN_ADHOC" != "1" ]]; then
   cat > "$APP/.gitignore" <<GITIGNORE
-Contents/Resources/WebappHostSource/.build/
+Contents/Resources/AppifyHostSource/.build/
 Contents/Resources/Runner/node_modules/
 Contents/Resources/Runner/.canvas-test/
 GITIGNORE

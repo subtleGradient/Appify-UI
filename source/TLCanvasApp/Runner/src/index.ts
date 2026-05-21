@@ -246,6 +246,10 @@ function createInitialCanvasState(): CanvasStatePayload {
   return createStarterCanvasState();
 }
 
+function trimTrailingMarkdownNewlines(value: string): string {
+  return value.replace(/(?:\r?\n)+$/g, "");
+}
+
 function canonicalizeSnapshot(snapshot: unknown): CanvasStatePayload["snapshot"] {
   if (typeof snapshot !== "object" || snapshot === null || Array.isArray(snapshot)) {
     throw new Error("Canvas snapshot must be an object");
@@ -320,7 +324,7 @@ async function reconstructPersistedSidecarValues(canvasFilePath: string, value: 
     const sidecarFilePath = resolve(dirname(canvasFilePath), value.path);
 
     if (key === "richText") {
-      const richText = toRichText(await Bun.file(sidecarFilePath).text());
+      const richText = toRichText(trimTrailingMarkdownNewlines(await Bun.file(sidecarFilePath).text()));
       return value.attrs === undefined ? richText : { ...richText, attrs: value.attrs };
     }
 
@@ -400,7 +404,7 @@ function createJsonResponse(data: unknown, init?: ResponseInit) {
 }
 
 function resolveDocumentPath() {
-  const documentPath = process.argv[2] || process.env.WEBAPP_HOST_DOCUMENT_PATH;
+  const documentPath = process.argv[2] || process.env.APPIFY_HOST_DOCUMENT_PATH;
   if (!documentPath) {
     throw new Error("Expected a .tlcanvas document path as the last argument");
   }
@@ -496,4 +500,4 @@ const server = serve({
   },
 });
 
-console.log(`WEBAPP_HOST_OPEN_URL=${server.url}`);
+console.log(`APPIFY_HOST_OPEN_URL=${server.url}`);

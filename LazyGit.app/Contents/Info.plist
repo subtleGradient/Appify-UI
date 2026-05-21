@@ -31,27 +31,16 @@
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 subtleGradient</string>
 
-  <key>TuiHost</key>
+  <key>AppifyHost</key>
   <dict>
-    <key>CommandName</key>
-    <string>lazygit</string>
-    <key>CommandArguments</key>
-    <array>
-      <string>--path</string>
-      <string>{workingDirectory}</string>
-    </array>
-    <key>SupportCommandNames</key>
-    <array>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
-    <key>NixPackages</key>
-    <array>
-      <string>ttyd</string>
-      <string>lazygit</string>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
+    <key>DocumentMode</key>
+    <string>folderMarker</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
+    <array/>
     <key>LogName</key>
     <string>LazyGit</string>
     <key>WindowTitlePrefix</key>
@@ -63,6 +52,8 @@
       <key>LAZYGIT_APP_WORKDIR</key>
       <string>{workingDirectory}</string>
     </dict>
+    <key>WebViewDataStore</key>
+    <string>nonPersistent</string>
   </dict>
 
   <key>UTExportedTypeDeclarations</key>
@@ -102,6 +93,8 @@
       <array>
         <string>com.subtlegradient.lazygit</string>
       </array>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
     </dict>
   </array>
 </dict>

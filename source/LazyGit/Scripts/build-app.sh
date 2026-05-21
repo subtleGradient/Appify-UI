@@ -3,7 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-TUI_HOST_ROOT="$REPO_ROOT/source/TuiHost"
+APPIFY_HOST_ROOT="$REPO_ROOT/source/AppifyHost"
+APP_SERVER_ROOT="$ROOT/AppServer"
 APP_NAME="LazyGit"
 EXECUTABLE_NAME="main.sh"
 BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
@@ -25,32 +26,41 @@ source_hash() {
   ) | shasum -a 256 | awk '{print $1}'
 }
 
-if [[ ! -f "$TUI_HOST_ROOT/Package.swift" ]]; then
-  echo "Missing TuiHost source at $TUI_HOST_ROOT" >&2
+if [[ ! -f "$APPIFY_HOST_ROOT/Package.swift" ]]; then
+  echo "Missing AppifyHost source at $APPIFY_HOST_ROOT" >&2
   exit 1
 fi
 
-swift build --package-path "$TUI_HOST_ROOT" -c release --product tui-host
-TUI_HOST_SOURCE_HASH="$(source_hash "$TUI_HOST_ROOT")"
+if [[ ! -x "$APP_SERVER_ROOT/main.sh" ]]; then
+  echo "Missing LazyGit app server at $APP_SERVER_ROOT" >&2
+  exit 1
+fi
+
+swift build --package-path "$APPIFY_HOST_ROOT" -c release --product appify-host
+APPIFY_HOST_SOURCE_HASH="$(source_hash "$APPIFY_HOST_ROOT")"
 
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
-TUI_HOST_SOURCE="$RESOURCES/TuiHostSource"
+APPIFY_HOST_SOURCE="$RESOURCES/AppifyHostSource"
+APP_SERVER="$RESOURCES/AppServer"
 
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
 
-cp "$TUI_HOST_ROOT/.build/release/tui-host" "$MACOS/tui-host"
-chmod +x "$MACOS/tui-host"
+cp "$APPIFY_HOST_ROOT/.build/release/appify-host" "$MACOS/appify-host"
+chmod +x "$MACOS/appify-host"
 
-cp "$TUI_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
+cp "$APPIFY_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
 chmod +x "$MACOS/main.sh"
 
-mkdir -p "$TUI_HOST_SOURCE"
-rsync -a --delete --exclude ".build" "$TUI_HOST_ROOT/" "$TUI_HOST_SOURCE/"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$TUI_HOST_SOURCE/.tui-host-source-hash"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$MACOS/.tui-host-binary-source-hash"
+mkdir -p "$APPIFY_HOST_SOURCE"
+rsync -a --delete --exclude ".build" "$APPIFY_HOST_ROOT/" "$APPIFY_HOST_SOURCE/"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$APPIFY_HOST_SOURCE/.appify-host-source-hash"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$MACOS/.appify-host-binary-source-hash"
+
+mkdir -p "$APP_SERVER"
+rsync -a --delete "$APP_SERVER_ROOT/" "$APP_SERVER/"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -86,27 +96,16 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 subtleGradient</string>
 
-  <key>TuiHost</key>
+  <key>AppifyHost</key>
   <dict>
-    <key>CommandName</key>
-    <string>lazygit</string>
-    <key>CommandArguments</key>
-    <array>
-      <string>--path</string>
-      <string>{workingDirectory}</string>
-    </array>
-    <key>SupportCommandNames</key>
-    <array>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
-    <key>NixPackages</key>
-    <array>
-      <string>ttyd</string>
-      <string>lazygit</string>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
+    <key>DocumentMode</key>
+    <string>folderMarker</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
+    <array/>
     <key>LogName</key>
     <string>LazyGit</string>
     <key>WindowTitlePrefix</key>
@@ -118,6 +117,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <key>LAZYGIT_APP_WORKDIR</key>
       <string>{workingDirectory}</string>
     </dict>
+    <key>WebViewDataStore</key>
+    <string>nonPersistent</string>
   </dict>
 
   <key>UTExportedTypeDeclarations</key>
@@ -157,6 +158,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <array>
         <string>com.subtlegradient.lazygit</string>
       </array>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
     </dict>
   </array>
 </dict>
@@ -169,7 +172,7 @@ PKGINFO
 
 if [[ "$SIGN_ADHOC" != "1" ]]; then
   cat > "$APP/.gitignore" <<GITIGNORE
-Contents/Resources/TuiHostSource/.build/
+Contents/Resources/AppifyHostSource/.build/
 GITIGNORE
 fi
 

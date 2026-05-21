@@ -53,7 +53,7 @@ async function startServer() {
     }
 
     output += new TextDecoder().decode(chunk.value);
-    const match = output.match(/WEBAPP_HOST_OPEN_URL=(http:\/\/127\.0\.0\.1:\d+\/)/);
+    const match = output.match(/APPIFY_HOST_OPEN_URL=(http:\/\/127\.0\.0\.1:\d+\/)/);
     if (match) {
       return {
         process: child,
@@ -321,7 +321,7 @@ test("server reads hand-edited root sidecars", async () => {
   }
 
   rectangle.props.richText = richTextSidecar;
-  await Bun.write(join(documentPath, "rich-text-sidecar.md"), "Edited from disk");
+  await Bun.write(join(documentPath, "rich-text-sidecar.md"), "Edited from disk\n");
   await Bun.write(
     canvasFilePath,
     Bun.JSON5.stringify({

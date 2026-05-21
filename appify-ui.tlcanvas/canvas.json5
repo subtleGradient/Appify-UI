@@ -1,6 +1,6 @@
 {
   $schema: 'https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/source/TLCanvasApp/Runner/schemas/tlcanvas.schema.json',
-  revision: 8,
+  revision: 14,
   snapshot: {
     store: {
       'document:document': {
@@ -18,8 +18,8 @@
         typeName: 'page',
       },
       'shape:idU-PTc5FMcpVHmZ32awt': {
-        x: 465.7578125,
-        y: 363.07421875,
+        x: 222.203125,
+        y: 149.98828125,
         rotation: 0,
         isLocked: false,
         opacity: 1,
@@ -44,6 +44,35 @@
         },
         parentId: 'page:page',
         index: 'a1iPNITV',
+        typeName: 'shape',
+      },
+      'shape:wX5HdySGRzFw-VK9dIQKb': {
+        x: 285.49609375,
+        y: 294.44140625,
+        rotation: 0,
+        isLocked: false,
+        opacity: 1,
+        meta: {},
+        id: 'shape:wX5HdySGRzFw-VK9dIQKb',
+        type: 'text',
+        props: {
+          color: 'black',
+          size: 'm',
+          w: 93.8125,
+          font: 'draw',
+          textAlign: 'start',
+          autoSize: true,
+          scale: 1,
+          richText: {
+            $sidecar: true,
+            path: './records/shape/wX5HdySGRzFw-VK9dIQKb/richText.md',
+            attrs: {
+              dir: 'auto',
+            },
+          },
+        },
+        parentId: 'page:page',
+        index: 'a2SC5n9V',
         typeName: 'shape',
       },
     },

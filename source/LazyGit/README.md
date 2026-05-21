@@ -1,6 +1,6 @@
 # LazyGit.app
 
-Concrete `TuiHost` package for opening `lazygit` in a locked-down
+Concrete `AppifyHost` package for opening `lazygit` in a locked-down
 non-persistent `WKWebView` terminal.
 
 `LazyGit.app` declares `.lazygit` as a Finder package. A `.lazygit` package is
@@ -9,7 +9,7 @@ only a marker folder; LazyGit runs in the package's parent directory.
 Build and test:
 
 ```sh
-cd ../TuiHost
+cd ../AppifyHost
 swift test
 
 cd ../LazyGit

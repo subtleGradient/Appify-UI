@@ -8,7 +8,6 @@ function run(argv) {
   app.includeStandardAdditions = true
 
   const systemEvents = Application("System Events")
-  const deadline = Date.now() + 20000
 
   const shellQuote = value => `'${String(value).replace(/'/g, "'\\''")}'`
   const delaySeconds = seconds => delay(seconds)
@@ -53,10 +52,31 @@ function run(argv) {
     }
     return null
   }
+  const describeWindows = () => {
+    const processes = matchingLazyGitProcesses()
+    const descriptions = []
+    for (let processIndex = 0; processIndex < processes.length; processIndex++) {
+      const process = processes[processIndex]
+      try {
+        const windows = process.windows()
+        const names = []
+        for (let windowIndex = 0; windowIndex < windows.length; windowIndex++) {
+          try {
+            names.push(windows[windowIndex].name())
+          } catch (_) {
+            names.push("<unnamed>")
+          }
+        }
+        descriptions.push(`${process.name()}[${process.unixId()}]: ${names.join(", ") || "<no windows>"}`)
+      } catch (_) {}
+    }
+    return descriptions.join(" | ") || "<no matching processes>"
+  }
   const fail = message => {
     throw new Error(message)
   }
-  const waitUntil = (message, predicate) => {
+  const waitUntil = (message, predicate, timeoutMilliseconds) => {
+    const deadline = Date.now() + (timeoutMilliseconds || 45000)
     while (Date.now() <= deadline) {
       const value = predicate()
       if (value) return value
@@ -68,6 +88,10 @@ function run(argv) {
     try {
       Application("LazyGit").quit()
       delaySeconds(0.2)
+    } catch (_) {}
+    try {
+      Application("appify-host").quit()
+      delaySeconds(0.5)
     } catch (_) {}
   }
   const openApp = extraArguments => {
@@ -89,13 +113,15 @@ function run(argv) {
         return null
       }
     })
-    waitUntil("LazyGit has no File menu", () => {
-      try {
-        return menuBar.menuBarItems.whose({ name: "File" })().length >= 1
-      } catch (_) {
-        return false
-      }
-    })
+    for (const menuName of ["File", "Edit", "View", "Window", "Help"]) {
+      waitUntil(`LazyGit has no ${menuName} menu`, () => {
+        try {
+          return menuBar.menuBarItems.whose({ name: menuName })().length >= 1
+        } catch (_) {
+          return false
+        }
+      })
+    }
     waitUntil("LazyGit has no application menu", () => {
       try {
         return menuBar.menuBarItems.whose({ name: "LazyGit" })().length >= 1
@@ -105,21 +131,37 @@ function run(argv) {
     })
   }
   const closeDocumentWindow = expectedWindowName => {
-    const process = waitUntil(
-      "LazyGit document window disappeared before it could be closed",
-      () => processWithWindow(expectedWindowName)
-    )
-    try {
-      process.frontmost = true
-    } catch (_) {}
+    const deadline = Date.now() + 10000
+    let attemptedCommandW = false
+    while (Date.now() <= deadline) {
+      const process = processWithWindow(expectedWindowName)
+      if (process === null) return
 
-    try {
-      const window = process.windows.whose({ name: expectedWindowName })()[0]
-      window.buttons[0].click()
-      return
-    } catch (_) {}
+      try {
+        process.frontmost = true
+      } catch (_) {}
 
-    systemEvents.keystroke("w", { using: "command down" })
+      try {
+        const window = process.windows.whose({ name: expectedWindowName })()[0]
+        try {
+          window.actions.whose({ name: "AXRaise" })()[0].perform()
+        } catch (_) {}
+        try {
+          window.buttons[0].click()
+        } catch (_) {}
+      } catch (_) {}
+
+      if (!attemptedCommandW) {
+        try {
+          systemEvents.keystroke("w", { using: "command down" })
+        } catch (_) {}
+        attemptedCommandW = true
+      }
+
+      delaySeconds(0.2)
+    }
+
+    fail(`LazyGit document window did not close; windows: ${describeWindows()}`)
   }
 
   quitApp()
@@ -141,8 +183,9 @@ function run(argv) {
 
     closeDocumentWindow(expectedWindowName)
     waitUntil(
-      "LazyGit document window did not close",
-      () => processWithWindow(expectedWindowName) === null
+      `LazyGit document window did not close; windows: ${describeWindows()}`,
+      () => processWithWindow(expectedWindowName) === null,
+      10000
     )
     delaySeconds(1)
     return `LazyGit smoke ok: ${appPath}`

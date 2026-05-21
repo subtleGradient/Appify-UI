@@ -26,18 +26,19 @@ The new direction lives under `source/`:
   implementation. It opens `.webapp` document packages, validates their
   `webapp.json`, starts an allowlisted, pinned runner with Bun, and loads the
   runner's validated local URL or package-local file URL in a `WKWebView`.
-- [`source/TuiHost/`](source/TuiHost/) is the reusable SwiftPM host for local
-  terminal UIs. It opens marker package documents, starts `ttyd` on loopback,
-  runs a configured TUI command, and keeps the webview on the generated terminal
-  URL.
+- [`source/AppifyHost/`](source/AppifyHost/) is the generic SwiftPM document
+  host for root `.app` bundles. It knows how to open macOS document packages,
+  start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`, validate
+  that URL, and show it in a native WebKit window. It does not know about Bun,
+  `ttyd`, LazyGit, or TLCanvas.
 - [`source/LazyGit/`](source/LazyGit/) is the concrete LazyGit packager built on
-  `TuiHost`: double-click a `.lazygit` package and get `lazygit` running inside
-  a narrowed Mac window.
-- [`source/WebappHost/`](source/WebappHost/) is the reusable SwiftPM host for
-  app-specific Bun runners bundled inside root `.app` packages.
+  `AppifyHost`: double-click a `.lazygit` package and get `lazygit` running
+  inside a narrowed Mac window. Its bundled `AppServer` owns all `ttyd` and
+  `lazygit` details.
 - [`source/TLCanvasApp/`](source/TLCanvasApp/) is the concrete TLCanvas app:
   double-click a `.tlcanvas` package and get a local canvas editor built with
-  the tldraw SDK inside a native WebKit window.
+  the tldraw SDK inside a native WebKit window. Its bundled `AppServer` owns Bun
+  resolution and runner startup.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -169,8 +170,8 @@ Runtime logs go to:
 
 ## LazyGit
 
-`LazyGit.app` is the first concrete sibling project in the new shape. It is now
-configured on top of the generic `TuiHost` runner.
+`LazyGit.app` is the first concrete sibling project in the new shape. It is
+configured on top of the generic `AppifyHost` runner.
 
 It declares `.lazygit` as a Finder package. A `.lazygit` package is only a marker
 folder; the actual working directory is the package's parent folder. Open the
@@ -198,10 +199,10 @@ installations of:
 Build and test it:
 
 ```sh
-cd source/TuiHost
+cd source/AppifyHost
 swift test
 
-cd source/LazyGit
+cd ../LazyGit
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
@@ -249,9 +250,9 @@ Runtime logs go to:
 
 ## TLCanvas
 
-`TLCanvas.app` is the first concrete `WebappHost` app. It declares `.tlcanvas` as a
-Finder package, starts the bundled Bun runner, waits for a validated local URL,
-and shows that runner in a native WebKit window.
+`TLCanvas.app` is the first concrete app-specific web runner on `AppifyHost`. It
+declares `.tlcanvas` as a Finder package, starts its bundled app server, waits
+for a validated local URL, and shows that runner in a native WebKit window.
 
 TLCanvas is not affiliated with or endorsed by tldraw Inc. It is a local
 developer bundle built with the official [tldraw SDK](https://tldraw.dev), keeps
@@ -266,7 +267,7 @@ dependencies with `bun install --frozen-lockfile`.
 Build and test it:
 
 ```sh
-cd source/WebappHost
+cd source/AppifyHost
 swift test
 
 cd ../TLCanvasApp/Runner
@@ -337,17 +338,16 @@ timestamps changed.
 .
 ├── source/
 │   ├── AppifyUI2026/      # SwiftPM .webapp launcher
-│   ├── TuiHost/           # SwiftPM TUI host
+│   ├── AppifyHost/        # generic SwiftPM document-to-local-server host
 │   ├── LazyGit/           # .lazygit concrete app packager
-│   ├── WebappHost/        # SwiftPM bundled Bun runner host
 │   ├── TLCanvasApp/       # .tlcanvas concrete app packager and runner
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
 ├── archive/
 │   └── legacy-apps/       # original bundle lineage
 ├── IDEA/
 │   └── web-components-native.idea.htm
-├── LazyGit.app            # checked-in self-compiling TuiHost bundle
-├── TLCanvas.app           # checked-in self-compiling WebappHost bundle
+├── LazyGit.app            # checked-in self-compiling AppifyHost bundle
+├── TLCanvas.app           # checked-in self-compiling AppifyHost bundle
 ├── Scripts/
 │   └── verify-root-apps.sh
 └── README.md

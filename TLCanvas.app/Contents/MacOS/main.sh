@@ -3,8 +3,8 @@ set -euo pipefail
 
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 INFO_PLIST="$APP/Contents/Info.plist"
-HOST_BINARY="$APP/Contents/MacOS/webapp-host"
-HOST_HASH_FILE="$APP/Contents/MacOS/.webapp-host-binary-source-hash"
+HOST_BINARY="$APP/Contents/MacOS/appify-host"
+HOST_HASH_FILE="$APP/Contents/MacOS/.appify-host-binary-source-hash"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 read_plist() {
@@ -37,90 +37,11 @@ app_name() {
   fi
 }
 
-resolve_nix_shell() {
-  local candidates=(
-    "/nix/var/nix/profiles/default/bin/nix-shell"
-    "$HOME/.nix-profile/bin/nix-shell"
-  )
-
-  local candidate
-  for candidate in "${candidates[@]}"; do
-    if [[ -x "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  if command -v nix-shell >/dev/null 2>&1; then
-    command -v nix-shell
-    return 0
-  fi
-
-  return 1
-}
-
-write_nix_bun_wrapper() {
-  local nix_shell="$1"
-  local cache_root="${XDG_CACHE_HOME:-$HOME/Library/Caches}"
-  local wrapper_dir="$cache_root/Appify-UI/WebappHost"
-  local wrapper="$wrapper_dir/bun-via-nix.sh"
-
-  mkdir -p "$wrapper_dir"
-  cat > "$wrapper" <<WRAPPER
-#!/usr/bin/env bash
-set -euo pipefail
-
-nix_shell=$(printf '%q' "$nix_shell")
-command="bun"
-for arg in "\$@"; do
-  command="\$command \$(printf '%q' "\$arg")"
-done
-
-exec "\$nix_shell" -p bun --run "\$command"
-WRAPPER
-  chmod +x "$wrapper"
-  printf '%s\n' "$wrapper"
-}
-
-resolve_bun() {
-  local candidates=()
-  if [[ -n "${WEBAPP_HOST_BUN:-}" ]]; then
-    candidates+=("$WEBAPP_HOST_BUN")
-  fi
-  candidates+=(
-    "$APP/Contents/MacOS/bun"
-    "$HOME/.bun/bin/bun"
-    "/opt/homebrew/bin/bun"
-    "/usr/local/bin/bun"
-  )
-
-  local candidate
-  for candidate in "${candidates[@]}"; do
-    if [[ -x "$candidate" ]]; then
-      printf '%s\n' "$candidate"
-      return 0
-    fi
-  done
-
-  if command -v bun >/dev/null 2>&1; then
-    command -v bun
-    return 0
-  fi
-
-  local nix_shell
-  if nix_shell="$(resolve_nix_shell)"; then
-    write_nix_bun_wrapper "$nix_shell"
-    return 0
-  fi
-
-  return 1
-}
-
 find_repo_source() {
   local cursor="$APP"
   while [[ "$cursor" != "/" ]]; do
-    if [[ -d "$cursor/source/WebappHost" && -f "$cursor/source/WebappHost/Package.swift" ]]; then
-      printf '%s\n' "$cursor/source/WebappHost"
+    if [[ -d "$cursor/source/AppifyHost" && -f "$cursor/source/AppifyHost/Package.swift" ]]; then
+      printf '%s\n' "$cursor/source/AppifyHost"
       return 0
     fi
     cursor="$(dirname "$cursor")"
@@ -154,31 +75,6 @@ read_hash_file() {
   fi
 }
 
-install_runner_dependencies_if_needed() {
-  local runner_dir="$1"
-  local bun_path="$2"
-
-  if [[ ! -f "$runner_dir/package.json" ]]; then
-    return 0
-  fi
-
-  local stale=0
-  if [[ ! -d "$runner_dir/node_modules" ]]; then
-    stale=1
-  elif [[ "$runner_dir/package.json" -nt "$runner_dir/node_modules" ]]; then
-    stale=1
-  elif [[ -f "$runner_dir/bun.lock" && "$runner_dir/bun.lock" -nt "$runner_dir/node_modules" ]]; then
-    stale=1
-  fi
-
-  if [[ "$stale" == "1" ]]; then
-    (
-      cd "$runner_dir"
-      "$bun_path" install --frozen-lockfile
-    )
-  fi
-}
-
 rebuild_host_if_needed() {
   local source_dir="$1"
   local current_hash built_hash
@@ -190,12 +86,12 @@ rebuild_host_if_needed() {
   fi
 
   if ! command -v swift >/dev/null 2>&1; then
-    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled webapp-host binary is not built from the current Swift source. Install Xcode command line tools or restore a fresh app bundle."
+    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled appify-host binary is not built from the current Swift source. Install Xcode command line tools or restore a fresh app bundle."
     exit 1
   fi
 
-  swift build --package-path "$source_dir" -c debug --product webapp-host
-  local built_binary="$source_dir/.build/debug/webapp-host"
+  swift build --package-path "$source_dir" -c debug --product appify-host
+  local built_binary="$source_dir/.build/debug/appify-host"
   if [[ ! -x "$built_binary" ]]; then
     show_error "Cannot Rebuild $(app_name)" "Swift build completed without producing $built_binary."
     exit 1
@@ -207,28 +103,15 @@ rebuild_host_if_needed() {
 }
 
 APP_NAME="$(app_name)"
-RUNNER_INSTALL_DIRECTORY="$(read_plist "WebappHost:RunnerInstallDirectory")"
-RUNNER_INSTALL_DIRECTORY="${RUNNER_INSTALL_DIRECTORY:-Contents/Resources/Runner}"
-if [[ "$RUNNER_INSTALL_DIRECTORY" == /* ]]; then
-  RUNNER_DIR="$RUNNER_INSTALL_DIRECTORY"
-else
-  RUNNER_DIR="$APP/$RUNNER_INSTALL_DIRECTORY"
-fi
-BUNDLED_SOURCE="$APP/Contents/Resources/WebappHostSource"
+BUNDLED_SOURCE="$APP/Contents/Resources/AppifyHostSource"
 HOST_SOURCE="$(find_repo_source || true)"
 HOST_SOURCE="${HOST_SOURCE:-$BUNDLED_SOURCE}"
 
 if [[ ! -d "$HOST_SOURCE" ]]; then
-  show_error "Cannot Start $APP_NAME" "Missing WebappHost source at $HOST_SOURCE."
+  show_error "Cannot Start $APP_NAME" "Missing AppifyHost source at $HOST_SOURCE."
   exit 1
 fi
 
-if ! BUN_PATH="$(resolve_bun)"; then
-  show_error "Cannot Start $APP_NAME" "Bun is required. Install it from https://bun.sh, install Nix, or set WEBAPP_HOST_BUN to an executable Bun path."
-  exit 1
-fi
-
-install_runner_dependencies_if_needed "$RUNNER_DIR" "$BUN_PATH"
 rebuild_host_if_needed "$HOST_SOURCE"
 
 if [[ ! -x "$HOST_BINARY" ]]; then
@@ -236,11 +119,10 @@ if [[ ! -x "$HOST_BINARY" ]]; then
   exit 1
 fi
 
-if [[ "${WEBAPP_HOST_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
+if [[ "${APPIFY_HOST_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
   exit 0
 fi
 
-export WEBAPP_HOST_BUNDLE_PATH="$APP"
-export WEBAPP_HOST_BUN="$BUN_PATH"
+export APPIFY_HOST_BUNDLE_PATH="$APP"
 
 exec "$HOST_BINARY" "$@"
