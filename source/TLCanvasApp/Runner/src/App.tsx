@@ -155,6 +155,7 @@ export function App({ onMount }: AppProps) {
   const didZoomToInitialContentRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const isSyncingRef = useRef(false);
+  const isPersistingRef = useRef(false);
 
   const zoomToInitialContent = useCallback(() => {
     const editor = editorRef.current;
@@ -268,6 +269,8 @@ export function App({ onMount }: AppProps) {
   const persistCanvas = useCallback(
     async (snapshot: TLStoreSnapshot, revision: number) => {
       pendingSnapshotRef.current = snapshot;
+      const savedSnapshotKey = getSnapshotKey(snapshot);
+      isPersistingRef.current = true;
 
       try {
         const response = await fetch(getCanvasApiUrl(), {
@@ -288,16 +291,19 @@ export function App({ onMount }: AppProps) {
 
             const pendingSnapshot = pendingSnapshotRef.current;
             const nextRevision = revisionRef.current;
+            const pendingSnapshotKey = pendingSnapshot === null ? null : getSnapshotKey(pendingSnapshot);
 
             if (
               pendingSnapshot &&
               nextRevision !== null &&
               nextRevision > revision &&
-              getSnapshotKey(pendingSnapshot) !== syncedSnapshotKeyRef.current
+              pendingSnapshotKey !== syncedSnapshotKeyRef.current
             ) {
-              store.mergeRemoteChanges(() => {
-                loadSnapshot(store, pendingSnapshot);
-              });
+              if (getSnapshotKey(store.getStoreSnapshot("document")) !== pendingSnapshotKey) {
+                store.mergeRemoteChanges(() => {
+                  loadSnapshot(store, pendingSnapshot);
+                });
+              }
               await persistCanvas(pendingSnapshot, nextRevision);
             }
           }
@@ -310,7 +316,10 @@ export function App({ onMount }: AppProps) {
           const snapshotKey = getSnapshotKey(payload.snapshot);
           syncedSnapshotKeyRef.current = snapshotKey;
 
-          if (pendingSnapshotRef.current && getSnapshotKey(pendingSnapshotRef.current) === snapshotKey) {
+          if (
+            pendingSnapshotRef.current &&
+            [savedSnapshotKey, snapshotKey].includes(getSnapshotKey(pendingSnapshotRef.current))
+          ) {
             pendingSnapshotRef.current = null;
           }
         }
@@ -318,6 +327,8 @@ export function App({ onMount }: AppProps) {
         if (!isTestEnv) {
           console.error("Failed to persist canvas state", error);
         }
+      } finally {
+        isPersistingRef.current = false;
       }
     },
     [syncFromServer, store],
@@ -328,12 +339,21 @@ export function App({ onMount }: AppProps) {
       clearTimeout(saveTimerRef.current);
     }
 
-    const revision = revisionRef.current;
-    if (revision === null || isUnmountedRef.current) {
+    if (revisionRef.current === null || isUnmountedRef.current) {
       return;
     }
 
     saveTimerRef.current = setTimeout(() => {
+      const revision = revisionRef.current;
+      if (revision === null || isUnmountedRef.current) {
+        return;
+      }
+
+      if (isPersistingRef.current) {
+        queuePersist();
+        return;
+      }
+
       const snapshot = pendingSnapshotRef.current ?? store.getStoreSnapshot("document");
       void persistCanvas(snapshot, revision);
     }, SAVE_DEBOUNCE_MS);

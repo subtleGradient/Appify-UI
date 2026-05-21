@@ -483,7 +483,7 @@ const server = serve({
           };
 
           await writeCanvasState(canvasFilePath, nextState);
-          return createJsonResponse(nextState);
+          return createJsonResponse(await getCanvasState(canvasFilePath));
         } catch (error) {
           console.error("Failed to persist canvas", error);
           return createJsonResponse({ error: "Failed to persist canvas." }, { status: 500 });

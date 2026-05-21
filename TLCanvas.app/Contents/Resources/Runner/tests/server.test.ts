@@ -122,7 +122,10 @@ function createSnapshotWithLargeImageAssetDataUrl(snapshot: CanvasStatePayload["
   } satisfies CanvasStatePayload["snapshot"];
 }
 
-function createSnapshotWithRichTextSidecar(snapshot: CanvasStatePayload["snapshot"]) {
+function createSnapshotWithRichTextSidecar(
+  snapshot: CanvasStatePayload["snapshot"],
+  markdown = "Heading\n\nSecond paragraph",
+) {
   const shapeId = createShapeId();
 
   return {
@@ -157,7 +160,7 @@ function createSnapshotWithRichTextSidecar(snapshot: CanvasStatePayload["snapsho
           align: "middle",
           verticalAlign: "middle",
           richText: {
-            ...toRichText("Heading\n\nSecond paragraph"),
+            ...toRichText(markdown),
             attrs: { testId: "richtext-sidecar" },
           },
         },
@@ -260,6 +263,41 @@ test("server enforces revision checks and persists JSON5", async () => {
     expect(persistedText).toContain(`path: './${richTextSidecarPath}'`);
     expect(await Bun.file(join(documentPath, richTextSidecarPath)).exists()).toBe(true);
     expect(await Bun.file(join(documentPath, `${richTextShapeId}.richText.md`)).exists()).toBe(false);
+  } finally {
+    await stopServer(process);
+  }
+});
+
+test("server returns the reconstructed state after rich text sidecar normalization", async () => {
+  const { process, url } = await startServer();
+
+  try {
+    const initial = await (await fetch(url)).json() as CanvasStatePayload;
+    const nextSnapshot = createSnapshotWithRichTextSidecar(initial.snapshot, "Heading\n");
+    const putResponse = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        "If-Match": String(initial.revision),
+      },
+      body: JSON.stringify({
+        revision: initial.revision,
+        snapshot: nextSnapshot,
+      }),
+    });
+
+    expect(putResponse.status).toBe(200);
+
+    const putState = await putResponse.json() as CanvasStatePayload;
+    const getState = await (await fetch(url)).json() as CanvasStatePayload;
+    const richTextShape = Object.values(putState.snapshot.store as Record<string, { typeName?: string; props?: { richText?: { attrs?: { testId?: string } } } }>)
+      .find((record) => record.typeName === "shape" && record.props?.richText?.attrs?.testId === "richtext-sidecar");
+
+    expect(putState).toEqual(getState);
+    expect(richTextShape?.props?.richText).toEqual({
+      ...toRichText("Heading"),
+      attrs: { testId: "richtext-sidecar" },
+    });
   } finally {
     await stopServer(process);
   }
