@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
 import { mkdir, readdir, rm } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 import { createTLStore, createShapeId, toRichText } from "tldraw";
 import {
   CANVAS_API_PATH,
@@ -166,6 +166,35 @@ function createSnapshotWithRichTextSidecar(snapshot: CanvasStatePayload["snapsho
   } satisfies CanvasStatePayload["snapshot"];
 }
 
+function createRecordSidecarPath(ownerId: string, fileName: string): string {
+  const separatorIndex = ownerId.indexOf(":");
+
+  if (separatorIndex <= 0 || separatorIndex === ownerId.length - 1) {
+    throw new Error(`Expected a tldraw record id, got ${ownerId}`);
+  }
+
+  return join(
+    "records",
+    encodeURIComponent(ownerId.slice(0, separatorIndex)),
+    encodeURIComponent(ownerId.slice(separatorIndex + 1)),
+    fileName,
+  );
+}
+
+function findRecordId(
+  snapshot: CanvasStatePayload["snapshot"],
+  predicate: (record: { id?: unknown; typeName?: unknown; props?: unknown }) => boolean,
+): string {
+  const record = Object.values(snapshot.store as Record<string, { id?: unknown; typeName?: unknown; props?: unknown }>)
+    .find(predicate);
+
+  if (typeof record?.id !== "string") {
+    throw new Error("Expected matching record with string id");
+  }
+
+  return record.id;
+}
+
 test("server initializes a starter canvas.json5 with a CDN schema link", async () => {
   const { process, url } = await startServer();
 
@@ -195,6 +224,11 @@ test("server enforces revision checks and persists JSON5", async () => {
   try {
     const initial = await (await fetch(url)).json() as CanvasStatePayload;
     const nextSnapshot = createSnapshotWithRichTextSidecar(initial.snapshot);
+    const richTextShapeId = findRecordId(nextSnapshot, (record) => {
+      const richText = (record.props as { richText?: { attrs?: { testId?: string } } } | undefined)?.richText;
+      return record.typeName === "shape" && richText?.attrs?.testId === "richtext-sidecar";
+    });
+    const richTextSidecarPath = createRecordSidecarPath(richTextShapeId, "richText.md");
     const staleResponse = await fetch(url, {
       method: "PUT",
       headers: {
@@ -223,19 +257,23 @@ test("server enforces revision checks and persists JSON5", async () => {
     expect(putResponse.status).toBe(200);
     const persistedText = await Bun.file(join(documentPath, CANVAS_FILE_NAME)).text();
     expect(persistedText).toContain("revision: 1");
-    expect(persistedText).toContain(".richText.md");
+    expect(persistedText).toContain(`path: './${richTextSidecarPath}'`);
+    expect(await Bun.file(join(documentPath, richTextSidecarPath)).exists()).toBe(true);
+    expect(await Bun.file(join(documentPath, `${richTextShapeId}.richText.md`)).exists()).toBe(false);
   } finally {
     await stopServer(process);
   }
 });
 
-test("server emits oversized media as root sidecars and reconstructs them", async () => {
+test("server emits oversized media as record sidecars and reconstructs them", async () => {
   const oversizedDataUrl = `data:image/png;base64,${"a".repeat(200_000)}`;
   const { process, url } = await startServer();
 
   try {
     const initial = await (await fetch(url)).json() as CanvasStatePayload;
     const nextSnapshot = createSnapshotWithLargeImageAssetDataUrl(initial.snapshot, oversizedDataUrl);
+    const assetId = findRecordId(nextSnapshot, (record) => record.typeName === "asset");
+    const mediaSidecarPath = createRecordSidecarPath(assetId, "src.png");
     const putResponse = await fetch(url, {
       method: "PUT",
       headers: {
@@ -251,10 +289,12 @@ test("server emits oversized media as root sidecars and reconstructs them", asyn
     expect(putResponse.status).toBe(200);
 
     const entries = await readdir(documentPath);
-    expect(entries.some((entry) => entry.endsWith(".png"))).toBe(true);
+    expect(entries.sort()).toEqual([CANVAS_FILE_NAME, "records"].sort());
+    expect(await Bun.file(join(documentPath, mediaSidecarPath)).exists()).toBe(true);
     const persistedText = await Bun.file(join(documentPath, CANVAS_FILE_NAME)).text();
     expect(persistedText).not.toContain(oversizedDataUrl);
     expect(persistedText).toContain("$sidecar: true");
+    expect(persistedText).toContain(`path: './${mediaSidecarPath}'`);
 
     const getResponse = await fetch(url);
     const loadedState = await getResponse.json() as CanvasStatePayload;

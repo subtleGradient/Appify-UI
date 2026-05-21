@@ -86,8 +86,44 @@ function shouldPersistRichTextSidecar(value: unknown): boolean {
   return isRichTextDocument(value) && (value.content.length > 1 || value.attrs !== undefined);
 }
 
-function createOwnerRichTextSidecarFilePath(canvasDirectoryPath: string, ownerId: string): string {
-  return join(canvasDirectoryPath, `${ownerId}.richText.md`);
+function encodeSidecarPathSegment(value: string): string {
+  return encodeURIComponent(value);
+}
+
+function recordSidecarDirectoryPath(canvasDirectoryPath: string, ownerId?: string): string | null {
+  if (ownerId === undefined) {
+    return null;
+  }
+
+  const separatorIndex = ownerId.indexOf(":");
+
+  if (separatorIndex <= 0 || separatorIndex === ownerId.length - 1) {
+    return null;
+  }
+
+  const recordType = ownerId.slice(0, separatorIndex);
+  const recordId = ownerId.slice(separatorIndex + 1);
+  return join(
+    canvasDirectoryPath,
+    "records",
+    encodeSidecarPathSegment(recordType),
+    encodeSidecarPathSegment(recordId),
+  );
+}
+
+function createOwnerSidecarFilePath(
+  canvasDirectoryPath: string,
+  ownerId: string | undefined,
+  fieldName: string | undefined,
+  extension: string,
+): string | null {
+  const sidecarDirectoryPath = recordSidecarDirectoryPath(canvasDirectoryPath, ownerId);
+
+  if (sidecarDirectoryPath === null || fieldName === undefined) {
+    return null;
+  }
+
+  return join(sidecarDirectoryPath, `${encodeSidecarPathSegment(fieldName)}${extension}`);
 }
 
 function createSidecarReference(canvasDirectoryPath: string, sidecarFilePath: string): PersistedSidecarReference {
@@ -134,27 +170,38 @@ function createContentAddressedSidecarFilePath(
   extension: string,
 ): string {
   const contentHash = createHash("sha256").update(contents).digest("hex");
-  return join(canvasDirectoryPath, `${contentHash}${extension}`);
+  return join(canvasDirectoryPath, "records", "_content", `${contentHash}${extension}`);
 }
 
-async function persistStringSidecar(canvasFilePath: string, value: string): Promise<PersistedSidecarReference> {
+async function writeSidecarFile(sidecarFilePath: string, contents: string | Buffer): Promise<void> {
+  await mkdir(dirname(sidecarFilePath), { recursive: true });
+  await Bun.write(sidecarFilePath, contents);
+}
+
+async function persistStringSidecar(
+  canvasFilePath: string,
+  value: string,
+  ownerId?: string,
+  fieldName?: string,
+): Promise<PersistedSidecarReference> {
   const canvasDirectoryPath = dirname(canvasFilePath);
   const dataUrlMatch = value.match(/^data:([^;,]+)(;base64)?,(.*)$/s);
 
   if (dataUrlMatch) {
     const [, mimeType, encodingFlag, payload] = dataUrlMatch;
     const decodedPayload = encodingFlag ? Buffer.from(payload, "base64") : decodeURIComponent(payload);
-    const sidecarFilePath = createContentAddressedSidecarFilePath(
-      canvasDirectoryPath,
-      decodedPayload,
-      getDataUrlFileExtension(mimeType),
-    );
-    await Bun.write(sidecarFilePath, decodedPayload);
+    const extension = getDataUrlFileExtension(mimeType);
+    const sidecarFilePath =
+      createOwnerSidecarFilePath(canvasDirectoryPath, ownerId, fieldName, extension) ??
+      createContentAddressedSidecarFilePath(canvasDirectoryPath, decodedPayload, extension);
+    await writeSidecarFile(sidecarFilePath, decodedPayload);
     return createSidecarReference(canvasDirectoryPath, sidecarFilePath);
   }
 
-  const sidecarFilePath = createContentAddressedSidecarFilePath(canvasDirectoryPath, value, ".md");
-  await Bun.write(sidecarFilePath, value);
+  const sidecarFilePath =
+    createOwnerSidecarFilePath(canvasDirectoryPath, ownerId, fieldName, ".md") ??
+    createContentAddressedSidecarFilePath(canvasDirectoryPath, value, ".md");
+  await writeSidecarFile(sidecarFilePath, value);
   return createSidecarReference(canvasDirectoryPath, sidecarFilePath);
 }
 
@@ -178,8 +225,10 @@ async function persistRichTextSidecar(
       ? await persistStringSidecar(canvasFilePath, markdown)
       : await (async () => {
           const canvasDirectoryPath = dirname(canvasFilePath);
-          const sidecarFilePath = createOwnerRichTextSidecarFilePath(canvasDirectoryPath, ownerId);
-          await Bun.write(sidecarFilePath, markdown);
+          const sidecarFilePath =
+            createOwnerSidecarFilePath(canvasDirectoryPath, ownerId, "richText", ".md") ??
+            createContentAddressedSidecarFilePath(canvasDirectoryPath, markdown, ".md");
+          await writeSidecarFile(sidecarFilePath, markdown);
           return createSidecarReference(canvasDirectoryPath, sidecarFilePath);
         })();
 
@@ -238,7 +287,7 @@ async function extractOversizedPersistedValues(
   }
 
   if (typeof value === "string" && value.length > MAX_INLINE_PERSISTED_VALUE_LENGTH) {
-    return await persistStringSidecar(canvasFilePath, value);
+    return await persistStringSidecar(canvasFilePath, value, ownerId, key);
   }
 
   if (Array.isArray(value)) {

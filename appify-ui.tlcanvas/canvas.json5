@@ -36,7 +36,7 @@
           scale: 1,
           richText: {
             $sidecar: true,
-            path: './shape:idU-PTc5FMcpVHmZ32awt.richText.md',
+            path: './records/shape/idU-PTc5FMcpVHmZ32awt/richText.md',
             attrs: {
               dir: 'auto',
             },
