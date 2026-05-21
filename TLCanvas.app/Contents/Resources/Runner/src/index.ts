@@ -20,6 +20,8 @@ const JSON_HEADERS = { "Content-Type": "application/json" };
 const MAX_INLINE_PERSISTED_VALUE_LENGTH = 100_000;
 const MAX_SNAPSHOT_IMAGE_BYTES = 15_000_000;
 const README_FILE_NAME = "README.md";
+const QUICK_LOOK_DIRECTORY_NAME = "QuickLook";
+const QUICK_LOOK_THUMBNAIL_FILE_NAME = "Thumbnail.png";
 const SNAPSHOT_FILE_NAME = "snapshot.png";
 const SNAPSHOT_API_PATH = "/api/snapshot";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -269,6 +271,7 @@ Double-click this package with TLCanvas.app installed.
 - The canvas data is in \`canvas.json5\`.
 - Large assets and editable text sidecars live under \`records/\`.
 - \`snapshot.png\` is a generated preview image from the last saved TLCanvas session.
+- \`QuickLook/Thumbnail.png\` mirrors the generated preview for macOS-style package thumbnails.
 
 TLCanvas is built with the tldraw SDK and stores its document data as local files for portability.
 `;
@@ -461,6 +464,13 @@ async function writeSnapshotImage(documentPath: string, request: Request): Promi
   const tempFilePath = `${snapshotFilePath}.${randomUUID()}.tmp`;
   await Bun.write(tempFilePath, bytes);
   await rename(tempFilePath, snapshotFilePath);
+
+  const quickLookThumbnailFilePath = join(documentPath, QUICK_LOOK_DIRECTORY_NAME, QUICK_LOOK_THUMBNAIL_FILE_NAME);
+  const quickLookTempFilePath = `${quickLookThumbnailFilePath}.${randomUUID()}.tmp`;
+  await mkdir(dirname(quickLookThumbnailFilePath), { recursive: true });
+  await Bun.write(quickLookTempFilePath, bytes);
+  await rename(quickLookTempFilePath, quickLookThumbnailFilePath);
+
   return new Response(null, { status: 204 });
 }
 

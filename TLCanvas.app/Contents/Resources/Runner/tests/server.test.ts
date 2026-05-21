@@ -231,6 +231,7 @@ test("server creates portable README metadata", async () => {
     expect(readme).toContain("![TLCanvas snapshot](snapshot.png)");
     expect(readme).toContain("canvas.json5");
     expect(readme).toContain("records/");
+    expect(readme).toContain("QuickLook/Thumbnail.png");
     expect(readme).toContain("Double-click this package with TLCanvas.app installed.");
   } finally {
     await stopServer(process);
@@ -261,6 +262,7 @@ test("server stores portable snapshot images", async () => {
     expect(getResponse.headers.get("Content-Type")).toBe("image/png");
     expect(Array.from(new Uint8Array(await getResponse.arrayBuffer()))).toEqual(Array.from(snapshotBytes));
     expect(Array.from(await Bun.file(join(documentPath, "snapshot.png")).bytes())).toEqual(Array.from(snapshotBytes));
+    expect(Array.from(await Bun.file(join(documentPath, "QuickLook", "Thumbnail.png")).bytes())).toEqual(Array.from(snapshotBytes));
   } finally {
     await stopServer(process);
   }
