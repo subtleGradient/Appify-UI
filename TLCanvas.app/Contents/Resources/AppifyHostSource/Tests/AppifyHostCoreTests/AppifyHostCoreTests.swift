@@ -21,6 +21,7 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.environmentVariables, ["EXAMPLE_DOCUMENT": "{documentPath}"])
         XCTAssertEqual(config.logName, "SketchPad")
         XCTAssertEqual(config.windowTitlePrefix, "SketchPad")
+        XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
         XCTAssertEqual(config.serverDirectoryURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer")
@@ -35,6 +36,20 @@ final class AppifyHostCoreTests: XCTestCase {
 
         XCTAssertEqual(config.documentMode, .folderMarker)
         XCTAssertEqual(config.webViewDataStore, .nonPersistent)
+    }
+
+    func testLoadsFileDocumentConfiguration() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),
+            bundleURL: URL(fileURLWithPath: "/Applications/SQLite Peek.app")
+        )
+
+        XCTAssertEqual(config.appName, "SQLite Peek")
+        XCTAssertEqual(config.bundleIdentifier, "com.example.sqlite")
+        XCTAssertEqual(config.documentExtensions, ["sqlite"])
+        XCTAssertEqual(config.documentClassName, "AppifyHostDocument")
+        XCTAssertEqual(config.documentMode, .fileDocument)
+        XCTAssertEqual(config.startupTimeoutSeconds, 600)
     }
 
     func testBuildsGenericServerCommand() throws {
@@ -85,6 +100,20 @@ final class AppifyHostCoreTests: XCTestCase {
         ))
     }
 
+    func testRejectsInvalidStartupTimeout() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        plist["AppifyHost"] = [
+            "DocumentMode": "contentPackage",
+            "ServerExecutable": "main.sh",
+            "StartupTimeoutSeconds": 0,
+        ]
+
+        XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/tmp/SketchPad.app")
+        ))
+    }
+
     func testPackageURLAndWorkingDirectoryForFolderMarkers() throws {
         let config = try AppifyHostConfigurationLoader.load(
             infoDictionary: sampleInfoPlist(documentMode: "folderMarker", extensionName: "worktree"),
@@ -116,6 +145,33 @@ final class AppifyHostCoreTests: XCTestCase {
         }
 
         XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: packageURL, configuration: config).path, packageURL.path)
+    }
+
+    func testFileDocumentWorkingDirectoryIsTheContainingFolder() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),
+            bundleURL: URL(fileURLWithPath: "/Applications/SQLite Peek.app")
+        )
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        let databaseFile = rootURL.appendingPathComponent("sample.sqlite")
+        FileManager.default.createFile(atPath: databaseFile.path, contents: Data())
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: databaseFile, configuration: config).path, rootURL.path)
+
+        let directory = rootURL.appendingPathComponent("not-a-file.sqlite", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
+        XCTAssertThrowsError(try PackageDocument.workingDirectory(forPackage: directory, configuration: config))
+
+        let targetFile = rootURL.appendingPathComponent("target.sqlite")
+        FileManager.default.createFile(atPath: targetFile.path, contents: Data())
+        let symlink = rootURL.appendingPathComponent("symlink.sqlite")
+        try FileManager.default.createSymbolicLink(at: symlink, withDestinationURL: targetFile)
+        XCTAssertThrowsError(try PackageDocument.workingDirectory(forPackage: symlink, configuration: config))
     }
 
     func testExtractsAndValidatesReadyURLs() throws {
@@ -189,8 +245,20 @@ final class AppifyHostCoreTests: XCTestCase {
     }
 
     private func sampleInfoPlist(documentMode: String, extensionName: String = "sketchdoc") -> [String: Any] {
-        let appName = extensionName == "worktree" ? "RepoTool" : "SketchPad"
-        let typeIdentifier = extensionName == "worktree" ? "com.example.worktree" : "com.example.sketchpad"
+        let appName: String
+        let typeIdentifier: String
+        switch extensionName {
+        case "worktree":
+            appName = "RepoTool"
+            typeIdentifier = "com.example.worktree"
+        case "sqlite":
+            appName = "SQLite Peek"
+            typeIdentifier = "com.example.sqlite"
+        default:
+            appName = "SketchPad"
+            typeIdentifier = "com.example.sketchpad"
+        }
+        let isPackage = documentMode != "fileDocument"
         return [
             "CFBundleDisplayName": appName,
             "CFBundleIdentifier": typeIdentifier,
@@ -199,7 +267,7 @@ final class AppifyHostCoreTests: XCTestCase {
                     "CFBundleTypeName": "\(appName) Document",
                     "CFBundleTypeExtensions": [extensionName],
                     "LSItemContentTypes": [typeIdentifier],
-                    "LSTypeIsPackage": true,
+                    "LSTypeIsPackage": isPackage,
                     "NSDocumentClass": "AppifyHostDocument",
                 ],
             ],
@@ -222,6 +290,7 @@ final class AppifyHostCoreTests: XCTestCase {
                 ],
                 "LogName": appName,
                 "WindowTitlePrefix": appName,
+                "StartupTimeoutSeconds": extensionName == "sqlite" ? 600 : 20,
                 "WebViewDataStore": extensionName == "worktree" ? "nonPersistent" : "persistent",
                 "AboutNotice": [
                     "Message": "Example host notice.",

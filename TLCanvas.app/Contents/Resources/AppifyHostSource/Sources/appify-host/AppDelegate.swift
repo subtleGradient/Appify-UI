@@ -133,6 +133,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         case .folderMarker:
             showFolderPicker()
+
+        case .fileDocument:
+            showOpenPanel()
         }
     }
 
@@ -147,6 +150,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             createUntitledContentPackage(configuration: configuration)
         case .folderMarker:
             showFolderPicker()
+        case .fileDocument:
+            showOpenPanel()
         }
     }
 
@@ -340,7 +345,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let formattedExtensions = configuration.documentExtensions
             .map { ".\($0)" }
             .joined(separator: ", ")
-        return "Choose a \(formattedExtensions) document package."
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            return "Choose a \(formattedExtensions) document package."
+        case .fileDocument:
+            return "Choose a \(formattedExtensions) document."
+        }
     }
 
     private func allowedContentTypes(configuration: AppifyHostConfiguration) -> [UTType] {

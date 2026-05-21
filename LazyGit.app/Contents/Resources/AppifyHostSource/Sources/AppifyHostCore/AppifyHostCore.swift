@@ -15,6 +15,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var environmentVariables: [String: String]
     public var logName: String
     public var windowTitlePrefix: String
+    public var startupTimeoutSeconds: TimeInterval
     public var webViewDataStore: AppifyHostWebViewDataStore
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
@@ -34,6 +35,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         environmentVariables: [String: String],
         logName: String,
         windowTitlePrefix: String,
+        startupTimeoutSeconds: TimeInterval,
         webViewDataStore: AppifyHostWebViewDataStore,
         restrictNavigationToReadyURLScope: Bool,
         aboutNotice: AppifyHostAboutNotice?
@@ -52,6 +54,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.environmentVariables = environmentVariables
         self.logName = logName
         self.windowTitlePrefix = windowTitlePrefix
+        self.startupTimeoutSeconds = startupTimeoutSeconds
         self.webViewDataStore = webViewDataStore
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
@@ -77,6 +80,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
 public enum AppifyHostDocumentMode: String, Equatable, Sendable {
     case contentPackage
     case folderMarker
+    case fileDocument
 }
 
 public enum AppifyHostWebViewDataStore: String, Equatable, Sendable {
@@ -169,6 +173,15 @@ public enum AppifyHostConfigurationLoader {
         let environmentVariables = stringDictionaryValue(hostSettings["EnvironmentVariables"]) ?? [:]
         let logName = stringValue(hostSettings["LogName"]) ?? appName
         let windowTitlePrefix = stringValue(hostSettings["WindowTitlePrefix"]) ?? appName
+        let startupTimeoutSeconds: TimeInterval
+        if hostSettings.keys.contains("StartupTimeoutSeconds") {
+            guard let configuredTimeout = positiveTimeIntervalValue(hostSettings["StartupTimeoutSeconds"]) else {
+                throw AppifyHostError.invalidInfoPlist("AppifyHost:StartupTimeoutSeconds must be a positive number.")
+            }
+            startupTimeoutSeconds = configuredTimeout
+        } else {
+            startupTimeoutSeconds = 20
+        }
         let restrictNavigation = boolValue(hostSettings["RestrictNavigationToReadyURLScope"]) ?? true
         let aboutNotice = parseAboutNotice(from: hostSettings)
 
@@ -196,6 +209,7 @@ public enum AppifyHostConfigurationLoader {
             environmentVariables: environmentVariables,
             logName: logName,
             windowTitlePrefix: windowTitlePrefix,
+            startupTimeoutSeconds: startupTimeoutSeconds,
             webViewDataStore: webViewDataStore,
             restrictNavigationToReadyURLScope: restrictNavigation,
             aboutNotice: aboutNotice
@@ -329,15 +343,24 @@ public enum PackageDocument {
 
         let values: URLResourceValues
         do {
-            values = try standardized.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey])
+            values = try standardized.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey])
         } catch {
-            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a readable package folder.")
+            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not readable.")
         }
         guard values.isSymbolicLink != true else {
-            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) must be a real folder, not a symlink.")
+            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) must be a real document, not a symlink.")
         }
-        guard values.isDirectory == true else {
-            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a folder.")
+
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            guard values.isDirectory == true else {
+                throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a folder.")
+            }
+
+        case .fileDocument:
+            guard values.isRegularFile == true else {
+                throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a file.")
+            }
         }
     }
 
@@ -347,6 +370,8 @@ public enum PackageDocument {
         case .contentPackage:
             return packageURL.standardizedFileURL
         case .folderMarker:
+            return packageURL.standardizedFileURL.deletingLastPathComponent()
+        case .fileDocument:
             return packageURL.standardizedFileURL.deletingLastPathComponent()
         }
     }
@@ -639,6 +664,19 @@ private func boolValue(_ value: Any?) -> Bool? {
     }
     if let number = value as? NSNumber {
         return number.boolValue
+    }
+    return nil
+}
+
+private func positiveTimeIntervalValue(_ value: Any?) -> TimeInterval? {
+    if let number = value as? NSNumber {
+        let doubleValue = number.doubleValue
+        return doubleValue > 0 ? doubleValue : nil
+    }
+    if let string = value as? String,
+       let doubleValue = Double(string),
+       doubleValue > 0 {
+        return doubleValue
     }
     return nil
 }
