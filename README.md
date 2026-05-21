@@ -35,9 +35,9 @@ The new direction lives under `source/`:
   a narrowed Mac window.
 - [`source/WebappHost/`](source/WebappHost/) is the reusable SwiftPM host for
   app-specific Bun runners bundled inside root `.app` packages.
-- [`source/TldrawApp/`](source/TldrawApp/) is the concrete tldraw document app:
-  double-click a `.tldraw` package and get the bundled runner inside a native
-  WebKit window.
+- [`source/TLCanvasApp/`](source/TLCanvasApp/) is the concrete TLCanvas app:
+  double-click a `.tlcanvas` package and get a local canvas editor built with
+  the tldraw SDK inside a native WebKit window.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -247,13 +247,18 @@ Runtime logs go to:
 ~/Library/Logs/LazyGit
 ```
 
-## tldraw
+## TLCanvas
 
-`tldraw.app` is the first concrete `WebappHost` app. It declares `.tldraw` as a
+`TLCanvas.app` is the first concrete `WebappHost` app. It declares `.tlcanvas` as a
 Finder package, starts the bundled Bun runner, waits for a validated local URL,
 and shows that runner in a native WebKit window.
 
-The root `tldraw.app` intentionally does not vendor `node_modules`. The package
+TLCanvas is not affiliated with or endorsed by tldraw Inc. It is a local
+developer bundle built with the official [tldraw SDK](https://tldraw.dev), keeps
+tldraw's own SDK UI intact, and does not include a production license key.
+Production distribution is a licensing checkpoint.
+
+The root `TLCanvas.app` intentionally does not vendor `node_modules`. The package
 source and `bun.lock` are the source of truth. On first run, the launcher
 resolves Bun directly or through `nix-shell -p bun`, then installs app-local
 dependencies with `bun install --frozen-lockfile`.
@@ -264,7 +269,7 @@ Build and test it:
 cd source/WebappHost
 swift test
 
-cd ../TldrawApp/Runner
+cd ../TLCanvasApp/Runner
 bun install --frozen-lockfile
 bun test tests/*.test.ts
 
@@ -276,14 +281,14 @@ Scripts/smoke-ui.sh
 The checked-in developer bundle can be refreshed with:
 
 ```sh
-cd source/TldrawApp
+cd source/TLCanvasApp
 Scripts/build-root-app.sh
 ```
 
 That writes:
 
 ```text
-tldraw.app
+TLCanvas.app
 ```
 
 ## The old apps
@@ -305,7 +310,7 @@ They show the original promise: HTML for the surface, scripts or local runtimes
 for behavior, Cocoa enough to make it feel like a Mac app.
 
 But if you are trying to understand where the project is going now, start with
-`LazyGit.app`, `tldraw.app`, and their canonical sources under `source/`.
+`LazyGit.app`, `TLCanvas.app`, and their canonical sources under `source/`.
 
 ## Requirements
 
@@ -314,7 +319,7 @@ manifests.
 
 You will need Apple's command line tools or Xcode. `AppifyUI2026` also needs
 `bun` at runtime for `.webapp` packages. `LazyGit` needs either Nix or the direct
-terminal/Git tools listed above. `tldraw.app` needs direct Bun or Nix so it can
+terminal/Git tools listed above. `TLCanvas.app` needs direct Bun or Nix so it can
 install its lockfile-pinned runner dependencies.
 
 The dependency posture is deliberately boring: source plus lockfiles are
@@ -335,14 +340,14 @@ timestamps changed.
 │   ├── TuiHost/           # SwiftPM TUI host
 │   ├── LazyGit/           # .lazygit concrete app packager
 │   ├── WebappHost/        # SwiftPM bundled Bun runner host
-│   ├── TldrawApp/         # .tldraw concrete app packager and runner
+│   ├── TLCanvasApp/       # .tlcanvas concrete app packager and runner
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
 ├── archive/
 │   └── legacy-apps/       # original bundle lineage
 ├── IDEA/
 │   └── web-components-native.idea.htm
 ├── LazyGit.app            # checked-in self-compiling TuiHost bundle
-├── tldraw.app             # checked-in self-compiling WebappHost bundle
+├── TLCanvas.app           # checked-in self-compiling WebappHost bundle
 ├── Scripts/
 │   └── verify-root-apps.sh
 └── README.md

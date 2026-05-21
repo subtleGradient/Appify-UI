@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>TLCanvas</string>
+  <key>CFBundleExecutable</key>
+  <string>main.sh</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.subtlegradient.tlcanvas</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>TLCanvas</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleSupportedPlatforms</key>
+  <array>
+    <string>MacOSX</string>
+  </array>
+  <key>CFBundleVersion</key>
+  <string>0.1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright © 2026 subtleGradient</string>
+
+  <key>WebappHost</key>
+  <dict>
+    <key>RunnerInstallDirectory</key>
+    <string>Contents/Resources/Runner</string>
+    <key>RunnerEntry</key>
+    <string>src/index.ts</string>
+    <key>RunnerArguments</key>
+    <array/>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.subtlegradient.tlcanvas</string>
+    <key>LogName</key>
+    <string>TLCanvas</string>
+    <key>AboutNotice</key>
+    <dict>
+      <key>Message</key>
+      <string>TLCanvas is a local macOS document app built with the tldraw SDK.
+
+It is not affiliated with or endorsed by tldraw Inc. The tldraw SDK and trademarks belong to tldraw Inc.
+
+This developer bundle is intended for local development use. Production distribution requires the appropriate tldraw license or written permission.</string>
+      <key>LinkTitle</key>
+      <string>Open tldraw.dev</string>
+      <key>LinkURL</key>
+      <string>https://tldraw.dev</string>
+    </dict>
+  </dict>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.subtlegradient.tlcanvas</string>
+      <key>UTTypeDescription</key>
+      <string>TLCanvas Document</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>com.apple.package</string>
+        <string>public.directory</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>tlcanvas</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>TLCanvas Document</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>tlcanvas</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSTypeIsPackage</key>
+      <true/>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.subtlegradient.tlcanvas</string>
+      </array>
+      <key>NSDocumentClass</key>
+      <string>WebappHostDocument</string>
+    </dict>
+  </array>
+</dict>
+</plist>

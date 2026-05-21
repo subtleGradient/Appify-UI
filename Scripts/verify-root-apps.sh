@@ -43,7 +43,7 @@ assert_file_lists_equal() {
 
 expected_root_apps="$(make_temp)"
 actual_root_apps="$(make_temp)"
-printf 'LazyGit.app\ntldraw.app\n' > "$expected_root_apps"
+printf 'LazyGit.app\nTLCanvas.app\n' > "$expected_root_apps"
 (
   cd "$ROOT"
   find . -maxdepth 1 -type d -name '*.app' -print | sed 's#^\./##' | LC_ALL=C sort
@@ -79,17 +79,17 @@ diff -qr \
   -x '.build' \
   -x '.webapp-host-source-hash' \
   "$ROOT/source/WebappHost" \
-  "$ROOT/tldraw.app/Contents/Resources/WebappHostSource" >/dev/null \
-  || fail "tldraw.app bundled WebappHostSource does not match source/WebappHost"
+  "$ROOT/TLCanvas.app/Contents/Resources/WebappHostSource" >/dev/null \
+  || fail "TLCanvas.app bundled WebappHostSource does not match source/WebappHost"
 
 diff -qr \
   -x 'node_modules' \
   -x '.canvas-test' \
-  "$ROOT/source/TldrawApp/Runner" \
-  "$ROOT/tldraw.app/Contents/Resources/Runner" >/dev/null \
-  || fail "tldraw.app bundled Runner does not match source/TldrawApp/Runner"
+  "$ROOT/source/TLCanvasApp/Runner" \
+  "$ROOT/TLCanvas.app/Contents/Resources/Runner" >/dev/null \
+  || fail "TLCanvas.app bundled Runner does not match source/TLCanvasApp/Runner"
 
 TUI_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LazyGit.app/Contents/MacOS/main.sh"
-WEBAPP_HOST_BOOTSTRAP_ONLY=1 "$ROOT/tldraw.app/Contents/MacOS/main.sh"
+WEBAPP_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"
 
 echo "root app verification ok"
