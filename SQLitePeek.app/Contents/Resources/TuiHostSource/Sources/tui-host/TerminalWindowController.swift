@@ -168,7 +168,10 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
 
             runnerProcess = process
             try process.run()
-            startupTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
+            startupTimer = Timer.scheduledTimer(
+                withTimeInterval: configuration.startupTimeoutSeconds,
+                repeats: false
+            ) { [weak self] _ in
                 DispatchQueue.main.async { [weak self] in
                     self?.handleStartupTimeout()
                 }
@@ -269,9 +272,18 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
 
         showError(
             title: "\(configuration.appName) Terminal Timed Out",
-            message: "The local ttyd terminal did not become reachable on 127.0.0.1 within 20 seconds."
+            message: "The local ttyd terminal did not become reachable on 127.0.0.1 within \(startupTimeoutDescription)."
         )
         stopRunner()
+    }
+
+    private var startupTimeoutDescription: String {
+        let timeout = configuration.startupTimeoutSeconds
+        let rounded = timeout.rounded(.towardZero)
+        if timeout == rounded {
+            return "\(Int(rounded)) seconds"
+        }
+        return "\(timeout) seconds"
     }
 
     private func stopRunner() {

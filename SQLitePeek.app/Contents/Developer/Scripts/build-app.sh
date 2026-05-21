@@ -147,6 +147,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
     <string>SQLitePeek</string>
     <key>WindowTitlePrefix</key>
     <string>SQLite Peek</string>
+    <key>StartupTimeoutSeconds</key>
+    <integer>600</integer>
     <key>EnvironmentVariables</key>
     <dict>
       <key>SQLITE_PEEK_DOCUMENT</key>

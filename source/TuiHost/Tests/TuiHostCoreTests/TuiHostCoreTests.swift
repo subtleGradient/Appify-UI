@@ -18,6 +18,7 @@ final class TuiHostCoreTests: XCTestCase {
         XCTAssertEqual(config.nixPackages, ["ttyd", "lazygit", "git", "git-lfs"])
         XCTAssertEqual(config.logName, "LazyGit")
         XCTAssertEqual(config.windowTitlePrefix, "LazyGit")
+        XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.environmentVariables, [
             "LAZYGIT_APP_PACKAGE": "{documentPath}",
             "LAZYGIT_APP_WORKDIR": "{workingDirectory}",
@@ -62,6 +63,21 @@ final class TuiHostCoreTests: XCTestCase {
         XCTAssertEqual(config.commandArguments, ["{documentPath}"])
         XCTAssertEqual(config.supportCommandNames, [])
         XCTAssertEqual(config.nixPackages, ["ttyd", "tabiew"])
+        XCTAssertEqual(config.startupTimeoutSeconds, 600)
+    }
+
+    func testRejectsInvalidStartupTimeout() throws {
+        var plist = sampleInfoPlist()
+        plist["TuiHost"] = [
+            "CommandName": "lazygit",
+            "CommandArguments": [],
+            "StartupTimeoutSeconds": 0,
+        ]
+
+        XCTAssertThrowsError(try TuiHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/tmp/LazyGit.app")
+        ))
     }
 
     func testSlugGenerationUsesLowercaseASCII() throws {
@@ -498,6 +514,7 @@ final class TuiHostCoreTests: XCTestCase {
                 "NixPackages": ["ttyd", "tabiew"],
                 "LogName": "SQLitePeek",
                 "WindowTitlePrefix": "SQLite Peek",
+                "StartupTimeoutSeconds": 600,
             ],
         ]
     }

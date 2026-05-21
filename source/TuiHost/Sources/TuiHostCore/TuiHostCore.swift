@@ -12,6 +12,7 @@ public struct TuiHostConfiguration: Equatable, Sendable {
     public var nixPackages: [String]
     public var logName: String
     public var windowTitlePrefix: String
+    public var startupTimeoutSeconds: TimeInterval
     public var environmentVariables: [String: String]
 
     public init(
@@ -26,6 +27,7 @@ public struct TuiHostConfiguration: Equatable, Sendable {
         nixPackages: [String],
         logName: String,
         windowTitlePrefix: String,
+        startupTimeoutSeconds: TimeInterval,
         environmentVariables: [String: String]
     ) {
         self.appName = appName
@@ -39,6 +41,7 @@ public struct TuiHostConfiguration: Equatable, Sendable {
         self.nixPackages = nixPackages
         self.logName = logName
         self.windowTitlePrefix = windowTitlePrefix
+        self.startupTimeoutSeconds = startupTimeoutSeconds
         self.environmentVariables = environmentVariables
     }
 
@@ -118,6 +121,15 @@ public enum TuiHostConfigurationLoader {
             ?? unique(["ttyd", commandName] + supportCommandNames)
         let logName = stringValue(hostSettings["LogName"]) ?? appName
         let windowTitlePrefix = stringValue(hostSettings["WindowTitlePrefix"]) ?? appName
+        let startupTimeoutSeconds: TimeInterval
+        if hostSettings.keys.contains("StartupTimeoutSeconds") {
+            guard let configuredTimeout = positiveTimeIntervalValue(hostSettings["StartupTimeoutSeconds"]) else {
+                throw TuiHostCoreError.invalidInfoPlist("TuiHost:StartupTimeoutSeconds must be a positive number.")
+            }
+            startupTimeoutSeconds = configuredTimeout
+        } else {
+            startupTimeoutSeconds = 20
+        }
         let environmentVariables = stringDictionaryValue(hostSettings["EnvironmentVariables"]) ?? [:]
         let documentExtensions = parseDocumentExtensions(from: infoDictionary)
 
@@ -144,6 +156,7 @@ public enum TuiHostConfigurationLoader {
             nixPackages: nixPackages,
             logName: logName,
             windowTitlePrefix: windowTitlePrefix,
+            startupTimeoutSeconds: startupTimeoutSeconds,
             environmentVariables: environmentVariables
         )
     }
@@ -746,6 +759,31 @@ private func stringArrayValue(_ value: Any?) -> [String]? {
 
 private func stringDictionaryValue(_ value: Any?) -> [String: String]? {
     value as? [String: String]
+}
+
+private func positiveTimeIntervalValue(_ value: Any?) -> TimeInterval? {
+    switch value {
+    case let value as Int:
+        guard value > 0 else { return nil }
+        return TimeInterval(value)
+    case let value as Double:
+        guard value.isFinite, value > 0 else { return nil }
+        return value
+    case let value as Float:
+        guard value.isFinite, value > 0 else { return nil }
+        return TimeInterval(value)
+    case let value as NSNumber:
+        guard CFGetTypeID(value) != CFBooleanGetTypeID() else {
+            return nil
+        }
+        let doubleValue = value.doubleValue
+        guard doubleValue.isFinite, doubleValue > 0 else {
+            return nil
+        }
+        return doubleValue
+    default:
+        return nil
+    }
 }
 
 private func arrayOfDictionaries(_ value: Any?) -> [[String: Any]] {
