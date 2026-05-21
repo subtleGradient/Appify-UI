@@ -9,6 +9,8 @@ final class DocumentWindowController: NSWindowController {
     private let documentURL: URL
     private var webView: WKWebView?
     private var runnerProcess: Process?
+    private var stdoutPipe: Pipe?
+    private var stderrPipe: Pipe?
     private var startupTimer: Timer?
     private var stdoutBuffer = ""
     private var didLoadRunnerURL = false
@@ -83,6 +85,8 @@ final class DocumentWindowController: NSWindowController {
             let stdout = Pipe()
             let stderr = Pipe()
             let process = Process()
+            stdoutPipe = stdout
+            stderrPipe = stderr
             process.executableURL = command.executableURL
             process.arguments = command.arguments
             process.currentDirectoryURL = documentURL
@@ -124,6 +128,8 @@ final class DocumentWindowController: NSWindowController {
                 }
             }
         } catch {
+            runnerProcess = nil
+            detachProcessPipes()
             showError(title: "Could Not Open Web App", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
         }
@@ -179,8 +185,7 @@ final class DocumentWindowController: NSWindowController {
         }
 
         runnerProcess = nil
-        process.standardOutput = nil
-        process.standardError = nil
+        detachProcessPipes()
 
         if !didLoadRunnerURL {
             showError(
@@ -210,8 +215,7 @@ final class DocumentWindowController: NSWindowController {
             return
         }
         runnerProcess = nil
-        process.standardOutput = nil
-        process.standardError = nil
+        detachProcessPipes()
 
         guard process.isRunning else {
             return
@@ -224,6 +228,13 @@ final class DocumentWindowController: NSWindowController {
                 kill(pid, SIGKILL)
             }
         }
+    }
+
+    private func detachProcessPipes() {
+        stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+        stderrPipe?.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe = nil
+        stderrPipe = nil
     }
 
     private func openLog() throws {

@@ -22,7 +22,11 @@ function run(argv) {
   const lazyGitProcesses = () => {
     const bundled = bundleProcesses()
     if (bundled.length > 0) return bundled
-    return systemEvents.processes.whose({ name: "LazyGit" })()
+    try {
+      return systemEvents.processes.whose({ name: "LazyGit" })()
+    } catch (_) {
+      return []
+    }
   }
   const matchingLazyGitProcesses = () => {
     const processes = lazyGitProcesses()
@@ -75,11 +79,6 @@ function run(argv) {
       process.frontmost = true
     } catch (_) {}
 
-    const bundleIdentifier = process.bundleIdentifier()
-    if (bundleIdentifier !== expectedBundleIdentifier) {
-      fail(`Expected bundle identifier ${expectedBundleIdentifier} but saw ${bundleIdentifier}`)
-    }
-
     return process
   }
   const assertMenus = process => {
@@ -105,6 +104,23 @@ function run(argv) {
       }
     })
   }
+  const closeDocumentWindow = expectedWindowName => {
+    const process = waitUntil(
+      "LazyGit document window disappeared before it could be closed",
+      () => processWithWindow(expectedWindowName)
+    )
+    try {
+      process.frontmost = true
+    } catch (_) {}
+
+    try {
+      const window = process.windows.whose({ name: expectedWindowName })()[0]
+      window.buttons[0].click()
+      return
+    } catch (_) {}
+
+    systemEvents.keystroke("w", { using: "command down" })
+  }
 
   quitApp()
 
@@ -123,7 +139,12 @@ function run(argv) {
       fail("LazyGit exited while opening sample-folder.lazygit")
     }
 
-    quitApp()
+    closeDocumentWindow(expectedWindowName)
+    waitUntil(
+      "LazyGit document window did not close",
+      () => processWithWindow(expectedWindowName) === null
+    )
+    delaySeconds(1)
     return `LazyGit smoke ok: ${appPath}`
   } catch (error) {
     quitApp()

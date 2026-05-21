@@ -21,6 +21,11 @@ trap cleanup EXIT
 
 mkdir -p "$DOCUMENT"
 git init -q "$SMOKE_REPO"
+git -C "$SMOKE_REPO" config user.name "LazyGit Smoke"
+git -C "$SMOKE_REPO" config user.email "lazygit-smoke@example.invalid"
+printf "# LazyGit smoke fixture\n" > "$SMOKE_REPO/README.md"
+git -C "$SMOKE_REPO" add README.md
+git -C "$SMOKE_REPO" commit -qm "Initial smoke fixture"
 
 if [[ -z "$SMOKE_SKIP_BUILD" ]]; then
   if [[ -n "${LAZYGIT_SMOKE_APP:-}" ]]; then
@@ -56,6 +61,9 @@ fi
 for log_path in "${new_logs[@]}"; do
   echo "== LazyGit.app log: $log_path =="
   sed -n "1,220p" "$log_path"
+  if grep -Eq "process exited with code [1-9][0-9]*|not a valid git repository" "$log_path"; then
+    status=1
+  fi
 done
 
 declare -a new_crash_reports=()

@@ -12,6 +12,8 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
     private let workingDirectory: URL?
     private var webView: WKWebView?
     private var runnerProcess: Process?
+    private var stdoutPipe: Pipe?
+    private var stderrPipe: Pipe?
     private var startupTimer: Timer?
     private var stdoutBuffer = ""
     private var stderrBuffer = ""
@@ -112,6 +114,8 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             let stdout = Pipe()
             let stderr = Pipe()
             let process = Process()
+            stdoutPipe = stdout
+            stderrPipe = stderr
             process.executableURL = command.executableURL
             process.arguments = command.arguments
             process.currentDirectoryURL = workingDirectory
@@ -153,6 +157,8 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
                 }
             }
         } catch {
+            runnerProcess = nil
+            detachProcessPipes()
             showError(title: "Could Not Open \(configuration.appName)", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
         }
@@ -227,8 +233,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         }
 
         runnerProcess = nil
-        process.standardOutput = nil
-        process.standardError = nil
+        detachProcessPipes()
 
         guard !isClosing, !didLoadTerminal else {
             return
@@ -260,8 +265,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             return
         }
         runnerProcess = nil
-        process.standardOutput = nil
-        process.standardError = nil
+        detachProcessPipes()
 
         guard process.isRunning else {
             return
@@ -278,6 +282,13 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
                 kill(pid, SIGKILL)
             }
         }
+    }
+
+    private func detachProcessPipes() {
+        stdoutPipe?.fileHandleForReading.readabilityHandler = nil
+        stderrPipe?.fileHandleForReading.readabilityHandler = nil
+        stdoutPipe = nil
+        stderrPipe = nil
     }
 
     private func loadWebView(url: URL) {
