@@ -82,22 +82,20 @@ diff -qr \
   "$ROOT/TLCanvas.app/Contents/Resources/AppifyHostSource" >/dev/null \
   || fail "TLCanvas.app bundled AppifyHostSource does not match source/AppifyHost"
 
-diff -qr \
-  "$ROOT/source/LazyGit/AppServer" \
-  "$ROOT/LazyGit.app/Contents/Resources/AppServer" >/dev/null \
-  || fail "LazyGit.app bundled AppServer does not match source/LazyGit/AppServer"
+[[ -x "$ROOT/LazyGit.app/Contents/Resources/AppServer/main.sh" ]] \
+  || fail "LazyGit.app is missing bundled AppServer/main.sh"
 
-diff -qr \
-  "$ROOT/source/TLCanvasApp/AppServer" \
-  "$ROOT/TLCanvas.app/Contents/Resources/AppServer" >/dev/null \
-  || fail "TLCanvas.app bundled AppServer does not match source/TLCanvasApp/AppServer"
+[[ -x "$ROOT/TLCanvas.app/Contents/Resources/AppServer/main.sh" ]] \
+  || fail "TLCanvas.app is missing bundled AppServer/main.sh"
 
-diff -qr \
-  -x 'node_modules' \
-  -x '.canvas-test' \
-  "$ROOT/source/TLCanvasApp/Runner" \
-  "$ROOT/TLCanvas.app/Contents/Resources/Runner" >/dev/null \
-  || fail "TLCanvas.app bundled Runner does not match source/TLCanvasApp/Runner"
+[[ -f "$ROOT/TLCanvas.app/Contents/Resources/Runner/package.json" ]] \
+  || fail "TLCanvas.app is missing bundled Runner/package.json"
+
+[[ -x "$ROOT/LazyGit.app/Contents/Developer/Scripts/build-app.sh" ]] \
+  || fail "LazyGit.app is missing developer build script"
+
+[[ -x "$ROOT/TLCanvas.app/Contents/Developer/Scripts/build-app.sh" ]] \
+  || fail "TLCanvas.app is missing developer build script"
 
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LazyGit.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"

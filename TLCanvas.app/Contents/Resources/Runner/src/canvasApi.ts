@@ -5,7 +5,7 @@ import type { TLStoreSnapshot } from "tldraw";
 export const CANVAS_API_PATH = "/api/canvas";
 export const CANVAS_FILE_NAME = "canvas.json5";
 export const CANVAS_SCHEMA_URI =
-  "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/source/TLCanvasApp/Runner/schemas/tlcanvas.schema.json";
+  "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/TLCanvas.app/Contents/Resources/Runner/schemas/tlcanvas.schema.json";
 
 export interface CanvasStatePayload {
   revision: number;

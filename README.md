@@ -20,7 +20,7 @@ parts the operating system is good at.
 The old Appify UI apps in this repo are still here as history and working
 reference material. They are not the new center.
 
-The new direction lives under `source/`:
+The new direction is split between shared source and app-shaped app source:
 
 - [`source/AppifyUI2026/`](source/AppifyUI2026/) is the fresh SwiftPM Appify UI
   implementation. It opens `.webapp` document packages, validates their
@@ -31,14 +31,15 @@ The new direction lives under `source/`:
   start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`, validate
   that URL, and show it in a native WebKit window. It does not know about Bun,
   `ttyd`, LazyGit, or TLCanvas.
-- [`source/LazyGit/`](source/LazyGit/) is the concrete LazyGit packager built on
+- [`LazyGit.app`](LazyGit.app/) is the concrete LazyGit app built on
   `AppifyHost`: double-click a `.lazygit` package and get `lazygit` running
   inside a narrowed Mac window. Its bundled `AppServer` owns all `ttyd` and
-  `lazygit` details.
-- [`source/TLCanvasApp/`](source/TLCanvasApp/) is the concrete TLCanvas app:
-  double-click a `.tlcanvas` package and get a local canvas editor built with
-  the tldraw SDK inside a native WebKit window. Its bundled `AppServer` owns Bun
-  resolution and runner startup.
+  `lazygit` details; app-specific scripts and fixtures live under
+  `Contents/Developer`.
+- [`TLCanvas.app`](TLCanvas.app/) is the concrete TLCanvas app: double-click a
+  `.tlcanvas` package and get a local canvas editor built with the tldraw SDK
+  inside a native WebKit window. Its bundled `AppServer` owns Bun resolution and
+  runner startup, and its bundled `Runner` is the canonical runner source.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -202,7 +203,7 @@ Build and test it:
 cd source/AppifyHost
 swift test
 
-cd ../LazyGit
+cd ../../LazyGit.app/Contents/Developer
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
@@ -210,13 +211,13 @@ Scripts/smoke-ui.sh
 The built app lands at:
 
 ```text
-source/LazyGit/dist/LazyGit.app
+LazyGit.app/Contents/Developer/dist/LazyGit.app
 ```
 
 The checked-in developer bundle can be refreshed with:
 
 ```sh
-cd source/LazyGit
+cd LazyGit.app/Contents/Developer
 Scripts/build-root-app.sh
 ```
 
@@ -229,7 +230,7 @@ LazyGit.app
 Release packaging is stricter on purpose:
 
 ```sh
-cd source/LazyGit
+cd LazyGit.app/Contents/Developer
 DEVELOPER_ID_APPLICATION="Developer ID Application: Example, Inc. (TEAMID)" \
 NOTARYTOOL_PROFILE="notarytool-profile-name" \
 Scripts/package-release.sh 0.1.0
@@ -239,7 +240,7 @@ That signs with Developer ID hardened runtime, submits the zip for Apple
 notarization, staples the ticket, validates with `spctl`, and emits:
 
 ```text
-source/LazyGit/dist/release/LazyGit.app.zip
+LazyGit.app/Contents/Developer/dist/release/LazyGit.app.zip
 ```
 
 Runtime logs go to:
@@ -270,11 +271,12 @@ Build and test it:
 cd source/AppifyHost
 swift test
 
-cd ../TLCanvasApp/Runner
+cd ../../TLCanvas.app/Contents/Resources/Runner
 bun install --frozen-lockfile
 bun test tests/*.test.ts
+bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
 
-cd ..
+cd ../../Developer
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
@@ -282,7 +284,7 @@ Scripts/smoke-ui.sh
 The checked-in developer bundle can be refreshed with:
 
 ```sh
-cd source/TLCanvasApp
+cd TLCanvas.app/Contents/Developer
 Scripts/build-root-app.sh
 ```
 
@@ -327,10 +329,10 @@ The dependency posture is deliberately boring: source plus lockfiles are
 canonical, the internet is allowed, npm/Bun/nixpkgs may fetch dependencies on
 demand, and Git LFS is reserved for future large non-regenerable assets only.
 
-The root apps are checked-in developer artifacts. Their bundled source snapshots
-are generated from `source/`, and their host binaries are keyed by source hashes
-instead of mtimes so a fresh clone does not rebuild merely because file
-timestamps changed.
+The root apps are checked-in developer artifacts and the canonical home for
+app-specific code. Shared host source still lives under `source/`; bundled host
+snapshots are keyed by source hashes instead of mtimes so a fresh clone does not
+rebuild merely because file timestamps changed.
 
 ## Project shape
 
@@ -339,8 +341,6 @@ timestamps changed.
 ├── source/
 │   ├── AppifyUI2026/      # SwiftPM .webapp launcher
 │   ├── AppifyHost/        # generic SwiftPM document-to-local-server host
-│   ├── LazyGit/           # .lazygit concrete app packager
-│   ├── TLCanvasApp/       # .tlcanvas concrete app packager and runner
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
 ├── archive/
 │   └── legacy-apps/       # original bundle lineage

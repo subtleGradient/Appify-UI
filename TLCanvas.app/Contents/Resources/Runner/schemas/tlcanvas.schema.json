@@ -1,11 +1,11 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/source/TLCanvasApp/Runner/schemas/tlcanvas.schema.json",
+  "$id": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/TLCanvas.app/Contents/Resources/Runner/schemas/tlcanvas.schema.json",
   "title": "TLCanvas document envelope",
   "type": "object",
   "properties": {
     "$schema": {
-      "const": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/source/TLCanvasApp/Runner/schemas/tlcanvas.schema.json"
+      "const": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/TLCanvas.app/Contents/Resources/Runner/schemas/tlcanvas.schema.json"
     },
     "revision": {
       "type": "integer",

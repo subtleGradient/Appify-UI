@@ -1,5 +1,5 @@
 {
-  $schema: 'https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/source/TLCanvasApp/Runner/schemas/tlcanvas.schema.json',
+  $schema: 'https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@tlcanvas-schema-v1/TLCanvas.app/Contents/Resources/Runner/schemas/tlcanvas.schema.json',
   revision: 14,
   snapshot: {
     store: {

@@ -1,16 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-APPIFY_HOST_ROOT="$REPO_ROOT/source/AppifyHost"
-APP_SERVER_ROOT="$ROOT/AppServer"
 APP_NAME="LazyGit"
 EXECUTABLE_NAME="main.sh"
 BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
 VERSION="0.1.0"
 
-APP="${LAZYGIT_APP_OUTPUT:-$ROOT/dist/$APP_NAME.app}"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+DEVELOPER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+SOURCE_CONTENTS="$(cd "$DEVELOPER_ROOT/.." && pwd)"
+SOURCE_APP="$(cd "$SOURCE_CONTENTS/.." && pwd)"
+
+find_repo_root() {
+  local dir="$SOURCE_APP"
+  while [[ "$dir" != "/" ]]; do
+    if [[ -f "$dir/source/AppifyHost/Package.swift" ]]; then
+      printf '%s\n' "$dir"
+      return 0
+    fi
+    dir="$(dirname "$dir")"
+  done
+
+  echo "Could not find repo root containing source/AppifyHost" >&2
+  return 1
+}
+
+REPO_ROOT="$(find_repo_root)"
+APPIFY_HOST_ROOT="$REPO_ROOT/source/AppifyHost"
+APP_SERVER_SOURCE="$SOURCE_APP/Contents/Resources/AppServer"
+DEVELOPER_SOURCE="$SOURCE_APP/Contents/Developer"
+
+APP="${LAZYGIT_APP_OUTPUT:-$DEVELOPER_ROOT/dist/$APP_NAME.app}"
 SIGN_ADHOC="${LAZYGIT_APP_SIGN:-1}"
 
 source_hash() {
@@ -31,10 +51,28 @@ if [[ ! -f "$APPIFY_HOST_ROOT/Package.swift" ]]; then
   exit 1
 fi
 
-if [[ ! -x "$APP_SERVER_ROOT/main.sh" ]]; then
-  echo "Missing LazyGit app server at $APP_SERVER_ROOT" >&2
+if [[ ! -x "$APP_SERVER_SOURCE/main.sh" ]]; then
+  echo "Missing LazyGit app server at $APP_SERVER_SOURCE" >&2
   exit 1
 fi
+
+if [[ ! -d "$DEVELOPER_SOURCE/Scripts" ]]; then
+  echo "Missing LazyGit developer scripts at $DEVELOPER_SOURCE/Scripts" >&2
+  exit 1
+fi
+
+STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lazygit-build.XXXXXX")"
+cleanup() {
+  rm -rf "$STAGING_ROOT"
+}
+trap cleanup EXIT
+
+APP_PAYLOAD="$STAGING_ROOT/AppPayload"
+mkdir -p "$APP_PAYLOAD/Contents/Resources" "$APP_PAYLOAD/Contents/Developer"
+rsync -a --delete "$APP_SERVER_SOURCE/" "$APP_PAYLOAD/Contents/Resources/AppServer/"
+rsync -a --delete \
+  --exclude "dist" \
+  "$DEVELOPER_SOURCE/" "$APP_PAYLOAD/Contents/Developer/"
 
 swift build --package-path "$APPIFY_HOST_ROOT" -c release --product appify-host
 APPIFY_HOST_SOURCE_HASH="$(source_hash "$APPIFY_HOST_ROOT")"
@@ -42,11 +80,12 @@ APPIFY_HOST_SOURCE_HASH="$(source_hash "$APPIFY_HOST_ROOT")"
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
+DEVELOPER="$CONTENTS/Developer"
 APPIFY_HOST_SOURCE="$RESOURCES/AppifyHostSource"
 APP_SERVER="$RESOURCES/AppServer"
 
 rm -rf "$APP"
-mkdir -p "$MACOS" "$RESOURCES"
+mkdir -p "$MACOS" "$RESOURCES" "$DEVELOPER"
 
 cp "$APPIFY_HOST_ROOT/.build/release/appify-host" "$MACOS/appify-host"
 chmod +x "$MACOS/appify-host"
@@ -60,7 +99,9 @@ printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$APPIFY_HOST_SOURCE/.appify-host-sou
 printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$MACOS/.appify-host-binary-source-hash"
 
 mkdir -p "$APP_SERVER"
-rsync -a --delete "$APP_SERVER_ROOT/" "$APP_SERVER/"
+rsync -a --delete "$APP_PAYLOAD/Contents/Resources/AppServer/" "$APP_SERVER/"
+
+rsync -a --delete "$APP_PAYLOAD/Contents/Developer/" "$DEVELOPER/"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -173,6 +214,7 @@ PKGINFO
 if [[ "$SIGN_ADHOC" != "1" ]]; then
   cat > "$APP/.gitignore" <<GITIGNORE
 Contents/Resources/AppifyHostSource/.build/
+Contents/Developer/dist/
 GITIGNORE
 fi
 
