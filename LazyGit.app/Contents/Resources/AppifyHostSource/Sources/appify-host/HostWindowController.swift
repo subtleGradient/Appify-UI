@@ -139,6 +139,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
                 ?? documentURL.deletingPathExtension().lastPathComponent
             window?.representedURL = documentURL
             window?.title = "\(configuration.windowTitlePrefix) - \(title)"
+
+        case .fileDocument:
+            window?.representedURL = documentURL
+            window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
         }
     }
 
@@ -202,7 +206,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
 
             serverProcess = process
             try process.run()
-            startupTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
+            startupTimer = Timer.scheduledTimer(withTimeInterval: configuration.startupTimeoutSeconds, repeats: false) { [weak self] _ in
                 DispatchQueue.main.async { [weak self] in
                     self?.handleStartupTimeout()
                 }
@@ -305,9 +309,18 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
 
         showError(
             title: "\(configuration.appName) Server Timed Out",
-            message: "The app-local server did not print APPIFY_HOST_OPEN_URL within 20 seconds."
+            message: "The app-local server did not print APPIFY_HOST_OPEN_URL within \(startupTimeoutDescription)."
         )
         stopServer()
+    }
+
+    private var startupTimeoutDescription: String {
+        let timeout = configuration.startupTimeoutSeconds
+        let rounded = timeout.rounded(.towardZero)
+        if timeout == rounded {
+            return "\(Int(rounded)) seconds"
+        }
+        return "\(timeout) seconds"
     }
 
     private func stopServer() {

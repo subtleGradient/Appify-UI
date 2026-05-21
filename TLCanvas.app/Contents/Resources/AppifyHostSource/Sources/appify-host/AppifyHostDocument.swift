@@ -37,7 +37,12 @@ final class AppifyHostDocument: NSDocument {
 
     override func read(from url: URL, ofType typeName: String) throws {
         let configuration = try AppifyHostRuntime.requireConfiguration()
-        try ensurePackageExists(at: url)
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            try ensurePackageExists(at: url)
+        case .fileDocument:
+            break
+        }
         try PackageDocument.validatePackageURL(url, configuration: configuration)
     }
 
@@ -48,6 +53,8 @@ final class AppifyHostDocument: NSDocument {
             try writeContentPackage(to: url)
         case .folderMarker:
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        case .fileDocument:
+            try writeFileDocument(to: url)
         }
     }
 
@@ -117,6 +124,23 @@ final class AppifyHostDocument: NSDocument {
         let destination = url.standardizedFileURL
         if source == destination {
             try FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
+            return
+        }
+
+        if FileManager.default.fileExists(atPath: destination.path) {
+            try FileManager.default.removeItem(at: destination)
+        }
+        try FileManager.default.copyItem(at: source, to: destination)
+    }
+
+    private func writeFileDocument(to url: URL) throws {
+        guard let activeDocumentURL else {
+            return
+        }
+
+        let source = activeDocumentURL.standardizedFileURL
+        let destination = url.standardizedFileURL
+        if source == destination {
             return
         }
 

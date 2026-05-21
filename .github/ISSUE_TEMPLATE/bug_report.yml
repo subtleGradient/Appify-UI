@@ -14,9 +14,11 @@ body:
       label: Area
       description: Which part of the project were you using?
       options:
-        - AppifyUI2026
+        - AppifyHost
         - LazyGit
-        - Old Appify UI app bundle
+        - SQLite Peek
+        - TLCanvas
+        - Archived history tag
         - README or docs
         - Not sure
     validations:
@@ -63,7 +65,7 @@ body:
     id: logs
     attributes:
       label: Logs, screenshots, crash reports, or notes
-      description: Paste anything useful. Appify UI logs usually live under ~/Library/Logs/Appify-UI and LazyGit logs under ~/Library/Logs/LazyGit.
+      description: Paste anything useful. App logs usually live under ~/Library/Logs/<App Name>.
       render: text
     validations:
       required: false
