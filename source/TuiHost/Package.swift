@@ -2,31 +2,31 @@
 import PackageDescription
 
 let package = Package(
-    name: "LazyGit",
+    name: "TuiHost",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "LazyGitCore", targets: ["LazyGitCore"]),
-        .executable(name: "LazyGit", targets: ["LazyGit"]),
+        .library(name: "TuiHostCore", targets: ["TuiHostCore"]),
+        .executable(name: "tui-host", targets: ["tui-host"]),
     ],
     targets: [
         .target(
-            name: "LazyGitCore",
+            name: "TuiHostCore",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
         ),
         .executableTarget(
-            name: "LazyGit",
-            dependencies: ["LazyGitCore"],
+            name: "tui-host",
+            dependencies: ["TuiHostCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]
         ),
         .testTarget(
-            name: "LazyGitCoreTests",
-            dependencies: ["LazyGitCore"],
+            name: "TuiHostCoreTests",
+            dependencies: ["TuiHostCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

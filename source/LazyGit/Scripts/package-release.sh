@@ -47,6 +47,13 @@ codesign \
   --timestamp \
   --options runtime \
   --sign "$developer_id_identity" \
+  "$APP/Contents/MacOS/tui-host"
+
+codesign \
+  --force \
+  --timestamp \
+  --options runtime \
+  --sign "$developer_id_identity" \
   "$APP"
 
 codesign --verify --deep --strict --verbose=2 "$APP"

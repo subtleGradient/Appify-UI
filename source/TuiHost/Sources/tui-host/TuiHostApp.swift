@@ -1,7 +1,7 @@
 import AppKit
 
 @main
-enum LazyGitApp {
+enum TuiHostApp {
     static func main() {
         let application = NSApplication.shared
         let delegate = AppDelegate()

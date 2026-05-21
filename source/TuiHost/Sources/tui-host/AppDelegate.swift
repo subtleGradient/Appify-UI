@@ -1,12 +1,20 @@
 import AppKit
-import LazyGitCore
+import TuiHostCore
 import UniformTypeIdentifiers
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var windowControllers: [ObjectIdentifier: TerminalWindowController] = [:]
     private var didReceiveDocumentOpenEvent = false
+    private var configuration: TuiHostConfiguration?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        do {
+            configuration = try loadConfiguration()
+        } catch {
+            showFatalConfigurationError(error)
+            return
+        }
+
         DispatchQueue.main.async { [weak self] in
             self?.configureMainMenu()
         }
@@ -50,9 +58,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func showFolderPicker() {
+        guard let configuration else {
+            return
+        }
+
         let panel = NSOpenPanel()
-        panel.title = "New LazyGit Window"
-        panel.message = "Choose any folder. LazyGit will run in that folder."
+        panel.title = "New \(configuration.windowTitlePrefix) Window"
+        panel.message = "Choose any folder. \(configuration.appName) will run in that folder."
         panel.prompt = "Open"
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -63,25 +75,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         do {
-            let packageURL = LazyGitPackage.packageURL(forFolder: folderURL)
-            try createPackageIfNeeded(at: packageURL)
+            let packageURL = PackageDocument.packageURL(forFolder: folderURL, configuration: configuration)
+            try createPackageIfNeeded(at: packageURL, configuration: configuration)
             didReceiveDocumentOpenEvent = true
             openPackage(at: packageURL)
         } catch {
-            showAlert(title: "Could Not Create LazyGit Package", message: String(describing: error))
+            showAlert(title: "Could Not Create \(configuration.appName) Package", message: String(describing: error))
         }
     }
 
     @MainActor
     private func showPackagePicker() {
+        guard let configuration else {
+            return
+        }
+
         let panel = NSOpenPanel()
-        panel.title = "Open LazyGit Package"
-        panel.message = "Choose a .lazygit document package."
+        panel.title = "Open \(configuration.appName) Package"
+        panel.message = openPanelMessage(configuration: configuration)
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        if let lazygitType = UTType(filenameExtension: LazyGitPackage.pathExtension) {
-            panel.allowedContentTypes = [lazygitType]
+        let allowedTypes = configuration.documentExtensions.compactMap { UTType(filenameExtension: $0) }
+        if !allowedTypes.isEmpty {
+            panel.allowedContentTypes = allowedTypes
         }
 
         guard panel.runModal() == .OK else {
@@ -96,7 +113,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func openPackage(at url: URL) {
-        let controller = TerminalWindowController(packageURL: url)
+        guard let configuration else {
+            return
+        }
+
+        let controller = TerminalWindowController(configuration: configuration, packageURL: url)
         let identifier = ObjectIdentifier(controller)
         windowControllers[identifier] = controller
         controller.onClose = { [weak self, weak controller] in
@@ -108,9 +129,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.showAndStart()
     }
 
-    private func createPackageIfNeeded(at packageURL: URL) throws {
+    private func createPackageIfNeeded(at packageURL: URL, configuration: TuiHostConfiguration) throws {
         if FileManager.default.fileExists(atPath: packageURL.path) {
-            _ = try LazyGitPackage.workingDirectory(forPackage: packageURL)
+            _ = try PackageDocument.workingDirectory(forPackage: packageURL, configuration: configuration)
             return
         }
 
@@ -128,6 +149,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func configureMainMenu() {
+        guard let configuration else {
+            return
+        }
+
         let mainMenu = NSMenu()
         NSApp.mainMenu = mainMenu
 
@@ -137,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
         appMenu.addItem(
-            withTitle: "Quit LazyGit",
+            withTitle: "Quit \(configuration.appName)",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
         )
@@ -148,7 +173,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let fileMenu = NSMenu(title: "File")
         fileMenuItem.submenu = fileMenu
         let newItem = fileMenu.addItem(
-            withTitle: "New LazyGit Window...",
+            withTitle: "New \(configuration.windowTitlePrefix) Window...",
             action: #selector(newWindowFromMenu(_:)),
             keyEquivalent: "n"
         )
@@ -160,5 +185,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             keyEquivalent: "o"
         )
         openItem.target = self
+    }
+
+    private func loadConfiguration() throws -> TuiHostConfiguration {
+        let environment = ProcessInfo.processInfo.environment
+        let bundleURL: URL
+        if let bundlePath = environment["TUI_HOST_BUNDLE_PATH"], !bundlePath.isEmpty {
+            bundleURL = URL(fileURLWithPath: bundlePath, isDirectory: true)
+        } else {
+            bundleURL = Bundle.main.bundleURL
+        }
+
+        return try TuiHostConfigurationLoader.load(bundleURL: bundleURL, environment: environment)
+    }
+
+    private func openPanelMessage(configuration: TuiHostConfiguration) -> String {
+        let formattedExtensions = configuration.documentExtensions
+            .map { ".\($0)" }
+            .joined(separator: ", ")
+        return "Choose a \(formattedExtensions) document package."
+    }
+
+    @MainActor
+    private func showFatalConfigurationError(_ error: Error) {
+        let alert = NSAlert()
+        alert.alertStyle = .critical
+        alert.messageText = "Could Not Start App"
+        alert.informativeText = String(describing: error)
+        alert.runModal()
+        NSApp.terminate(nil)
     }
 }

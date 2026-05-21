@@ -1,43 +1,3 @@
-#!/usr/bin/env bash
-set -euo pipefail
-
-ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-TUI_HOST_ROOT="$REPO_ROOT/source/TuiHost"
-APP_NAME="LazyGit"
-EXECUTABLE_NAME="main.sh"
-BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
-VERSION="0.1.0"
-
-APP="${LAZYGIT_APP_OUTPUT:-$ROOT/dist/$APP_NAME.app}"
-SIGN_ADHOC="${LAZYGIT_APP_SIGN:-1}"
-
-if [[ ! -f "$TUI_HOST_ROOT/Package.swift" ]]; then
-  echo "Missing TuiHost source at $TUI_HOST_ROOT" >&2
-  exit 1
-fi
-
-swift build --package-path "$TUI_HOST_ROOT" -c release --product tui-host
-
-CONTENTS="$APP/Contents"
-MACOS="$CONTENTS/MacOS"
-RESOURCES="$CONTENTS/Resources"
-TUI_HOST_SOURCE="$RESOURCES/TuiHostSource"
-
-rm -rf "$APP"
-mkdir -p "$MACOS" "$RESOURCES"
-
-cp "$TUI_HOST_ROOT/.build/release/tui-host" "$MACOS/tui-host"
-chmod +x "$MACOS/tui-host"
-
-cp "$TUI_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
-chmod +x "$MACOS/main.sh"
-
-mkdir -p "$TUI_HOST_SOURCE"
-rsync -a --delete --exclude ".build" "$TUI_HOST_ROOT/" "$TUI_HOST_SOURCE/"
-touch "$TUI_HOST_SOURCE/.tui-host-built-at"
-
-cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -45,25 +5,25 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleDisplayName</key>
-  <string>$APP_NAME</string>
+  <string>LazyGit</string>
   <key>CFBundleExecutable</key>
-  <string>$EXECUTABLE_NAME</string>
+  <string>main.sh</string>
   <key>CFBundleIdentifier</key>
-  <string>$BUNDLE_IDENTIFIER</string>
+  <string>com.subtlegradient.LazyGit</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>$APP_NAME</string>
+  <string>LazyGit</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>$VERSION</string>
+  <string>0.1.0</string>
   <key>CFBundleSupportedPlatforms</key>
   <array>
     <string>MacOSX</string>
   </array>
   <key>CFBundleVersion</key>
-  <string>$VERSION</string>
+  <string>0.1.0</string>
   <key>LSMinimumSystemVersion</key>
   <string>14.0</string>
   <key>NSHighResolutionCapable</key>
@@ -146,22 +106,3 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   </array>
 </dict>
 </plist>
-PLIST
-
-cat > "$CONTENTS/PkgInfo" <<PKGINFO
-APPL????
-PKGINFO
-
-if [[ "$SIGN_ADHOC" != "1" ]]; then
-  cat > "$APP/.gitignore" <<GITIGNORE
-Contents/Resources/TuiHostSource/.build/
-GITIGNORE
-fi
-
-plutil -lint "$CONTENTS/Info.plist"
-
-if [[ "$SIGN_ADHOC" == "1" ]] && command -v codesign >/dev/null 2>&1; then
-  codesign --force --deep --sign - "$APP"
-fi
-
-echo "$APP"

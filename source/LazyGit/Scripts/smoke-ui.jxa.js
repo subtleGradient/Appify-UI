@@ -12,8 +12,43 @@ function run(argv) {
 
   const shellQuote = value => `'${String(value).replace(/'/g, "'\\''")}'`
   const delaySeconds = seconds => delay(seconds)
-  const lazyGitProcesses = () => systemEvents.processes.whose({ name: "LazyGit" })()
-  const lazyGitProcess = () => lazyGitProcesses()[0]
+  const bundleProcesses = () => {
+    try {
+      return systemEvents.processes.whose({ bundleIdentifier: expectedBundleIdentifier })()
+    } catch (_) {
+      return []
+    }
+  }
+  const lazyGitProcesses = () => {
+    const bundled = bundleProcesses()
+    if (bundled.length > 0) return bundled
+    return systemEvents.processes.whose({ name: "LazyGit" })()
+  }
+  const matchingLazyGitProcesses = () => {
+    const processes = lazyGitProcesses()
+    const result = []
+    for (let index = 0; index < processes.length; index++) {
+      const process = processes[index]
+      try {
+        if (process.bundleIdentifier() === expectedBundleIdentifier) {
+          result.push(process)
+        }
+      } catch (_) {}
+    }
+    return result
+  }
+  const matchingLazyGitProcess = () => matchingLazyGitProcesses()[0]
+  const processWithWindow = expectedWindowName => {
+    const processes = matchingLazyGitProcesses()
+    for (let index = 0; index < processes.length; index++) {
+      const process = processes[index]
+      try {
+        const windows = process.windows.whose({ name: expectedWindowName })()
+        if (windows.length > 0) return process
+      } catch (_) {}
+    }
+    return null
+  }
   const fail = message => {
     throw new Error(message)
   }
@@ -35,35 +70,53 @@ function run(argv) {
     app.doShellScript(`open -n -a ${shellQuote(appPath)}${extraArguments ? ` ${extraArguments}` : ""}`)
   }
   const assertLegitProcess = () => {
-    const process = waitUntil("LazyGit process did not appear", () => lazyGitProcess())
+    const process = waitUntil("LazyGit process did not appear", () => matchingLazyGitProcess())
     try {
       process.frontmost = true
     } catch (_) {}
 
-    waitUntil("LazyGit bundle identifier was not visible", () => process.bundleIdentifier())
     const bundleIdentifier = process.bundleIdentifier()
     if (bundleIdentifier !== expectedBundleIdentifier) {
       fail(`Expected bundle identifier ${expectedBundleIdentifier} but saw ${bundleIdentifier}`)
     }
 
-    waitUntil("LazyGit has no menu bar", () => process.menuBars.length >= 1)
-    const menuBar = process.menuBars[0]
-    waitUntil("LazyGit has no File menu", () => menuBar.menuBarItems.whose({ name: "File" })().length >= 1)
-    waitUntil("LazyGit has no application menu", () => menuBar.menuBarItems.whose({ name: "LazyGit" })().length >= 1)
-
     return process
+  }
+  const assertMenus = process => {
+    const menuBar = waitUntil("LazyGit has no menu bar", () => {
+      try {
+        return process.menuBars.length >= 1 ? process.menuBars[0] : null
+      } catch (_) {
+        return null
+      }
+    })
+    waitUntil("LazyGit has no File menu", () => {
+      try {
+        return menuBar.menuBarItems.whose({ name: "File" })().length >= 1
+      } catch (_) {
+        return false
+      }
+    })
+    waitUntil("LazyGit has no application menu", () => {
+      try {
+        return menuBar.menuBarItems.whose({ name: "LazyGit" })().length >= 1
+      } catch (_) {
+        return false
+      }
+    })
   }
 
   quitApp()
 
   try {
+    const expectedWindowName = "LazyGit - Sample Folder"
     openApp(shellQuote(documentPath))
-    const process = assertLegitProcess()
-    waitUntil("LazyGit did not present the document window", () => process.windows.length > 0)
-    const windowName = process.windows[0].name()
-    if (windowName !== "LazyGit - Sample Folder") {
-      fail(`Expected LazyGit - Sample Folder document window but saw ${windowName}`)
-    }
+    assertLegitProcess()
+    const process = waitUntil(
+      "LazyGit did not present the sample document window",
+      () => processWithWindow(expectedWindowName)
+    )
+    assertMenus(process)
 
     delaySeconds(2)
     if (lazyGitProcesses().length < 1) {

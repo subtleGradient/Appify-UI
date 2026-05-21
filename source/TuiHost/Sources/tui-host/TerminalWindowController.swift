@@ -1,12 +1,13 @@
 import AppKit
 import Darwin
-import LazyGitCore
 import Security
+import TuiHostCore
 import WebKit
 
 final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
     var onClose: (() -> Void)?
 
+    private let configuration: TuiHostConfiguration
     private let packageURL: URL
     private let workingDirectory: URL?
     private var webView: WKWebView?
@@ -22,9 +23,10 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
     private var expectedPort: Int?
     private var terminalBasePath: String?
 
-    init(packageURL: URL) {
+    init(configuration: TuiHostConfiguration, packageURL: URL) {
+        self.configuration = configuration
         self.packageURL = packageURL.standardizedFileURL
-        self.workingDirectory = try? LazyGitPackage.workingDirectory(forPackage: packageURL)
+        self.workingDirectory = try? PackageDocument.workingDirectory(forPackage: packageURL, configuration: configuration)
 
         let title = workingDirectory?.lastPathComponent.nonEmpty ?? packageURL.deletingPathExtension().lastPathComponent
         let window = NSWindow(
@@ -33,7 +35,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "LazyGit - \(title)"
+        window.title = "\(configuration.windowTitlePrefix) - \(title)"
         window.minSize = NSSize(width: 720, height: 480)
 
         super.init(window: window)
@@ -65,7 +67,10 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        loadStatusPage(title: "Opening LazyGit", message: "Starting a local ttyd terminal for \(packageURL.lastPathComponent).")
+        loadStatusPage(
+            title: "Opening \(configuration.appName)",
+            message: "Starting a local ttyd terminal for \(packageURL.lastPathComponent)."
+        )
         startRunner()
     }
 
@@ -78,16 +83,21 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
 
     private func startRunner() {
         do {
-            let workingDirectory = try LazyGitPackage.workingDirectory(forPackage: packageURL)
+            let workingDirectory = try PackageDocument.workingDirectory(forPackage: packageURL, configuration: configuration)
             let port = try allocateLoopbackPort()
             let basePath = try makeTerminalBasePath()
-            let mode = try TerminalToolResolver().resolve()
+            let mode = try TerminalToolResolver().resolve(configuration: configuration)
             let request = TerminalRunnerRequest(
+                documentURL: packageURL,
                 workingDirectory: workingDirectory,
                 port: port,
                 basePath: basePath
             )
-            let command = TerminalCommandBuilder.command(mode: mode, request: request)
+            let command = TerminalCommandBuilder.command(
+                mode: mode,
+                configuration: configuration,
+                request: request
+            )
             let url = TerminalURLValidator.terminalURL(port: port, basePath: basePath)
 
             self.expectedPort = port
@@ -95,7 +105,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
             self.terminalURL = url
 
             try openLog()
-            writeLog("LazyGit.app opening \(packageURL.path)\n")
+            writeLog("\(configuration.appName) opening \(packageURL.path)\n")
             writeLog("Working directory: \(workingDirectory.path)\n")
             writeLog("Runner: \(command.executableURL.path) \(command.redactedArguments.joined(separator: " "))\n")
 
@@ -143,16 +153,25 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
                 }
             }
         } catch {
-            showError(title: "Could Not Open LazyGit", message: String(describing: error))
+            showError(title: "Could Not Open \(configuration.appName)", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
         }
     }
 
     private func runnerEnvironment(command: RunnerCommand) -> [String: String] {
-        var additional = ["LAZYGIT_APP_PACKAGE": packageURL.path]
-        if let workingDirectory {
-            additional["LAZYGIT_APP_WORKDIR"] = workingDirectory.path
-        }
+        let templateValues = TemplateValues(
+            documentURL: packageURL,
+            workingDirectory: workingDirectory ?? packageURL.deletingLastPathComponent()
+        )
+        var additional = TemplateExpander.expand(
+            configuration.environmentVariables,
+            templateValues: templateValues
+        )
+        additional["TUI_HOST_BUNDLE_ID"] = configuration.bundleIdentifier
+        additional["TUI_HOST_APP_NAME"] = configuration.appName
+        additional["TUI_HOST_DOCUMENT_PATH"] = packageURL.path
+        additional["TUI_HOST_WORKING_DIRECTORY"] = templateValues.workingDirectory.path
+        additional["TUI_HOST_BUNDLE_PATH"] = configuration.bundleURL.path
 
         return RunnerEnvironmentBuilder.build(
             base: ProcessInfo.processInfo.environment,
@@ -216,7 +235,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         }
 
         showError(
-            title: "LazyGit Terminal Exited",
+            title: "\(configuration.appName) Terminal Exited",
             message: "The local ttyd terminal exited with status \(process.terminationStatus) before the webview could connect."
         )
     }
@@ -227,7 +246,7 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
         }
 
         showError(
-            title: "LazyGit Terminal Timed Out",
+            title: "\(configuration.appName) Terminal Timed Out",
             message: "The local ttyd terminal did not become reachable on 127.0.0.1 within 20 seconds."
         )
         stopRunner()
@@ -299,7 +318,8 @@ final class TerminalWindowController: NSWindowController, WKNavigationDelegate {
 
     private func openLog() throws {
         let logsDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/LazyGit", isDirectory: true)
+            .appendingPathComponent("Library/Logs", isDirectory: true)
+            .appendingPathComponent(configuration.logName, isDirectory: true)
         try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
 
         let timestamp = ISO8601DateFormatter()
@@ -425,7 +445,7 @@ private func allocateLoopbackPort() throws -> Int {
 }
 
 private func makeTerminalBasePath() throws -> String {
-    "/lazygit-\(try randomHex(byteCount: 18))"
+    "/tui-host-\(try randomHex(byteCount: 18))"
 }
 
 private func randomHex(byteCount: Int) throws -> String {

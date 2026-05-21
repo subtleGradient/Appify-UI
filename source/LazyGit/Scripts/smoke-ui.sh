@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-APP="$ROOT/dist/LazyGit.app"
+APP="${LAZYGIT_SMOKE_APP:-$ROOT/dist/LazyGit.app}"
 EXPECTED_BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
 LOG_DIR="$HOME/Library/Logs/LazyGit"
 DIAGNOSTIC_REPORT_DIR="$HOME/Library/Logs/DiagnosticReports"
+SMOKE_SKIP_BUILD="${LAZYGIT_SMOKE_SKIP_BUILD:-}"
+REQUIRE_SIGNATURE="${LAZYGIT_SMOKE_REQUIRE_SIGNATURE:-1}"
 STAMP_FILE="$(mktemp "${TMPDIR:-/tmp}/lazygit-app-smoke.XXXXXX")"
 SMOKE_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/lazygit-app-fixture.XXXXXX")"
 SMOKE_REPO="$SMOKE_ROOT/Sample Folder"
@@ -20,16 +22,26 @@ trap cleanup EXIT
 mkdir -p "$DOCUMENT"
 git init -q "$SMOKE_REPO"
 
-if [[ "${LAZYGIT_SMOKE_SKIP_BUILD:-0}" != "1" ]]; then
+if [[ -z "$SMOKE_SKIP_BUILD" ]]; then
+  if [[ -n "${LAZYGIT_SMOKE_APP:-}" ]]; then
+    SMOKE_SKIP_BUILD=1
+  else
+    SMOKE_SKIP_BUILD=0
+  fi
+fi
+
+if [[ "$SMOKE_SKIP_BUILD" != "1" ]]; then
   "$ROOT/Scripts/build-app.sh" >/dev/null
 fi
 
-if [[ ! -x "$APP/Contents/MacOS/LazyGit" ]]; then
+if [[ ! -x "$APP/Contents/MacOS/main.sh" || ! -x "$APP/Contents/MacOS/tui-host" ]]; then
   echo "Missing executable app bundle at $APP" >&2
   exit 1
 fi
 
-codesign -vvv --deep --strict "$APP" >/dev/null
+if [[ "$REQUIRE_SIGNATURE" == "1" ]]; then
+  codesign -vvv --deep --strict "$APP" >/dev/null
+fi
 
 status=0
 "$ROOT/Scripts/smoke-ui.jxa.js" "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" "$DOCUMENT" || status=$?

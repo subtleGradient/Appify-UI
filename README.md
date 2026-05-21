@@ -26,9 +26,13 @@ The new direction lives under `source/`:
   implementation. It opens `.webapp` document packages, validates their
   `webapp.json`, starts an allowlisted, pinned runner with Bun, and loads the
   runner's validated local URL or package-local file URL in a `WKWebView`.
-- [`source/LazyGit/`](source/LazyGit/) is a concrete app built from the same
-  impulse: double-click a `.lazygit` package and get `lazygit` running inside a
-  narrowed Mac window.
+- [`source/TuiHost/`](source/TuiHost/) is the reusable SwiftPM host for local
+  terminal UIs. It opens marker package documents, starts `ttyd` on loopback,
+  runs a configured TUI command, and keeps the webview on the generated terminal
+  URL.
+- [`source/LazyGit/`](source/LazyGit/) is the concrete LazyGit packager built on
+  `TuiHost`: double-click a `.lazygit` package and get `lazygit` running inside
+  a narrowed Mac window.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -160,7 +164,8 @@ Runtime logs go to:
 
 ## LazyGit
 
-`LazyGit.app` is the first concrete sibling project in the new shape.
+`LazyGit.app` is the first concrete sibling project in the new shape. It is now
+configured on top of the generic `TuiHost` runner.
 
 It declares `.lazygit` as a Finder package. A `.lazygit` package is only a marker
 folder; the actual working directory is the package's parent folder. Open the
@@ -188,8 +193,10 @@ installations of:
 Build and test it:
 
 ```sh
-cd source/LazyGit
+cd source/TuiHost
 swift test
+
+cd source/LazyGit
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
@@ -198,6 +205,19 @@ The built app lands at:
 
 ```text
 source/LazyGit/dist/LazyGit.app
+```
+
+The checked-in developer bundle can be refreshed with:
+
+```sh
+cd source/LazyGit
+Scripts/build-root-app.sh
+```
+
+That writes:
+
+```text
+LazyGit.app
 ```
 
 Release packaging is stricter on purpose:
@@ -239,7 +259,7 @@ They show the original promise: HTML for the surface, scripts or local runtimes
 for behavior, Cocoa enough to make it feel like a Mac app.
 
 But if you are trying to understand where the project is going now, start with
-`source/AppifyUI2026` and `source/LazyGit`.
+`source/AppifyUI2026`, `source/TuiHost`, and `source/LazyGit`.
 
 ## Requirements
 
@@ -256,12 +276,14 @@ terminal/Git tools listed above.
 .
 ├── source/
 │   ├── AppifyUI2026/      # SwiftPM .webapp launcher
-│   ├── LazyGit/           # SwiftPM .lazygit launcher
+│   ├── TuiHost/           # SwiftPM TUI host
+│   ├── LazyGit/           # .lazygit concrete app packager
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
 ├── IDEA/
 │   └── web-components-native.idea.htm
 ├── Appify UI 2011*.app    # original bundle lineage
 ├── Appify UI 2023*.app    # rebuilt native innards lineage
+├── LazyGit.app            # checked-in self-compiling TuiHost bundle
 └── README.md
 ```
 
