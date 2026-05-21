@@ -4,6 +4,7 @@ set -euo pipefail
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 INFO_PLIST="$APP/Contents/Info.plist"
 HOST_BINARY="$APP/Contents/MacOS/tui-host"
+HOST_HASH_FILE="$APP/Contents/MacOS/.tui-host-binary-source-hash"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 read_plist() {
@@ -48,37 +49,44 @@ find_repo_source() {
   return 1
 }
 
-source_newer_than_reference() {
+source_hash() {
   local source_dir="$1"
-  local reference_file="$2"
-  if [[ ! -e "$reference_file" ]]; then
-    return 0
+
+  if ! command -v shasum >/dev/null 2>&1; then
+    show_error "Cannot Check $(app_name)" "Missing shasum, which is required to compare bundled Swift source hashes."
+    exit 1
   fi
 
-  while IFS= read -r source_file; do
-    if [[ "$source_file" -nt "$reference_file" ]]; then
-      return 0
-    fi
-  done < <(find "$source_dir" -type f \( -name "Package.swift" -o -name "*.swift" \) -print)
+  (
+    cd "$source_dir"
+    find . -type f \( -name "Package.swift" -o -name "*.swift" \) -print \
+      | LC_ALL=C sort \
+      | while IFS= read -r source_file; do
+          printf '%s\n' "$source_file"
+          shasum -a 256 "$source_file" | awk '{print $1}'
+        done
+  ) | shasum -a 256 | awk '{print $1}'
+}
 
-  return 1
+read_hash_file() {
+  local path="$1"
+  if [[ -f "$path" ]]; then
+    sed -n '1p' "$path"
+  fi
 }
 
 rebuild_host_if_needed() {
   local source_dir="$1"
-  local reference_file="$HOST_BINARY"
-  local bundled_source_stamp="$APP/Contents/Resources/TuiHostSource/.tui-host-built-at"
+  local current_hash built_hash
+  current_hash="$(source_hash "$source_dir")"
+  built_hash="$(read_hash_file "$HOST_HASH_FILE")"
 
-  if [[ "$source_dir" == "$APP/Contents/Resources/TuiHostSource" && -e "$bundled_source_stamp" ]]; then
-    reference_file="$bundled_source_stamp"
-  fi
-
-  if [[ -x "$HOST_BINARY" ]] && ! source_newer_than_reference "$source_dir" "$reference_file"; then
+  if [[ -x "$HOST_BINARY" && "$built_hash" == "$current_hash" ]]; then
     return 0
   fi
 
   if ! command -v swift >/dev/null 2>&1; then
-    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled tui-host binary is older than the Swift source. Install Xcode command line tools or restore a fresh app bundle."
+    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled tui-host binary is not built from the current Swift source. Install Xcode command line tools or restore a fresh app bundle."
     exit 1
   fi
 
@@ -91,9 +99,7 @@ rebuild_host_if_needed() {
 
   cp "$built_binary" "$HOST_BINARY"
   chmod +x "$HOST_BINARY"
-  if [[ "$source_dir" == "$APP/Contents/Resources/TuiHostSource" ]]; then
-    touch "$bundled_source_stamp"
-  fi
+  printf '%s\n' "$current_hash" > "$HOST_HASH_FILE"
 }
 
 APP_NAME="$(app_name)"

@@ -33,6 +33,11 @@ The new direction lives under `source/`:
 - [`source/LazyGit/`](source/LazyGit/) is the concrete LazyGit packager built on
   `TuiHost`: double-click a `.lazygit` package and get `lazygit` running inside
   a narrowed Mac window.
+- [`source/WebappHost/`](source/WebappHost/) is the reusable SwiftPM host for
+  app-specific Bun runners bundled inside root `.app` packages.
+- [`source/TldrawApp/`](source/TldrawApp/) is the concrete tldraw document app:
+  double-click a `.tldraw` package and get the bundled runner inside a native
+  WebKit window.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -242,9 +247,50 @@ Runtime logs go to:
 ~/Library/Logs/LazyGit
 ```
 
+## tldraw
+
+`tldraw.app` is the first concrete `WebappHost` app. It declares `.tldraw` as a
+Finder package, starts the bundled Bun runner, waits for a validated local URL,
+and shows that runner in a native WebKit window.
+
+The root `tldraw.app` intentionally does not vendor `node_modules`. The package
+source and `bun.lock` are the source of truth. On first run, the launcher
+resolves Bun directly or through `nix-shell -p bun`, then installs app-local
+dependencies with `bun install --frozen-lockfile`.
+
+Build and test it:
+
+```sh
+cd source/WebappHost
+swift test
+
+cd ../TldrawApp/Runner
+bun install --frozen-lockfile
+bun test tests/*.test.ts
+
+cd ..
+Scripts/build-app.sh
+Scripts/smoke-ui.sh
+```
+
+The checked-in developer bundle can be refreshed with:
+
+```sh
+cd source/TldrawApp
+Scripts/build-root-app.sh
+```
+
+That writes:
+
+```text
+tldraw.app
+```
+
 ## The old apps
 
-The older bundles are still useful archaeological layers:
+The older bundles are still useful archaeological layers. They now live under
+[`archive/legacy-apps/`](archive/legacy-apps/) so the repo root only contains
+modern, self-bootstrapping apps:
 
 - `Appify UI 2011.app`
 - `Appify UI 2011 Demo.app`
@@ -259,7 +305,7 @@ They show the original promise: HTML for the surface, scripts or local runtimes
 for behavior, Cocoa enough to make it feel like a Mac app.
 
 But if you are trying to understand where the project is going now, start with
-`source/AppifyUI2026`, `source/TuiHost`, and `source/LazyGit`.
+`LazyGit.app`, `tldraw.app`, and their canonical sources under `source/`.
 
 ## Requirements
 
@@ -268,7 +314,17 @@ manifests.
 
 You will need Apple's command line tools or Xcode. `AppifyUI2026` also needs
 `bun` at runtime for `.webapp` packages. `LazyGit` needs either Nix or the direct
-terminal/Git tools listed above.
+terminal/Git tools listed above. `tldraw.app` needs direct Bun or Nix so it can
+install its lockfile-pinned runner dependencies.
+
+The dependency posture is deliberately boring: source plus lockfiles are
+canonical, the internet is allowed, npm/Bun/nixpkgs may fetch dependencies on
+demand, and Git LFS is reserved for future large non-regenerable assets only.
+
+The root apps are checked-in developer artifacts. Their bundled source snapshots
+are generated from `source/`, and their host binaries are keyed by source hashes
+instead of mtimes so a fresh clone does not rebuild merely because file
+timestamps changed.
 
 ## Project shape
 
@@ -278,12 +334,17 @@ terminal/Git tools listed above.
 │   ├── AppifyUI2026/      # SwiftPM .webapp launcher
 │   ├── TuiHost/           # SwiftPM TUI host
 │   ├── LazyGit/           # .lazygit concrete app packager
+│   ├── WebappHost/        # SwiftPM bundled Bun runner host
+│   ├── TldrawApp/         # .tldraw concrete app packager and runner
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
+├── archive/
+│   └── legacy-apps/       # original bundle lineage
 ├── IDEA/
 │   └── web-components-native.idea.htm
-├── Appify UI 2011*.app    # original bundle lineage
-├── Appify UI 2023*.app    # rebuilt native innards lineage
 ├── LazyGit.app            # checked-in self-compiling TuiHost bundle
+├── tldraw.app             # checked-in self-compiling WebappHost bundle
+├── Scripts/
+│   └── verify-root-apps.sh
 └── README.md
 ```
 

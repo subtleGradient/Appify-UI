@@ -41,6 +41,8 @@
     <array/>
     <key>DocumentKindEnvironmentValue</key>
     <string>com.subtlegradient.tldraw-canvas</string>
+    <key>LogName</key>
+    <string>tldraw</string>
   </dict>
 
   <key>UTExportedTypeDeclarations</key>

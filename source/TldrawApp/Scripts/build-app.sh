@@ -3,14 +3,15 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"
-TUI_HOST_ROOT="$REPO_ROOT/source/TuiHost"
-APP_NAME="LazyGit"
+WEBAPP_HOST_ROOT="$REPO_ROOT/source/WebappHost"
+RUNNER_ROOT="$ROOT/Runner"
+APP_NAME="tldraw"
 EXECUTABLE_NAME="main.sh"
-BUNDLE_IDENTIFIER="com.subtlegradient.LazyGit"
+BUNDLE_IDENTIFIER="com.subtlegradient.tldraw"
 VERSION="0.1.0"
 
-APP="${LAZYGIT_APP_OUTPUT:-$ROOT/dist/$APP_NAME.app}"
-SIGN_ADHOC="${LAZYGIT_APP_SIGN:-1}"
+APP="${TLDRAW_APP_OUTPUT:-$ROOT/dist/$APP_NAME.app}"
+SIGN_ADHOC="${TLDRAW_APP_SIGN:-1}"
 
 source_hash() {
   local source_dir="$1"
@@ -25,32 +26,44 @@ source_hash() {
   ) | shasum -a 256 | awk '{print $1}'
 }
 
-if [[ ! -f "$TUI_HOST_ROOT/Package.swift" ]]; then
-  echo "Missing TuiHost source at $TUI_HOST_ROOT" >&2
+if [[ ! -f "$WEBAPP_HOST_ROOT/Package.swift" ]]; then
+  echo "Missing WebappHost source at $WEBAPP_HOST_ROOT" >&2
   exit 1
 fi
 
-swift build --package-path "$TUI_HOST_ROOT" -c release --product tui-host
-TUI_HOST_SOURCE_HASH="$(source_hash "$TUI_HOST_ROOT")"
+if [[ ! -f "$RUNNER_ROOT/package.json" ]]; then
+  echo "Missing tldraw runner source at $RUNNER_ROOT" >&2
+  exit 1
+fi
+
+swift build --package-path "$WEBAPP_HOST_ROOT" -c release --product webapp-host
+WEBAPP_HOST_SOURCE_HASH="$(source_hash "$WEBAPP_HOST_ROOT")"
 
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
-TUI_HOST_SOURCE="$RESOURCES/TuiHostSource"
+WEBAPP_HOST_SOURCE="$RESOURCES/WebappHostSource"
+RUNNER="$RESOURCES/Runner"
 
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES"
 
-cp "$TUI_HOST_ROOT/.build/release/tui-host" "$MACOS/tui-host"
-chmod +x "$MACOS/tui-host"
+cp "$WEBAPP_HOST_ROOT/.build/release/webapp-host" "$MACOS/webapp-host"
+chmod +x "$MACOS/webapp-host"
 
-cp "$TUI_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
+cp "$WEBAPP_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
 chmod +x "$MACOS/main.sh"
 
-mkdir -p "$TUI_HOST_SOURCE"
-rsync -a --delete --exclude ".build" "$TUI_HOST_ROOT/" "$TUI_HOST_SOURCE/"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$TUI_HOST_SOURCE/.tui-host-source-hash"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$MACOS/.tui-host-binary-source-hash"
+mkdir -p "$WEBAPP_HOST_SOURCE"
+rsync -a --delete --exclude ".build" "$WEBAPP_HOST_ROOT/" "$WEBAPP_HOST_SOURCE/"
+printf '%s\n' "$WEBAPP_HOST_SOURCE_HASH" > "$WEBAPP_HOST_SOURCE/.webapp-host-source-hash"
+printf '%s\n' "$WEBAPP_HOST_SOURCE_HASH" > "$MACOS/.webapp-host-binary-source-hash"
+
+mkdir -p "$RUNNER"
+rsync -a --delete \
+  --exclude "node_modules" \
+  --exclude ".canvas-test" \
+  "$RUNNER_ROOT/" "$RUNNER/"
 
 cat > "$CONTENTS/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -86,47 +99,27 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 subtleGradient</string>
 
-  <key>TuiHost</key>
+  <key>WebappHost</key>
   <dict>
-    <key>CommandName</key>
-    <string>lazygit</string>
-    <key>CommandArguments</key>
-    <array>
-      <string>--path</string>
-      <string>{workingDirectory}</string>
-    </array>
-    <key>SupportCommandNames</key>
-    <array>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
-    <key>NixPackages</key>
-    <array>
-      <string>ttyd</string>
-      <string>lazygit</string>
-      <string>git</string>
-      <string>git-lfs</string>
-    </array>
+    <key>RunnerInstallDirectory</key>
+    <string>Contents/Resources/Runner</string>
+    <key>RunnerEntry</key>
+    <string>src/index.ts</string>
+    <key>RunnerArguments</key>
+    <array/>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.subtlegradient.tldraw-canvas</string>
     <key>LogName</key>
-    <string>LazyGit</string>
-    <key>WindowTitlePrefix</key>
-    <string>LazyGit</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-      <key>LAZYGIT_APP_PACKAGE</key>
-      <string>{documentPath}</string>
-      <key>LAZYGIT_APP_WORKDIR</key>
-      <string>{workingDirectory}</string>
-    </dict>
+    <string>tldraw</string>
   </dict>
 
   <key>UTExportedTypeDeclarations</key>
   <array>
     <dict>
       <key>UTTypeIdentifier</key>
-      <string>com.subtlegradient.lazygit</string>
+      <string>com.subtlegradient.tldraw-canvas</string>
       <key>UTTypeDescription</key>
-      <string>LazyGit Folder</string>
+      <string>tldraw Canvas</string>
       <key>UTTypeConformsTo</key>
       <array>
         <string>com.apple.package</string>
@@ -136,7 +129,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <dict>
         <key>public.filename-extension</key>
         <array>
-          <string>lazygit</string>
+          <string>tldraw</string>
         </array>
       </dict>
     </dict>
@@ -146,7 +139,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <array>
     <dict>
       <key>CFBundleTypeName</key>
-      <string>LazyGit Folder</string>
+      <string>tldraw Canvas</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
       <key>LSHandlerRank</key>
@@ -155,7 +148,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <true/>
       <key>LSItemContentTypes</key>
       <array>
-        <string>com.subtlegradient.lazygit</string>
+        <string>com.subtlegradient.tldraw-canvas</string>
       </array>
     </dict>
   </array>
@@ -169,7 +162,9 @@ PKGINFO
 
 if [[ "$SIGN_ADHOC" != "1" ]]; then
   cat > "$APP/.gitignore" <<GITIGNORE
-Contents/Resources/TuiHostSource/.build/
+Contents/Resources/WebappHostSource/.build/
+Contents/Resources/Runner/node_modules/
+Contents/Resources/Runner/.canvas-test/
 GITIGNORE
 fi
 
