@@ -22,6 +22,7 @@ const MAX_SNAPSHOT_IMAGE_BYTES = 15_000_000;
 const README_FILE_NAME = "README.md";
 const QUICK_LOOK_DIRECTORY_NAME = "QuickLook";
 const QUICK_LOOK_THUMBNAIL_FILE_NAME = "Thumbnail.png";
+const QUICK_LOOK_PREVIEW_FILE_NAME = "Preview.png";
 const SNAPSHOT_FILE_NAME = "snapshot.png";
 const SNAPSHOT_API_PATH = "/api/snapshot";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
@@ -271,7 +272,7 @@ Double-click this package with TLCanvas.app installed.
 - The canvas data is in \`canvas.json5\`.
 - Large assets and editable text sidecars live under \`records/\`.
 - \`snapshot.png\` is the generated preview image from the last saved TLCanvas session.
-- \`QuickLook/Thumbnail.png\` is a Finder compatibility link to \`snapshot.png\`.
+- \`QuickLook/Thumbnail.png\` and \`QuickLook/Preview.png\` are Finder compatibility links to \`snapshot.png\`.
 
 TLCanvas is built with the tldraw SDK and stores its document data as local files for portability.
 `;
@@ -465,17 +466,21 @@ async function writeSnapshotImage(documentPath: string, request: Request): Promi
   await Bun.write(tempFilePath, bytes);
   await rename(tempFilePath, snapshotFilePath);
 
-  await writeQuickLookThumbnailLink(documentPath);
+  await writeQuickLookSnapshotLinks(documentPath);
 
   return new Response(null, { status: 204 });
 }
 
-async function writeQuickLookThumbnailLink(documentPath: string): Promise<void> {
-  const quickLookThumbnailFilePath = join(documentPath, QUICK_LOOK_DIRECTORY_NAME, QUICK_LOOK_THUMBNAIL_FILE_NAME);
-  const quickLookTempFilePath = `${quickLookThumbnailFilePath}.${randomUUID()}.tmp`;
-  await mkdir(dirname(quickLookThumbnailFilePath), { recursive: true });
-  await symlink(`../${SNAPSHOT_FILE_NAME}`, quickLookTempFilePath);
-  await rename(quickLookTempFilePath, quickLookThumbnailFilePath);
+async function writeQuickLookSnapshotLinks(documentPath: string): Promise<void> {
+  const quickLookDirectoryPath = join(documentPath, QUICK_LOOK_DIRECTORY_NAME);
+  await mkdir(quickLookDirectoryPath, { recursive: true });
+
+  for (const fileName of [QUICK_LOOK_THUMBNAIL_FILE_NAME, QUICK_LOOK_PREVIEW_FILE_NAME]) {
+    const linkFilePath = join(quickLookDirectoryPath, fileName);
+    const tempFilePath = `${linkFilePath}.${randomUUID()}.tmp`;
+    await symlink(`../${SNAPSHOT_FILE_NAME}`, tempFilePath);
+    await rename(tempFilePath, linkFilePath);
+  }
 }
 
 function snapshotExistsResponse(documentPath: string): Response {
