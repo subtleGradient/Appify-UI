@@ -565,7 +565,7 @@ export function App({ onMount }: AppProps) {
   return (
     <div className="tlcanvas-app-shell">
       <main className="tlcanvas-app-canvas">
-        <Tldraw autoFocus store={store} onMount={handleMount} />
+        <Tldraw autoFocus inferDarkMode store={store} onMount={handleMount} />
       </main>
     </div>
   );
