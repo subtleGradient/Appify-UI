@@ -1,12 +1,11 @@
-import AppifyUI2026Core
 import AppKit
 import Darwin
 import WebKit
+import WebappHostCore
 
-final class DocumentWindowController: NSWindowController {
-    var onClose: (() -> Void)?
-
-    private let documentURL: URL
+final class DocumentWindowController: NSWindowController, WKNavigationDelegate {
+    private let configuration: WebappHostConfiguration
+    private weak var hostDocument: WebappHostDocument?
     private var webView: WKWebView?
     private var runnerProcess: Process?
     private var stdoutPipe: Pipe?
@@ -14,22 +13,25 @@ final class DocumentWindowController: NSWindowController {
     private var startupTimer: Timer?
     private var stdoutBuffer = ""
     private var didLoadRunnerURL = false
+    private var activeDocumentURL: URL?
     private var logHandle: FileHandle?
     private var closeObserver: NSObjectProtocol?
 
-    init(documentURL: URL) {
-        self.documentURL = documentURL.standardizedFileURL
+    init(configuration: WebappHostConfiguration, document: WebappHostDocument) {
+        self.configuration = configuration
+        self.hostDocument = document
 
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 1080, height: 760),
+            contentRect: NSRect(x: 0, y: 0, width: 1180, height: 820),
             styleMask: [.titled, .closable, .miniaturizable, .resizable],
             backing: .buffered,
             defer: false
         )
-        window.title = documentURL.deletingPathExtension().lastPathComponent
-        window.minSize = NSSize(width: 520, height: 360)
+        window.minSize = NSSize(width: 640, height: 420)
 
         super.init(window: window)
+        self.document = document
+        updateWindowDocumentIdentity()
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
             object: window,
@@ -50,36 +52,96 @@ final class DocumentWindowController: NSWindowController {
         if let closeObserver {
             NotificationCenter.default.removeObserver(closeObserver)
         }
+        stopRunner()
+        closeLog()
+    }
+
+    private var documentURL: URL? {
+        hostDocument?.fileURL?.standardizedFileURL
     }
 
     func showAndStart() {
+        guard let documentURL else {
+            return
+        }
+
         showWindow(nil)
         window?.center()
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
 
-        loadStatusPage(title: "Opening \(documentURL.lastPathComponent)", message: "Validating webapp.json and starting the trusted runner.")
+        loadStatusPage(
+            title: "Opening \(documentURL.lastPathComponent)",
+            message: "Starting \(configuration.appName)'s bundled runner."
+        )
         startRunner()
+    }
+
+    func documentURLDidChange() {
+        updateWindowDocumentIdentity()
+
+        guard let documentURL, activeDocumentURL != nil, activeDocumentURL != documentURL else {
+            return
+        }
+
+        restartRunner()
+    }
+
+    func stopForAppTermination() {
+        stopRunner()
+        closeLog()
     }
 
     private func handleWindowWillClose() {
         stopRunner()
         closeLog()
-        onClose?()
+    }
+
+    private func restartRunner() {
+        stopRunner()
+        closeLog()
+        stdoutBuffer.removeAll()
+        didLoadRunnerURL = false
+
+        guard let documentURL else {
+            showError(title: "Could Not Open Document", message: "The document does not have a file URL.")
+            return
+        }
+
+        loadStatusPage(
+            title: "Opening \(documentURL.lastPathComponent)",
+            message: "Restarting \(configuration.appName)'s bundled runner."
+        )
+        startRunner()
+    }
+
+    private func updateWindowDocumentIdentity() {
+        guard let documentURL else {
+            window?.representedURL = nil
+            window?.title = "Untitled"
+            return
+        }
+
+        window?.representedURL = documentURL
+        window?.setTitleWithRepresentedFilename(documentURL.path)
     }
 
     private func startRunner() {
         do {
-            let manifest = try WebappManifestLoader.load(from: documentURL)
+            guard let documentURL else {
+                throw WebappHostError.invalidInfoPlist("The document does not have a file URL.")
+            }
+
             let bunURL = try BunResolver().resolve()
             let command = try RunnerCommandBuilder.command(
                 bunURL: bunURL,
-                manifest: manifest,
+                configuration: configuration,
                 documentURL: documentURL
             )
 
             try openLog()
-            writeLog("Appify UI opening \(documentURL.path)\n")
+            writeLog("\(configuration.appName) opening \(documentURL.path)\n")
+            writeLog("Runner cwd: \(command.currentDirectoryURL.path)\n")
             writeLog("Runner: \(command.executableURL.path) \(command.arguments.joined(separator: " "))\n")
 
             let stdout = Pipe()
@@ -89,7 +151,7 @@ final class DocumentWindowController: NSWindowController {
             stderrPipe = stderr
             process.executableURL = command.executableURL
             process.arguments = command.arguments
-            process.currentDirectoryURL = documentURL
+            process.currentDirectoryURL = command.currentDirectoryURL
             process.environment = runnerEnvironment()
             process.standardOutput = stdout
             process.standardError = stderr
@@ -121,6 +183,7 @@ final class DocumentWindowController: NSWindowController {
             }
 
             runnerProcess = process
+            activeDocumentURL = documentURL
             try process.run()
             startupTimer = Timer.scheduledTimer(withTimeInterval: 20, repeats: false) { [weak self] _ in
                 DispatchQueue.main.async { [weak self] in
@@ -130,15 +193,24 @@ final class DocumentWindowController: NSWindowController {
         } catch {
             runnerProcess = nil
             detachProcessPipes()
-            showError(title: "Could Not Open Web App", message: String(describing: error))
+            activeDocumentURL = nil
+            showError(title: "Could Not Open Document", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
         }
     }
 
     private func runnerEnvironment() -> [String: String] {
+        guard let documentURL else {
+            return ProcessInfo.processInfo.environment
+        }
+
         var environment = ProcessInfo.processInfo.environment
-        environment["APPIFY_DOCUMENT"] = documentURL.path
-        environment["APPIFY_DOCUMENT_KIND"] = "appify.webapp"
+        environment["WEBAPP_HOST_BUNDLE_ID"] = configuration.bundleIdentifier
+        environment["WEBAPP_HOST_APP_NAME"] = configuration.appName
+        environment["WEBAPP_HOST_DOCUMENT_PATH"] = documentURL.path
+        environment["WEBAPP_HOST_DOCUMENT_KIND"] = configuration.documentKindEnvironmentValue
+        environment["WEBAPP_HOST_BUNDLE_PATH"] = configuration.bundleURL.path
+        environment["WEBAPP_HOST_RUNNER_DIR"] = configuration.runnerDirectoryURL.path
         return environment
     }
 
@@ -159,12 +231,20 @@ final class DocumentWindowController: NSWindowController {
     }
 
     private func handleRunnerLine(_ line: String) {
-        guard let openURL = AppifyOpenURL.extract(from: line) else {
+        guard let openURL = WebappHostOpenURL.extract(from: line) else {
             return
         }
 
         do {
-            let safeURL = try AppifyOpenURL.validate(openURL, documentURL: documentURL)
+            guard let documentURL else {
+                throw WebappHostError.invalidOpenURL("The document does not have a file URL.")
+            }
+
+            let safeURL = try WebappHostOpenURL.validate(
+                openURL,
+                documentURL: documentURL,
+                bundleURL: configuration.bundleURL
+            )
             didLoadRunnerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
@@ -186,11 +266,12 @@ final class DocumentWindowController: NSWindowController {
 
         runnerProcess = nil
         detachProcessPipes()
+        activeDocumentURL = nil
 
         if !didLoadRunnerURL {
             showError(
                 title: "Runner Exited Before Opening",
-                message: "The trusted runner exited with status \(process.terminationStatus) before printing a loopback HTTP(S) URL or package-local file:// URL."
+                message: "The bundled runner exited with status \(process.terminationStatus) before printing a loopback HTTP(S) URL or bundle/document-local file:// URL."
             )
         }
     }
@@ -202,7 +283,7 @@ final class DocumentWindowController: NSWindowController {
 
         showError(
             title: "Runner Timed Out",
-            message: "The trusted runner did not print a loopback HTTP(S) URL or package-local file:// URL within 20 seconds."
+            message: "The bundled runner did not print a loadable URL within 20 seconds."
         )
         stopRunner()
     }
@@ -216,6 +297,7 @@ final class DocumentWindowController: NSWindowController {
         }
         runnerProcess = nil
         detachProcessPipes()
+        activeDocumentURL = nil
 
         guard process.isRunning else {
             return
@@ -238,8 +320,13 @@ final class DocumentWindowController: NSWindowController {
     }
 
     private func openLog() throws {
+        guard let documentURL else {
+            return
+        }
+
         let logsDirectory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/Appify-UI", isDirectory: true)
+            .appendingPathComponent("Library/Logs", isDirectory: true)
+            .appendingPathComponent(configuration.logName, isDirectory: true)
         try FileManager.default.createDirectory(at: logsDirectory, withIntermediateDirectories: true)
 
         let timestamp = ISO8601DateFormatter()
@@ -313,7 +400,7 @@ final class DocumentWindowController: NSWindowController {
             stack.leadingAnchor.constraint(equalTo: accentBar.trailingAnchor, constant: 20),
             stack.centerYAnchor.constraint(equalTo: container.centerYAnchor),
             stack.trailingAnchor.constraint(lessThanOrEqualTo: container.trailingAnchor, constant: -32),
-            stack.widthAnchor.constraint(lessThanOrEqualToConstant: 720),
+            stack.widthAnchor.constraint(lessThanOrEqualToConstant: 760),
         ])
 
         window?.contentView = container
@@ -322,8 +409,15 @@ final class DocumentWindowController: NSWindowController {
     private func loadWebView(url: URL) {
         let webView = WKWebView(frame: window?.contentView?.bounds ?? .zero)
         webView.autoresizingMask = [.width, .height]
+        webView.navigationDelegate = self
         self.webView = webView
         window?.contentView = webView
+        window?.initialFirstResponder = webView
+        window?.makeFirstResponder(webView)
         webView.load(URLRequest(url: url))
+    }
+
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        window?.makeFirstResponder(webView)
     }
 }

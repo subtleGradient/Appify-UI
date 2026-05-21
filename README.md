@@ -20,15 +20,29 @@ parts the operating system is good at.
 The old Appify UI apps in this repo are still here as history and working
 reference material. They are not the new center.
 
-The new direction lives under `source/`:
+The new direction is split between shared source and app-shaped app source:
 
 - [`source/AppifyUI2026/`](source/AppifyUI2026/) is the fresh SwiftPM Appify UI
   implementation. It opens `.webapp` document packages, validates their
   `webapp.json`, starts an allowlisted, pinned runner with Bun, and loads the
   runner's validated local URL or package-local file URL in a `WKWebView`.
-- [`source/LazyGit/`](source/LazyGit/) is a concrete app built from the same
-  impulse: double-click a `.lazygit` package and get `lazygit` running inside a
-  narrowed Mac window.
+- [`source/AppifyHost/`](source/AppifyHost/) is the generic SwiftPM document
+  host for root `.app` bundles. It knows how to open macOS document packages,
+  start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`, validate
+  that URL, and show it in a native WebKit window. It does not know about Bun,
+  `ttyd`, LazyGit, or TLCanvas.
+- [`LazyGit.app`](LazyGit.app/) is the concrete LazyGit app built on
+  `AppifyHost`: double-click a `.lazygit` package and get `lazygit` running
+  inside a narrowed Mac window. Its bundled `AppServer` owns all `ttyd` and
+  `lazygit` details; app-specific scripts and fixtures live under
+  `Contents/Developer`.
+- [`TLCanvas.app`](TLCanvas.app/) is the concrete TLCanvas app: double-click a
+  `.tlcanvas` package and get a local canvas editor built with the tldraw SDK
+  inside a native WebKit window. Its bundled `AppServer` owns Bun resolution and
+  runner startup, and its bundled `Runner` is the canonical runner source.
+- [`SQLitePeek.app`](SQLitePeek.app/) is the concrete SQLite viewer app built on
+  `AppifyHost`: open a `.db`, `.sqlite`, or `.sqlite3` file and get `tabiew`
+  running inside the same native WebKit/ttyd shell shape as LazyGit.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -160,7 +174,8 @@ Runtime logs go to:
 
 ## LazyGit
 
-`LazyGit.app` is the first concrete sibling project in the new shape.
+`LazyGit.app` is the first concrete sibling project in the new shape. It is
+configured on top of the generic `AppifyHost` runner.
 
 It declares `.lazygit` as a Finder package. A `.lazygit` package is only a marker
 folder; the actual working directory is the package's parent folder. Open the
@@ -188,8 +203,10 @@ installations of:
 Build and test it:
 
 ```sh
-cd source/LazyGit
+cd source/AppifyHost
 swift test
+
+cd ../../LazyGit.app/Contents/Developer
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
@@ -197,13 +214,26 @@ Scripts/smoke-ui.sh
 The built app lands at:
 
 ```text
-source/LazyGit/dist/LazyGit.app
+LazyGit.app/Contents/Developer/dist/LazyGit.app
+```
+
+The checked-in developer bundle can be refreshed with:
+
+```sh
+cd LazyGit.app/Contents/Developer
+Scripts/build-root-app.sh
+```
+
+That writes:
+
+```text
+LazyGit.app
 ```
 
 Release packaging is stricter on purpose:
 
 ```sh
-cd source/LazyGit
+cd LazyGit.app/Contents/Developer
 DEVELOPER_ID_APPLICATION="Developer ID Application: Example, Inc. (TEAMID)" \
 NOTARYTOOL_PROFILE="notarytool-profile-name" \
 Scripts/package-release.sh 0.1.0
@@ -213,7 +243,7 @@ That signs with Developer ID hardened runtime, submits the zip for Apple
 notarization, staples the ticket, validates with `spctl`, and emits:
 
 ```text
-source/LazyGit/dist/release/LazyGit.app.zip
+LazyGit.app/Contents/Developer/dist/release/LazyGit.app.zip
 ```
 
 Runtime logs go to:
@@ -222,9 +252,74 @@ Runtime logs go to:
 ~/Library/Logs/LazyGit
 ```
 
+## SQLite Peek
+
+`SQLitePeek.app` is a concrete `AppifyHost` app for opening existing SQLite
+database files. It declares `.db`, `.sqlite`, and `.sqlite3` as file documents,
+starts a local `ttyd` terminal, runs `tw` from the `tabiew` package against the
+selected file, and shows it in a non-persistent `WKWebView`.
+
+Build and test it:
+
+```sh
+cd source/AppifyHost
+swift test
+
+cd ../../SQLitePeek.app/Contents/Developer
+Scripts/build-root-app.sh
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.SQLitePeek "SQLite Peek"
+```
+
+## TLCanvas
+
+`TLCanvas.app` is the first concrete app-specific web runner on `AppifyHost`. It
+declares `.tlcanvas` as a Finder package, starts its bundled app server, waits
+for a validated local URL, and shows that runner in a native WebKit window.
+
+TLCanvas is not affiliated with or endorsed by tldraw Inc. It is a local
+developer bundle built with the official [tldraw SDK](https://tldraw.dev), keeps
+tldraw's own SDK UI intact, and does not include a production license key.
+Production distribution is a licensing checkpoint.
+
+The root `TLCanvas.app` intentionally does not vendor `node_modules`. The package
+source and `bun.lock` are the source of truth. On first run, the launcher
+resolves Bun directly or through `nix-shell -p bun`, then installs app-local
+dependencies with `bun install --frozen-lockfile`.
+
+Build and test it:
+
+```sh
+cd source/AppifyHost
+swift test
+
+cd ../../TLCanvas.app/Contents/Resources/Runner
+bun install --frozen-lockfile
+bun test tests/*.test.ts
+bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
+
+cd ../../Developer
+Scripts/build-app.sh
+Scripts/smoke-ui.sh
+```
+
+The checked-in developer bundle can be refreshed with:
+
+```sh
+cd TLCanvas.app/Contents/Developer
+Scripts/build-root-app.sh
+```
+
+That writes:
+
+```text
+TLCanvas.app
+```
+
 ## The old apps
 
-The older bundles are still useful archaeological layers:
+The older bundles are still useful archaeological layers. They now live under
+[`archive/legacy-apps/`](archive/legacy-apps/) so the repo root only contains
+modern, self-bootstrapping apps:
 
 - `Appify UI 2011.app`
 - `Appify UI 2011 Demo.app`
@@ -239,7 +334,8 @@ They show the original promise: HTML for the surface, scripts or local runtimes
 for behavior, Cocoa enough to make it feel like a Mac app.
 
 But if you are trying to understand where the project is going now, start with
-`source/AppifyUI2026` and `source/LazyGit`.
+`LazyGit.app`, `SQLitePeek.app`, `TLCanvas.app`, and their canonical sources
+under `source/`.
 
 ## Requirements
 
@@ -248,7 +344,18 @@ manifests.
 
 You will need Apple's command line tools or Xcode. `AppifyUI2026` also needs
 `bun` at runtime for `.webapp` packages. `LazyGit` needs either Nix or the direct
-terminal/Git tools listed above.
+terminal/Git tools listed above. `SQLitePeek.app` needs Nix or direct `ttyd` and
+`tw` from tabiew. `TLCanvas.app` needs direct Bun or Nix so it can install its
+lockfile-pinned runner dependencies.
+
+The dependency posture is deliberately boring: source plus lockfiles are
+canonical, the internet is allowed, npm/Bun/nixpkgs may fetch dependencies on
+demand, and Git LFS is reserved for future large non-regenerable assets only.
+
+The root apps are checked-in developer artifacts and the canonical home for
+app-specific code. Shared host source still lives under `source/`; bundled host
+snapshots are keyed by source hashes instead of mtimes so a fresh clone does not
+rebuild merely because file timestamps changed.
 
 ## Project shape
 
@@ -256,12 +363,17 @@ terminal/Git tools listed above.
 .
 ├── source/
 │   ├── AppifyUI2026/      # SwiftPM .webapp launcher
-│   ├── LazyGit/           # SwiftPM .lazygit launcher
+│   ├── AppifyHost/        # generic SwiftPM document-to-local-server host
 │   └── Appify UI 23/      # older SwiftUI/WebKit source
+├── archive/
+│   └── legacy-apps/       # original bundle lineage
 ├── IDEA/
 │   └── web-components-native.idea.htm
-├── Appify UI 2011*.app    # original bundle lineage
-├── Appify UI 2023*.app    # rebuilt native innards lineage
+├── LazyGit.app            # checked-in self-compiling AppifyHost bundle
+├── SQLitePeek.app         # checked-in self-compiling AppifyHost bundle
+├── TLCanvas.app           # checked-in self-compiling AppifyHost bundle
+├── Scripts/
+│   └── verify-root-apps.sh
 └── README.md
 ```
 
