@@ -10,6 +10,7 @@ import {
   CANVAS_SCHEMA_URI,
   type CanvasStatePayload,
 } from "../src/canvasApi";
+import { createStarterCanvasState } from "../src/starterCanvas";
 
 let documentPath = "";
 
@@ -166,21 +167,24 @@ function createSnapshotWithRichTextSidecar(snapshot: CanvasStatePayload["snapsho
   } satisfies CanvasStatePayload["snapshot"];
 }
 
-test("server initializes blank canvas.json5 and local schema copy", async () => {
+test("server initializes a starter canvas.json5 and local schema copy", async () => {
   const { process, url } = await startServer();
 
   try {
     const response = await fetch(url);
     const body = await response.json() as CanvasStatePayload;
+    const starterState = createStarterCanvasState();
 
     expect(response.status).toBe(200);
     expect(body.revision).toBe(0);
-    expect(body.snapshot).toEqual(createTLStore().getStoreSnapshot("document"));
+    expect(body.snapshot).toEqual(starterState.snapshot);
     expect(await Bun.file(join(documentPath, CANVAS_FILE_NAME)).exists()).toBe(true);
     expect(await Bun.file(join(documentPath, CANVAS_SCHEMA_FILE_NAME)).exists()).toBe(true);
 
     const persistedText = await Bun.file(join(documentPath, CANVAS_FILE_NAME)).text();
     expect(persistedText).toContain(CANVAS_SCHEMA_URI);
+    expect(persistedText).toContain("Start here");
+    expect(persistedText).toContain("Next move");
   } finally {
     await stopServer(process);
   }

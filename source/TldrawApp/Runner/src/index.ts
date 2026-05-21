@@ -15,6 +15,7 @@ import {
   stringifyCanvasState,
 } from "./canvasApi";
 import { createCanvasReadErrorTracker } from "./canvasReadErrorTracker";
+import { createStarterCanvasState } from "./starterCanvas";
 
 const JSON_HEADERS = { "Content-Type": "application/json" };
 const MAX_INLINE_PERSISTED_VALUE_LENGTH = 100_000;
@@ -194,11 +195,7 @@ async function persistRichTextSidecar(
 }
 
 function createInitialCanvasState(): CanvasStatePayload {
-  const store = createTLStore();
-  return {
-    revision: 0,
-    snapshot: store.getStoreSnapshot("document"),
-  };
+  return createStarterCanvasState();
 }
 
 function canonicalizeSnapshot(snapshot: unknown): CanvasStatePayload["snapshot"] {

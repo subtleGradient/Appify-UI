@@ -142,6 +142,10 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <string>tldraw Canvas</string>
       <key>CFBundleTypeRole</key>
       <string>Editor</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>tldraw</string>
+      </array>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>LSTypeIsPackage</key>
@@ -150,6 +154,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <array>
         <string>com.subtlegradient.tldraw-canvas</string>
       </array>
+      <key>NSDocumentClass</key>
+      <string>WebappHostDocument</string>
     </dict>
   </array>
 </dict>

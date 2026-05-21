@@ -5,6 +5,7 @@ public struct WebappHostConfiguration: Equatable, Sendable {
     public var bundleIdentifier: String
     public var bundleURL: URL
     public var documentExtensions: [String]
+    public var documentClassName: String?
     public var documentKindEnvironmentValue: String
     public var runnerInstallDirectory: String
     public var runnerEntry: String
@@ -16,6 +17,7 @@ public struct WebappHostConfiguration: Equatable, Sendable {
         bundleIdentifier: String,
         bundleURL: URL,
         documentExtensions: [String],
+        documentClassName: String?,
         documentKindEnvironmentValue: String,
         runnerInstallDirectory: String,
         runnerEntry: String,
@@ -26,6 +28,7 @@ public struct WebappHostConfiguration: Equatable, Sendable {
         self.bundleIdentifier = bundleIdentifier
         self.bundleURL = bundleURL
         self.documentExtensions = documentExtensions
+        self.documentClassName = documentClassName
         self.documentKindEnvironmentValue = documentKindEnvironmentValue
         self.runnerInstallDirectory = runnerInstallDirectory
         self.runnerEntry = runnerEntry
@@ -98,6 +101,7 @@ public enum WebappHostConfigurationLoader {
             ?? bundleIdentifier
         let logName = stringValue(hostSettings["LogName"]) ?? appName
         let documentExtensions = parseDocumentExtensions(from: infoDictionary)
+        let documentClassName = parseDocumentClassName(from: infoDictionary, documentKind: documentKind)
 
         guard !documentExtensions.isEmpty else {
             throw WebappHostError.invalidInfoPlist("At least one document filename extension is required.")
@@ -111,6 +115,7 @@ public enum WebappHostConfigurationLoader {
             bundleIdentifier: bundleIdentifier,
             bundleURL: bundleURL.standardizedFileURL,
             documentExtensions: documentExtensions,
+            documentClassName: documentClassName,
             documentKindEnvironmentValue: documentKind,
             runnerInstallDirectory: runnerInstallDirectory,
             runnerEntry: runnerEntry,
@@ -157,6 +162,20 @@ public enum WebappHostConfigurationLoader {
             seen.insert(normalized)
             return normalized
         }
+    }
+
+    public static func parseDocumentClassName(from infoDictionary: [String: Any], documentKind: String) -> String? {
+        for documentType in arrayOfDictionaries(infoDictionary["CFBundleDocumentTypes"]) {
+            let contentTypes = stringArrayValue(documentType["LSItemContentTypes"]) ?? []
+            guard contentTypes.isEmpty || contentTypes.contains(documentKind) else {
+                continue
+            }
+            if let documentClassName = stringValue(documentType["NSDocumentClass"]), !documentClassName.isEmpty {
+                return documentClassName
+            }
+        }
+
+        return nil
     }
 }
 

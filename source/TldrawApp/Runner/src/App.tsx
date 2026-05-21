@@ -12,7 +12,7 @@ interface AppProps {
 }
 
 const SAVE_DEBOUNCE_MS = 250;
-const TLDRAW_USER_DATA_KEY = "TLDRAW_USER_DATA_v3";
+const UPSTREAM_USER_DATA_KEY = "TLDRAW_USER_DATA_v3";
 const isTestEnv = process.env.NODE_ENV === "test";
 const REMOTE_SYNC_POLL_MS = isTestEnv ? 250 : 1200;
 
@@ -38,17 +38,17 @@ function discardIncompatiblePersistedUserPreferences() {
     return;
   }
 
-  const storedPreferences = window.localStorage.getItem(TLDRAW_USER_DATA_KEY);
+  const storedPreferences = window.localStorage.getItem(UPSTREAM_USER_DATA_KEY);
   if (!storedPreferences) {
     return;
   }
 
   try {
     if (!hasCompatiblePersistedUserPreferences(JSON.parse(storedPreferences))) {
-      window.localStorage.removeItem(TLDRAW_USER_DATA_KEY);
+      window.localStorage.removeItem(UPSTREAM_USER_DATA_KEY);
     }
   } catch {
-    window.localStorage.removeItem(TLDRAW_USER_DATA_KEY);
+    window.localStorage.removeItem(UPSTREAM_USER_DATA_KEY);
   }
 }
 
@@ -123,6 +123,24 @@ function getCanvasApiUrl() {
   return new URL(CANVAS_API_PATH, locationHref).toString();
 }
 
+function isEditableKeyboardTarget(target: EventTarget | null) {
+  if (!(target instanceof Element)) {
+    return false;
+  }
+
+  return target.closest("input, textarea, select, [contenteditable='true'], [role='textbox']") !== null;
+}
+
+function isPlainSpaceKeyEvent(event: KeyboardEvent) {
+  return (
+    event.code === "Space" &&
+    !event.altKey &&
+    !event.ctrlKey &&
+    !event.metaKey &&
+    !event.shiftKey
+  );
+}
+
 export function App({ onMount }: AppProps) {
   const store = useMemo(() => {
     discardIncompatiblePersistedUserPreferences();
@@ -133,8 +151,44 @@ export function App({ onMount }: AppProps) {
   const pendingSnapshotRef = useRef<TLStoreSnapshot | null>(null);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const editorRef = useRef<Editor | null>(null);
+  const didZoomToInitialContentRef = useRef(false);
   const isUnmountedRef = useRef(false);
   const isSyncingRef = useRef(false);
+
+  const zoomToInitialContent = useCallback(() => {
+    const editor = editorRef.current;
+
+    if (
+      !editor ||
+      didZoomToInitialContentRef.current ||
+      editor.getCurrentPageShapeIds().size === 0
+    ) {
+      return;
+    }
+
+    didZoomToInitialContentRef.current = true;
+    const scheduleFrame: (callback: FrameRequestCallback) => number =
+      typeof window.requestAnimationFrame === "function"
+        ? (callback) => window.requestAnimationFrame(callback)
+        : (callback: FrameRequestCallback) => window.setTimeout(callback, 0);
+
+    scheduleFrame(() => {
+      editor.selectNone();
+      const bounds = editor.getCurrentPageBounds();
+
+      if (bounds) {
+        editor.zoomToBounds(bounds, {
+          animation: { duration: 300 },
+          inset: 128,
+          targetZoom: 1,
+        });
+        return;
+      }
+
+      editor.zoomToFit({ animation: { duration: 300 } });
+    });
+  }, []);
 
   const isCanvasState = (value: unknown): value is CanvasStatePayload => {
     if (typeof value !== "object" || value === null) {
@@ -205,10 +259,11 @@ export function App({ onMount }: AppProps) {
       });
       revisionRef.current = payload.revision;
       syncedSnapshotKeyRef.current = snapshotKey;
+      zoomToInitialContent();
     } finally {
       isSyncingRef.current = false;
     }
-  }, [fetchCanvasState, store]);
+  }, [fetchCanvasState, store, zoomToInitialContent]);
 
   const persistCanvas = useCallback(
     async (snapshot: TLStoreSnapshot, revision: number) => {
@@ -304,6 +359,7 @@ export function App({ onMount }: AppProps) {
       store.mergeRemoteChanges(() => {
         loadSnapshot(store, nextSnapshot);
       });
+      zoomToInitialContent();
     };
 
     void loadInitialState();
@@ -311,7 +367,7 @@ export function App({ onMount }: AppProps) {
     return () => {
       cancelled = true;
     };
-  }, [fetchCanvasState, store]);
+  }, [fetchCanvasState, store, zoomToInitialContent]);
 
   useEffect(() => {
     const unsubscribe = store.listen(() => {
@@ -333,6 +389,22 @@ export function App({ onMount }: AppProps) {
   }, [queuePersist, store]);
 
   useEffect(() => {
+    const preventUnhandledSpace = (event: KeyboardEvent) => {
+      if (!isPlainSpaceKeyEvent(event) || isEditableKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+    };
+
+    window.addEventListener("keydown", preventUnhandledSpace);
+
+    return () => {
+      window.removeEventListener("keydown", preventUnhandledSpace);
+    };
+  }, []);
+
+  useEffect(() => {
     void syncFromServer();
 
     pollTimerRef.current = setInterval(() => {
@@ -351,14 +423,15 @@ export function App({ onMount }: AppProps) {
   }, [syncFromServer]);
 
   const handleMount = (editor: Editor) => {
+    editorRef.current = editor;
     onMount?.(editor);
-    editor.zoomToFit({ animation: { duration: 300 } });
+    zoomToInitialContent();
   };
 
   return (
     <div className="tldraw-app-shell">
       <main className="tldraw-app-canvas">
-        <Tldraw store={store} onMount={handleMount} />
+        <Tldraw autoFocus store={store} onMount={handleMount} />
       </main>
     </div>
   );

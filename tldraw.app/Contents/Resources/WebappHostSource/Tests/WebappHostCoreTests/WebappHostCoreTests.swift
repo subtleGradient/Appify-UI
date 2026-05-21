@@ -11,12 +11,29 @@ final class WebappHostCoreTests: XCTestCase {
         XCTAssertEqual(config.appName, "tldraw")
         XCTAssertEqual(config.bundleIdentifier, "com.subtlegradient.tldraw")
         XCTAssertEqual(config.documentExtensions, ["tldraw"])
+        XCTAssertEqual(config.documentClassName, "WebappHostDocument")
         XCTAssertEqual(config.documentKindEnvironmentValue, "com.subtlegradient.tldraw-canvas")
         XCTAssertEqual(config.runnerInstallDirectory, "Contents/Resources/Runner")
         XCTAssertEqual(config.runnerEntry, "src/index.ts")
         XCTAssertEqual(config.runnerArguments, ["--quiet"])
         XCTAssertEqual(config.logName, "tldraw")
         XCTAssertEqual(config.runnerDirectoryURL.path, "/Applications/tldraw.app/Contents/Resources/Runner")
+    }
+
+    func testParsesDocumentClassForMatchingDocumentKind() throws {
+        XCTAssertEqual(
+            WebappHostConfigurationLoader.parseDocumentClassName(
+                from: sampleInfoPlist(),
+                documentKind: "com.subtlegradient.tldraw-canvas"
+            ),
+            "WebappHostDocument"
+        )
+        XCTAssertNil(
+            WebappHostConfigurationLoader.parseDocumentClassName(
+                from: sampleInfoPlist(),
+                documentKind: "com.example.other"
+            )
+        )
     }
 
     func testBuildsBunCommandWithoutDuplicatingBundleFacts() throws {
@@ -110,8 +127,10 @@ final class WebappHostCoreTests: XCTestCase {
             "CFBundleDocumentTypes": [
                 [
                     "CFBundleTypeName": "tldraw Canvas",
+                    "CFBundleTypeExtensions": ["tldraw"],
                     "LSItemContentTypes": ["com.subtlegradient.tldraw-canvas"],
                     "LSTypeIsPackage": true,
+                    "NSDocumentClass": "WebappHostDocument",
                 ],
             ],
             "UTExportedTypeDeclarations": [

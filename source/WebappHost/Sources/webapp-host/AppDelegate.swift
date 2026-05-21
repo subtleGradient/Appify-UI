@@ -3,13 +3,12 @@ import UniformTypeIdentifiers
 import WebappHostCore
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private var documentControllers: [ObjectIdentifier: DocumentWindowController] = [:]
     private var didReceiveDocumentOpenEvent = false
     private var configuration: WebappHostConfiguration?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
-            configuration = try loadConfiguration()
+            configuration = try WebappHostRuntime.loadConfiguration()
         } catch {
             showFatalConfigurationError(error)
             return
@@ -23,7 +22,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard let self, !self.didReceiveDocumentOpenEvent else {
                 return
             }
-            self.showOpenPanel()
+            self.showGettingStarted()
         }
     }
 
@@ -41,13 +40,87 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        false
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        for document in NSDocumentController.shared.documents {
+            (document as? WebappHostDocument)?.stopRunnerForAppTermination()
+        }
+    }
+
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if !flag {
+            showGettingStarted()
+        }
+
+        return true
     }
 
     @objc private func openDocumentFromMenu(_ sender: Any?) {
         DispatchQueue.main.async { [weak self] in
             self?.showOpenPanel()
         }
+    }
+
+    @objc private func newDocumentFromMenu(_ sender: Any?) {
+        DispatchQueue.main.async { [weak self] in
+            self?.showNewDocumentPanel()
+        }
+    }
+
+    @MainActor
+    private func showGettingStarted() {
+        guard let configuration else {
+            return
+        }
+
+        let alert = NSAlert()
+        alert.messageText = "Start \(configuration.appName)"
+        alert.informativeText = "Create a new canvas or open an existing .\(configuration.documentExtensions.first ?? "tldraw") package."
+        alert.addButton(withTitle: "New Canvas")
+        alert.addButton(withTitle: "Open Existing...")
+        alert.addButton(withTitle: "Cancel")
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            showNewDocumentPanel()
+        case .alertSecondButtonReturn:
+            showOpenPanel()
+        default:
+            return
+        }
+    }
+
+    @MainActor
+    private func showNewDocumentPanel() {
+        guard let configuration else {
+            return
+        }
+
+        let panel = NSSavePanel()
+        panel.title = "New \(configuration.appName)"
+        panel.message = "Choose where to save your canvas."
+        panel.nameFieldStringValue = "Untitled.\(configuration.documentExtensions.first ?? "tldraw")"
+        panel.canCreateDirectories = true
+        let allowedTypes = allowedContentTypes(configuration: configuration)
+        if !allowedTypes.isEmpty {
+            panel.allowedContentTypes = allowedTypes
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else {
+            return
+        }
+
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+        } catch {
+            showOpenError(error)
+            return
+        }
+
+        didReceiveDocumentOpenEvent = true
+        openDocument(at: url)
     }
 
     @MainActor
@@ -62,7 +135,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        let allowedTypes = configuration.documentExtensions.compactMap { UTType(filenameExtension: $0) }
+        panel.treatsFilePackagesAsDirectories = false
+        let allowedTypes = allowedContentTypes(configuration: configuration)
         if !allowedTypes.isEmpty {
             panel.allowedContentTypes = allowedTypes
         }
@@ -79,20 +153,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @MainActor
     private func openDocument(at url: URL) {
-        guard let configuration else {
-            return
-        }
-
-        let controller = DocumentWindowController(configuration: configuration, documentURL: url)
-        let identifier = ObjectIdentifier(controller)
-        documentControllers[identifier] = controller
-        controller.onClose = { [weak self, weak controller] in
-            guard let controller else {
+        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { [weak self] document, _, error in
+            if let error {
+                self?.showOpenError(error)
                 return
             }
-            self?.documentControllers.removeValue(forKey: ObjectIdentifier(controller))
+
+            document?.showWindows()
         }
-        controller.showAndStart()
     }
 
     @MainActor
@@ -110,6 +178,36 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let appMenu = NSMenu()
         appMenuItem.submenu = appMenu
         appMenu.addItem(
+            withTitle: "About \(configuration.appName)",
+            action: #selector(NSApplication.orderFrontStandardAboutPanel(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
+
+        let servicesMenu = NSMenu()
+        NSApp.servicesMenu = servicesMenu
+        let servicesItem = appMenu.addItem(withTitle: "Services", action: nil, keyEquivalent: "")
+        servicesItem.submenu = servicesMenu
+        appMenu.addItem(.separator())
+
+        appMenu.addItem(
+            withTitle: "Hide \(configuration.appName)",
+            action: #selector(NSApplication.hide(_:)),
+            keyEquivalent: "h"
+        )
+        let hideOthersItem = appMenu.addItem(
+            withTitle: "Hide Others",
+            action: #selector(NSApplication.hideOtherApplications(_:)),
+            keyEquivalent: "h"
+        )
+        hideOthersItem.keyEquivalentModifierMask = [.command, .option]
+        appMenu.addItem(
+            withTitle: "Show All",
+            action: #selector(NSApplication.unhideAllApplications(_:)),
+            keyEquivalent: ""
+        )
+        appMenu.addItem(.separator())
+        appMenu.addItem(
             withTitle: "Quit \(configuration.appName)",
             action: #selector(NSApplication.terminate(_:)),
             keyEquivalent: "q"
@@ -121,22 +219,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let fileMenu = NSMenu(title: "File")
         fileMenuItem.submenu = fileMenu
         fileMenu.addItem(
+            withTitle: "New...",
+            action: #selector(newDocumentFromMenu(_:)),
+            keyEquivalent: "n"
+        )
+        fileMenu.addItem(
             withTitle: "Open...",
             action: #selector(openDocumentFromMenu(_:)),
             keyEquivalent: "o"
         )
-    }
+        fileMenu.addItem(.separator())
+        fileMenu.addItem(
+            withTitle: "Close",
+            action: #selector(NSWindow.performClose(_:)),
+            keyEquivalent: "w"
+        )
 
-    private func loadConfiguration() throws -> WebappHostConfiguration {
-        let environment = ProcessInfo.processInfo.environment
-        let bundleURL: URL
-        if let bundlePath = environment["WEBAPP_HOST_BUNDLE_PATH"], !bundlePath.isEmpty {
-            bundleURL = URL(fileURLWithPath: bundlePath, isDirectory: true)
-        } else {
-            bundleURL = Bundle.main.bundleURL
-        }
+        let editMenuItem = NSMenuItem()
+        mainMenu.addItem(editMenuItem)
 
-        return try WebappHostConfigurationLoader.load(bundleURL: bundleURL, environment: environment)
+        let editMenu = NSMenu(title: "Edit")
+        editMenuItem.submenu = editMenu
+        editMenu.addItem(withTitle: "Undo", action: Selector(("undo:")), keyEquivalent: "z")
+        let redoItem = editMenu.addItem(withTitle: "Redo", action: Selector(("redo:")), keyEquivalent: "Z")
+        redoItem.keyEquivalentModifierMask = [.command, .shift]
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Cut", action: #selector(NSText.cut(_:)), keyEquivalent: "x")
+        editMenu.addItem(withTitle: "Copy", action: #selector(NSText.copy(_:)), keyEquivalent: "c")
+        editMenu.addItem(withTitle: "Paste", action: #selector(NSText.paste(_:)), keyEquivalent: "v")
+        editMenu.addItem(withTitle: "Delete", action: #selector(NSText.delete(_:)), keyEquivalent: "\u{8}")
+        editMenu.addItem(.separator())
+        editMenu.addItem(withTitle: "Select All", action: #selector(NSText.selectAll(_:)), keyEquivalent: "a")
     }
 
     private func openPanelMessage(configuration: WebappHostConfiguration) -> String {
@@ -144,6 +257,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .map { ".\($0)" }
             .joined(separator: ", ")
         return "Choose a \(formattedExtensions) document package."
+    }
+
+    private func allowedContentTypes(configuration: WebappHostConfiguration) -> [UTType] {
+        configuration.documentExtensions.compactMap { UTType(filenameExtension: $0) }
     }
 
     @MainActor
@@ -154,5 +271,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.informativeText = String(describing: error)
         alert.runModal()
         NSApp.terminate(nil)
+    }
+
+    @MainActor
+    private func showOpenError(_ error: Error) {
+        let alert = NSAlert(error: error)
+        alert.runModal()
     }
 }
