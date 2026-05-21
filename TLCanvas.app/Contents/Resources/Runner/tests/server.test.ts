@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, expect, test } from "bun:test";
 import { randomUUID } from "node:crypto";
-import { mkdir, readdir, rm } from "node:fs/promises";
+import { mkdir, readdir, readlink, rm } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { createTLStore, createShapeId, toRichText } from "tldraw";
 import {
@@ -232,6 +232,7 @@ test("server creates portable README metadata", async () => {
     expect(readme).toContain("canvas.json5");
     expect(readme).toContain("records/");
     expect(readme).toContain("QuickLook/Thumbnail.png");
+    expect(readme).toContain("Finder compatibility link");
     expect(readme).toContain("Double-click this package with TLCanvas.app installed.");
   } finally {
     await stopServer(process);
@@ -262,6 +263,7 @@ test("server stores portable snapshot images", async () => {
     expect(getResponse.headers.get("Content-Type")).toBe("image/png");
     expect(Array.from(new Uint8Array(await getResponse.arrayBuffer()))).toEqual(Array.from(snapshotBytes));
     expect(Array.from(await Bun.file(join(documentPath, "snapshot.png")).bytes())).toEqual(Array.from(snapshotBytes));
+    expect(await readlink(join(documentPath, "QuickLook", "Thumbnail.png"))).toBe("../snapshot.png");
     expect(Array.from(await Bun.file(join(documentPath, "QuickLook", "Thumbnail.png")).bytes())).toEqual(Array.from(snapshotBytes));
   } finally {
     await stopServer(process);

@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import { createTLStore, toRichText } from "tldraw";
-import { mkdir, rename } from "node:fs/promises";
+import { mkdir, rename, symlink } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
@@ -270,8 +270,8 @@ Double-click this package with TLCanvas.app installed.
 
 - The canvas data is in \`canvas.json5\`.
 - Large assets and editable text sidecars live under \`records/\`.
-- \`snapshot.png\` is a generated preview image from the last saved TLCanvas session.
-- \`QuickLook/Thumbnail.png\` mirrors the generated preview for macOS-style package thumbnails.
+- \`snapshot.png\` is the generated preview image from the last saved TLCanvas session.
+- \`QuickLook/Thumbnail.png\` is a Finder compatibility link to \`snapshot.png\`.
 
 TLCanvas is built with the tldraw SDK and stores its document data as local files for portability.
 `;
@@ -465,13 +465,17 @@ async function writeSnapshotImage(documentPath: string, request: Request): Promi
   await Bun.write(tempFilePath, bytes);
   await rename(tempFilePath, snapshotFilePath);
 
+  await writeQuickLookThumbnailLink(documentPath);
+
+  return new Response(null, { status: 204 });
+}
+
+async function writeQuickLookThumbnailLink(documentPath: string): Promise<void> {
   const quickLookThumbnailFilePath = join(documentPath, QUICK_LOOK_DIRECTORY_NAME, QUICK_LOOK_THUMBNAIL_FILE_NAME);
   const quickLookTempFilePath = `${quickLookThumbnailFilePath}.${randomUUID()}.tmp`;
   await mkdir(dirname(quickLookThumbnailFilePath), { recursive: true });
-  await Bun.write(quickLookTempFilePath, bytes);
+  await symlink(`../${SNAPSHOT_FILE_NAME}`, quickLookTempFilePath);
   await rename(quickLookTempFilePath, quickLookThumbnailFilePath);
-
-  return new Response(null, { status: 204 });
 }
 
 function snapshotExistsResponse(documentPath: string): Response {
