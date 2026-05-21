@@ -3,8 +3,8 @@ set -euo pipefail
 
 APP="$(cd "$(dirname "$0")/../.." && pwd)"
 INFO_PLIST="$APP/Contents/Info.plist"
-HOST_BINARY="$APP/Contents/MacOS/tui-host"
-HOST_HASH_FILE="$APP/Contents/MacOS/.tui-host-binary-source-hash"
+HOST_BINARY="$APP/Contents/MacOS/appify-host"
+HOST_HASH_FILE="$APP/Contents/MacOS/.appify-host-binary-source-hash"
 PLIST_BUDDY="/usr/libexec/PlistBuddy"
 
 read_plist() {
@@ -40,8 +40,8 @@ app_name() {
 find_repo_source() {
   local cursor="$APP"
   while [[ "$cursor" != "/" ]]; do
-    if [[ -d "$cursor/source/TuiHost" && -f "$cursor/source/TuiHost/Package.swift" ]]; then
-      printf '%s\n' "$cursor/source/TuiHost"
+    if [[ -d "$cursor/source/AppifyHost" && -f "$cursor/source/AppifyHost/Package.swift" ]]; then
+      printf '%s\n' "$cursor/source/AppifyHost"
       return 0
     fi
     cursor="$(dirname "$cursor")"
@@ -86,12 +86,12 @@ rebuild_host_if_needed() {
   fi
 
   if ! command -v swift >/dev/null 2>&1; then
-    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled tui-host binary is not built from the current Swift source. Install Xcode command line tools or restore a fresh app bundle."
+    show_error "Cannot Rebuild $(app_name)" "Swift is not installed, and the bundled appify-host binary is not built from the current Swift source. Install Xcode command line tools or restore a fresh app bundle."
     exit 1
   fi
 
-  swift build --package-path "$source_dir" -c debug --product tui-host
-  local built_binary="$source_dir/.build/debug/tui-host"
+  swift build --package-path "$source_dir" -c debug --product appify-host
+  local built_binary="$source_dir/.build/debug/appify-host"
   if [[ ! -x "$built_binary" ]]; then
     show_error "Cannot Rebuild $(app_name)" "Swift build completed without producing $built_binary."
     exit 1
@@ -103,12 +103,12 @@ rebuild_host_if_needed() {
 }
 
 APP_NAME="$(app_name)"
-BUNDLED_SOURCE="$APP/Contents/Resources/TuiHostSource"
+BUNDLED_SOURCE="$APP/Contents/Resources/AppifyHostSource"
 HOST_SOURCE="$(find_repo_source || true)"
 HOST_SOURCE="${HOST_SOURCE:-$BUNDLED_SOURCE}"
 
 if [[ ! -d "$HOST_SOURCE" ]]; then
-  show_error "Cannot Start $APP_NAME" "Missing TuiHost source at $HOST_SOURCE."
+  show_error "Cannot Start $APP_NAME" "Missing AppifyHost source at $HOST_SOURCE."
   exit 1
 fi
 
@@ -119,10 +119,10 @@ if [[ ! -x "$HOST_BINARY" ]]; then
   exit 1
 fi
 
-if [[ "${TUI_HOST_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
+if [[ "${APPIFY_HOST_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
   exit 0
 fi
 
-export TUI_HOST_BUNDLE_PATH="$APP"
+export APPIFY_HOST_BUNDLE_PATH="$APP"
 
 exec "$HOST_BINARY" "$@"

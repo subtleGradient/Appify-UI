@@ -2,31 +2,31 @@
 import PackageDescription
 
 let package = Package(
-    name: "TuiHost",
+    name: "AppifyHost",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .library(name: "TuiHostCore", targets: ["TuiHostCore"]),
-        .executable(name: "tui-host", targets: ["tui-host"]),
+        .library(name: "AppifyHostCore", targets: ["AppifyHostCore"]),
+        .executable(name: "appify-host", targets: ["appify-host"]),
     ],
     targets: [
         .target(
-            name: "TuiHostCore",
+            name: "AppifyHostCore",
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]
         ),
         .executableTarget(
-            name: "tui-host",
-            dependencies: ["TuiHostCore"],
+            name: "appify-host",
+            dependencies: ["AppifyHostCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v5)
             ]
         ),
         .testTarget(
-            name: "TuiHostCoreTests",
-            dependencies: ["TuiHostCore"],
+            name: "AppifyHostCoreTests",
+            dependencies: ["AppifyHostCore"],
             swiftSettings: [
                 .swiftLanguageMode(.v6)
             ]

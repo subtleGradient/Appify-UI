@@ -40,6 +40,9 @@ The new direction is split between shared source and app-shaped app source:
   `.tlcanvas` package and get a local canvas editor built with the tldraw SDK
   inside a native WebKit window. Its bundled `AppServer` owns Bun resolution and
   runner startup, and its bundled `Runner` is the canonical runner source.
+- [`SQLitePeek.app`](SQLitePeek.app/) is the concrete SQLite viewer app built on
+  `AppifyHost`: open a `.db`, `.sqlite`, or `.sqlite3` file and get `tabiew`
+  running inside the same native WebKit/ttyd shell shape as LazyGit.
 - [`IDEA/web-components-native.idea.htm`](IDEA/web-components-native.idea.htm)
   sketches the bigger possible future: JavaScript as the app brain, SwiftUI as
   the native body, web components as the declaration surface between them.
@@ -249,6 +252,24 @@ Runtime logs go to:
 ~/Library/Logs/LazyGit
 ```
 
+## SQLite Peek
+
+`SQLitePeek.app` is a concrete `AppifyHost` app for opening existing SQLite
+database files. It declares `.db`, `.sqlite`, and `.sqlite3` as file documents,
+starts a local `ttyd` terminal, runs `tw` from the `tabiew` package against the
+selected file, and shows it in a non-persistent `WKWebView`.
+
+Build and test it:
+
+```sh
+cd source/AppifyHost
+swift test
+
+cd ../../SQLitePeek.app/Contents/Developer
+Scripts/build-root-app.sh
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.SQLitePeek "SQLite Peek"
+```
+
 ## TLCanvas
 
 `TLCanvas.app` is the first concrete app-specific web runner on `AppifyHost`. It
@@ -313,7 +334,8 @@ They show the original promise: HTML for the surface, scripts or local runtimes
 for behavior, Cocoa enough to make it feel like a Mac app.
 
 But if you are trying to understand where the project is going now, start with
-`LazyGit.app`, `TLCanvas.app`, and their canonical sources under `source/`.
+`LazyGit.app`, `SQLitePeek.app`, `TLCanvas.app`, and their canonical sources
+under `source/`.
 
 ## Requirements
 
@@ -322,8 +344,9 @@ manifests.
 
 You will need Apple's command line tools or Xcode. `AppifyUI2026` also needs
 `bun` at runtime for `.webapp` packages. `LazyGit` needs either Nix or the direct
-terminal/Git tools listed above. `TLCanvas.app` needs direct Bun or Nix so it can
-install its lockfile-pinned runner dependencies.
+terminal/Git tools listed above. `SQLitePeek.app` needs Nix or direct `ttyd` and
+`tw` from tabiew. `TLCanvas.app` needs direct Bun or Nix so it can install its
+lockfile-pinned runner dependencies.
 
 The dependency posture is deliberately boring: source plus lockfiles are
 canonical, the internet is allowed, npm/Bun/nixpkgs may fetch dependencies on
@@ -347,6 +370,7 @@ rebuild merely because file timestamps changed.
 ├── IDEA/
 │   └── web-components-native.idea.htm
 ├── LazyGit.app            # checked-in self-compiling AppifyHost bundle
+├── SQLitePeek.app         # checked-in self-compiling AppifyHost bundle
 ├── TLCanvas.app           # checked-in self-compiling AppifyHost bundle
 ├── Scripts/
 │   └── verify-root-apps.sh

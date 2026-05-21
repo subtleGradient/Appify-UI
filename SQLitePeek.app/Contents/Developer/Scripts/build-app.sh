@@ -14,19 +14,20 @@ SOURCE_APP="$(cd "$SOURCE_CONTENTS/.." && pwd)"
 find_repo_root() {
   local dir="$SOURCE_APP"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/source/TuiHost/Package.swift" ]]; then
+    if [[ -f "$dir/source/AppifyHost/Package.swift" ]]; then
       printf '%s\n' "$dir"
       return 0
     fi
     dir="$(dirname "$dir")"
   done
 
-  echo "Could not find repo root containing source/TuiHost" >&2
+  echo "Could not find repo root containing source/AppifyHost" >&2
   return 1
 }
 
 REPO_ROOT="$(find_repo_root)"
-TUI_HOST_ROOT="$REPO_ROOT/source/TuiHost"
+APPIFY_HOST_ROOT="$REPO_ROOT/source/AppifyHost"
+APP_SERVER_SOURCE="$SOURCE_APP/Contents/Resources/AppServer"
 DEVELOPER_SOURCE="$SOURCE_APP/Contents/Developer"
 
 APP="${SQLITE_PEEK_APP_OUTPUT:-$DEVELOPER_ROOT/dist/$APP_NAME.app}"
@@ -45,8 +46,13 @@ source_hash() {
   ) | shasum -a 256 | awk '{print $1}'
 }
 
-if [[ ! -f "$TUI_HOST_ROOT/Package.swift" ]]; then
-  echo "Missing TuiHost source at $TUI_HOST_ROOT" >&2
+if [[ ! -f "$APPIFY_HOST_ROOT/Package.swift" ]]; then
+  echo "Missing AppifyHost source at $APPIFY_HOST_ROOT" >&2
+  exit 1
+fi
+
+if [[ ! -x "$APP_SERVER_SOURCE/main.sh" ]]; then
+  echo "Missing SQLite Peek app server at $APP_SERVER_SOURCE" >&2
   exit 1
 fi
 
@@ -62,33 +68,38 @@ cleanup() {
 trap cleanup EXIT
 
 APP_PAYLOAD="$STAGING_ROOT/AppPayload"
-mkdir -p "$APP_PAYLOAD/Contents/Developer"
+mkdir -p "$APP_PAYLOAD/Contents/Resources" "$APP_PAYLOAD/Contents/Developer"
+rsync -a --delete "$APP_SERVER_SOURCE/" "$APP_PAYLOAD/Contents/Resources/AppServer/"
 rsync -a --delete \
   --exclude "dist" \
   "$DEVELOPER_SOURCE/" "$APP_PAYLOAD/Contents/Developer/"
 
-swift build --package-path "$TUI_HOST_ROOT" -c release --product tui-host
-TUI_HOST_SOURCE_HASH="$(source_hash "$TUI_HOST_ROOT")"
+swift build --package-path "$APPIFY_HOST_ROOT" -c release --product appify-host
+APPIFY_HOST_SOURCE_HASH="$(source_hash "$APPIFY_HOST_ROOT")"
 
 CONTENTS="$APP/Contents"
 MACOS="$CONTENTS/MacOS"
 RESOURCES="$CONTENTS/Resources"
 DEVELOPER="$CONTENTS/Developer"
-TUI_HOST_SOURCE="$RESOURCES/TuiHostSource"
+APPIFY_HOST_SOURCE="$RESOURCES/AppifyHostSource"
+APP_SERVER="$RESOURCES/AppServer"
 
 rm -rf "$APP"
 mkdir -p "$MACOS" "$RESOURCES" "$DEVELOPER"
 
-cp "$TUI_HOST_ROOT/.build/release/tui-host" "$MACOS/tui-host"
-chmod +x "$MACOS/tui-host"
+cp "$APPIFY_HOST_ROOT/.build/release/appify-host" "$MACOS/appify-host"
+chmod +x "$MACOS/appify-host"
 
-cp "$TUI_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
+cp "$APPIFY_HOST_ROOT/Scripts/main.sh" "$MACOS/main.sh"
 chmod +x "$MACOS/main.sh"
 
-mkdir -p "$TUI_HOST_SOURCE"
-rsync -a --delete --exclude ".build" "$TUI_HOST_ROOT/" "$TUI_HOST_SOURCE/"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$TUI_HOST_SOURCE/.tui-host-source-hash"
-printf '%s\n' "$TUI_HOST_SOURCE_HASH" > "$MACOS/.tui-host-binary-source-hash"
+mkdir -p "$APPIFY_HOST_SOURCE"
+rsync -a --delete --exclude ".build" "$APPIFY_HOST_ROOT/" "$APPIFY_HOST_SOURCE/"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$APPIFY_HOST_SOURCE/.appify-host-source-hash"
+printf '%s\n' "$APPIFY_HOST_SOURCE_HASH" > "$MACOS/.appify-host-binary-source-hash"
+
+mkdir -p "$APP_SERVER"
+rsync -a --delete "$APP_PAYLOAD/Contents/Resources/AppServer/" "$APP_SERVER/"
 
 rsync -a --delete "$APP_PAYLOAD/Contents/Developer/" "$DEVELOPER/"
 
@@ -126,23 +137,18 @@ cat > "$CONTENTS/Info.plist" <<PLIST
   <key>NSHumanReadableCopyright</key>
   <string>Copyright © 2026 subtleGradient</string>
 
-  <key>TuiHost</key>
+  <key>AppifyHost</key>
   <dict>
     <key>DocumentMode</key>
     <string>fileDocument</string>
-    <key>CommandName</key>
-    <string>tw</string>
-    <key>CommandArguments</key>
-    <array>
-      <string>{documentPath}</string>
-    </array>
-    <key>SupportCommandNames</key>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
     <array/>
-    <key>NixPackages</key>
-    <array>
-      <string>ttyd</string>
-      <string>tabiew</string>
-    </array>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.subtlegradient.sqlite-peek.database</string>
     <key>LogName</key>
     <string>SQLitePeek</string>
     <key>WindowTitlePrefix</key>
@@ -154,6 +160,8 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <key>SQLITE_PEEK_DOCUMENT</key>
       <string>{documentPath}</string>
     </dict>
+    <key>WebViewDataStore</key>
+    <string>nonPersistent</string>
   </dict>
 
   <key>UTImportedTypeDeclarations</key>
@@ -186,12 +194,20 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <string>SQLite Database</string>
       <key>CFBundleTypeRole</key>
       <string>Viewer</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>db</string>
+        <string>sqlite</string>
+        <string>sqlite3</string>
+      </array>
       <key>LSHandlerRank</key>
       <string>Owner</string>
       <key>LSItemContentTypes</key>
       <array>
         <string>com.subtlegradient.sqlite-peek.database</string>
       </array>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
     </dict>
   </array>
 </dict>
@@ -204,7 +220,7 @@ PKGINFO
 
 if [[ "$SIGN_ADHOC" != "1" ]]; then
   cat > "$APP/.gitignore" <<GITIGNORE
-Contents/Resources/TuiHostSource/.build/
+Contents/Resources/AppifyHostSource/.build/
 Contents/Developer/dist/
 GITIGNORE
 fi

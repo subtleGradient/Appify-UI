@@ -9,14 +9,14 @@ SOURCE_APP="$(cd "$SOURCE_CONTENTS/.." && pwd)"
 find_repo_root() {
   local dir="$SOURCE_APP"
   while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/source/TuiHost/Package.swift" ]]; then
+    if [[ -f "$dir/source/AppifyHost/Package.swift" ]]; then
       printf '%s\n' "$dir"
       return 0
     fi
     dir="$(dirname "$dir")"
   done
 
-  echo "Could not find repo root containing source/TuiHost" >&2
+  echo "Could not find repo root containing source/AppifyHost" >&2
   return 1
 }
 

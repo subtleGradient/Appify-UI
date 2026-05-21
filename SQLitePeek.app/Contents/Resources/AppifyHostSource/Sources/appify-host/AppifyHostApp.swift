@@ -1,7 +1,7 @@
 import AppKit
 
 @main
-enum TuiHostApp {
+enum AppifyHostApp {
     static func main() {
         let application = NSApplication.shared
         let delegate = AppDelegate()
