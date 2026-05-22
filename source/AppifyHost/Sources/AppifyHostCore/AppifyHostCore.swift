@@ -332,7 +332,11 @@ public enum PackageDocument {
     }
 
     public static func validatePackageURL(_ packageURL: URL, configuration: AppifyHostConfiguration) throws {
-        let standardized = packageURL.standardizedFileURL
+        _ = try documentURL(forPackage: packageURL, configuration: configuration)
+    }
+
+    public static func documentURL(forPackage packageURL: URL, configuration: AppifyHostConfiguration) throws -> URL {
+        let standardized = try resolvedURL(forPackage: packageURL)
         guard standardized.isFileURL else {
             throw AppifyHostError.invalidPackage("Expected a local package.")
         }
@@ -362,17 +366,42 @@ public enum PackageDocument {
                 throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a file.")
             }
         }
+
+        return standardized
+    }
+
+    public static func resolvedURL(forPackage packageURL: URL) throws -> URL {
+        let standardized = packageURL.standardizedFileURL
+        let values: URLResourceValues
+        do {
+            values = try standardized.resourceValues(forKeys: [.isAliasFileKey, .isSymbolicLinkKey])
+        } catch {
+            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not readable.")
+        }
+
+        guard values.isSymbolicLink != true else {
+            return standardized
+        }
+        guard values.isAliasFile == true else {
+            return standardized
+        }
+
+        do {
+            return try URL(resolvingAliasFileAt: standardized, options: []).standardizedFileURL
+        } catch {
+            throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) alias could not be resolved.")
+        }
     }
 
     public static func workingDirectory(forPackage packageURL: URL, configuration: AppifyHostConfiguration) throws -> URL {
-        try validatePackageURL(packageURL, configuration: configuration)
+        let documentURL = try documentURL(forPackage: packageURL, configuration: configuration)
         switch configuration.documentMode {
         case .contentPackage:
-            return packageURL.standardizedFileURL
+            return documentURL
         case .folderMarker:
-            return packageURL.standardizedFileURL.deletingLastPathComponent()
+            return documentURL.deletingLastPathComponent()
         case .fileDocument:
-            return packageURL.standardizedFileURL.deletingLastPathComponent()
+            return documentURL.deletingLastPathComponent()
         }
     }
 }
