@@ -20,6 +20,7 @@
       <nav aria-label="Read order">
         <strong>Read order:</strong>
         <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="020-jobs.html">jobs</a> /
         <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
@@ -43,6 +44,7 @@
         <h2 id="thesis">Thesis</h2>
         <ul>
           <li>The first app should be <code>Webapp.app</code>: rename a normal small web package to <code>.webapp</code>, double-click it, and let AppifyHost open it as a local document package.</li>
+          <li><code>.webapp</code> is not <code>.web</code> or <code>.website</code>. <code>.web</code> and <code>.website</code> are static web-native bundles with zero npm ecosystem or build-step expectations.</li>
           <li>The first D3, Cytoscape, Rete, React Flow, and tldraw probes should be <code>.webapp</code> examples, not dedicated apps.</li>
           <li>The high ceiling is: custom source code, custom nodes, custom data, custom assets, and optional extra dependencies remain possible without making every document carry the whole SDK runtime.</li>
           <li>The source of truth should stay in the package: code, data, graph JSON, snapshots, assets, and previews. IndexedDB and build output are caches unless the package explicitly says otherwise.</li>
@@ -65,8 +67,14 @@
             <tr>
               <td><code>Webapp.app</code></td>
               <td><code>.webapp</code></td>
-              <td>Normal web project package with optional <code>appify.json</code> profile.</td>
+              <td>Normal web project package with optional <code>appify.json</code> profile and possible npm/build/cache policy.</td>
               <td>Generic file bridge first; SDK save bridges are example-level adapters.</td>
+            </tr>
+            <tr>
+              <td>Static website host</td>
+              <td><code>.web</code>, <code>.website</code></td>
+              <td>Static browser-native files only: HTML, CSS, JS, images, fonts, data, relative links.</td>
+              <td>No SDK capsule, no npm resolution, no build step.</td>
             </tr>
             <tr>
               <td><code>Cytoscaper.app</code></td>

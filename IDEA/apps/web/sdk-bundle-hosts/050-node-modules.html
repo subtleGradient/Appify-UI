@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="020-jobs.html">jobs</a> /
         <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
@@ -33,6 +34,7 @@
       <section aria-labelledby="answer">
         <h2 id="answer">Recommended Policy</h2>
         <ul>
+          <li><code>.web</code> and <code>.website</code> packages have no dependency policy because they must not depend on npm ecosystem resolution at open time.</li>
           <li>The app bundle owns <code>d3</code>, <code>cytoscape</code>, <code>rete</code>, <code>@xyflow/react</code>, <code>tldraw</code>, React, build adapters, and the local runner versions it supports.</li>
           <li>The package owns <code>package.json</code>, lockfiles, source, data, assets, and any explicit compatibility declarations.</li>
           <li>A per-user or per-app content-addressed cache owns downloaded extra dependencies and transformed output, keyed by package path plus lockfile hash.</li>
@@ -84,7 +86,7 @@
       <section aria-labelledby="normal">
         <h2 id="normal">What Is A Normal D3 Package?</h2>
         <p>
-          For this purpose, a normal D3 package is a small web project, not a published npm library and not a special D3 file format. It has a <code>package.json</code>, an HTML or declared module entry, ESM source that imports <code>d3</code>, and data/assets addressed by relative paths.
+          For <code>.webapp</code>, a normal D3 package is a small web project, not a published npm library and not a special D3 file format. It has a <code>package.json</code>, an HTML or declared module entry, ESM source that imports <code>d3</code>, and data/assets addressed by relative paths. A static exported D3 visualization without npm resolution belongs in <code>.web</code> or <code>.website</code> instead.
         </p>
       </section>
 

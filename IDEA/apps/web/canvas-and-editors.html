@@ -119,6 +119,13 @@
               <td>Start with <code>Webapp.app</code> and <code>.webapp</code> examples, then graduate dedicated apps only if the examples need separate Finder identity.</td>
               <td>Dependency resolution, custom node serialization, surprise script execution, and premature app naming need strict policy.</td>
             </tr>
+            <tr>
+              <td>Static website bundle</td>
+              <td><a href="sdk-bundle-hosts/015-webapp-vs-website.html"><code>.web</code> / <code>.website</code></a></td>
+              <td>Static browser-native package: HTML, CSS, browser JavaScript, assets, data, relative links.</td>
+              <td>Different from <code>.webapp</code>: no npm, no <code>node_modules</code>, no build step at open time.</td>
+              <td>Do not let static website packages inherit Webapp dependency expectations.</td>
+            </tr>
           </tbody>
         </table>
       </section>

@@ -169,7 +169,7 @@ chosen.
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | `JSONCanvas.app` | `.canvas`, `.canvasbundle` | 5 | 0 | 1 | 3 | 2 | 0 | 6 | Strong candidate |
 | `MarkdownPeek.app` | `.md`, Obsidian-compatible folder links | 4 | 1 | 0 | 2 | 1 | 0 | 5 | Build next |
-| `HTMLBundle.app` | `.htmlbundle` or `.web` package | 5 | 1 | 1 | 2 | 1 | 0 | 5 | Build next |
+| `HTMLBundle.app` / `Website.app` | static `.web`, `.website`, or `.htmlbundle` package | 5 | 1 | 1 | 2 | 1 | 0 | 5 | Build next |
 | `LogScope.app` | `.log`, `.logbundle` | 4 | 0 | 1 | 1 | 1 | 1 | 5 | Build next |
 | `PacketPeek.app` | `.pcap`, `.pcapng` | 3 | 0 | 0 | 1 | 2 | 2 | 7 | Strong candidate |
 | `APIWorkbench.app` | `.apiworkbench`, OpenAPI/request bundle | 4 | 1 | 2 | 2 | 4 | 1 | 11 | Mutate first |
@@ -228,7 +228,7 @@ document shell.
 First proof: open one `.md` file, render it instantly, follow local relative
 links in the same folder, and preserve source text exactly after a no-op save.
 
-### HTMLBundle.app
+### HTMLBundle.app / Website.app
 
 Static HTML is the best portable document format we already have. The problem
 is that real HTML documents are rarely one file. They are folders with CSS,
@@ -236,10 +236,10 @@ images, scripts, subpages, data, and relative links. Loading with `file:///`
 breaks enough web platform assumptions that people stop treating HTML as a
 serious personal document format.
 
-The bundle model is the right mental move:
+The static bundle model is the right mental move:
 
 ```text
-research.web/
+research.website/
   index.html
   pages/
   assets/
@@ -249,13 +249,20 @@ research.web/
 
 macOS already knows this trick. A bundle is a folder that sometimes presents
 as one node. Shadow DOM is the same aesthetic move on the web: an encapsulated
-subtree with a public surface. `HTMLBundle.app` should let a nested website act
-like a PDF-like document without turning it into an opaque zip or niche ebook
-standard.
+subtree with a public surface. `HTMLBundle.app` or `Website.app` should let a
+nested website act like a PDF-like document without turning it into an opaque
+zip or niche ebook standard.
+
+This is deliberately not `Webapp.app`. `.web`, `.website`, and static
+`.htmlbundle` packages are web-native static artifacts only. They should not
+carry npm ecosystem expectations: no `node_modules`, no package-manager install,
+no TypeScript/JSX/bundler step, and no dependency cache needed to open. If a
+package needs npm, Vite, React source transforms, SDK aliasing, or dependency
+resolution, it is a `.webapp`, not a `.website`.
 
 The target should support:
 
-- double-click a `.web` or `.htmlbundle` package
+- double-click a `.web`, `.website`, or static `.htmlbundle` package
 - serve it from `127.0.0.1` with correct relative URLs, MIME types, and fetch
 - default to `index.html`
 - support folder navigation within the package

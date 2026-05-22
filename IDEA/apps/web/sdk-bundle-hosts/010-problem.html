@@ -20,6 +20,7 @@
       <nav aria-label="Read order">
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="020-jobs.html">jobs</a> /
         <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
@@ -89,6 +90,7 @@
           <li>Ship every package with <code>node_modules</code>. That makes documents huge, platform-shaped, and noisy in git.</li>
           <li>Auto-run package scripts on open. That makes double-clicking a document feel like executing untrusted software.</li>
           <li>Use browser storage as the source of truth. That breaks Finder copy, Time Machine, git, rsync, and inspection.</li>
+          <li>Blur <code>.webapp</code> into <code>.web</code> or <code>.website</code>. Static website bundles should never imply npm, package-manager installs, or build steps.</li>
           <li>Build five bespoke hosts before a generic <code>.webapp</code> host. That duplicates the same package inspection, dependency cache, and save bridge problems before the common layer is known.</li>
         </ul>
       </section>
@@ -98,6 +100,7 @@
         <ul>
           <li>Make the package itself normal enough that web developers recognize it: <code>package.json</code>, <code>index.html</code>, <code>src/</code>, <code>data/</code>, <code>public/</code>, and relative assets.</li>
           <li>Prove that normal shape first in <code>Webapp.app</code> with <code>.webapp</code> examples for each SDK.</li>
+          <li>Keep <code>.web</code> and <code>.website</code> for static web-native bundles that already run as authored browser files.</li>
           <li>Let AppifyHost provide the document shell, safe local server, path environment, window identity, and navigation restrictions it already knows how to provide.</li>
           <li>Let each app provide an SDK capsule: pinned SDK packages, host-owned adapters, starter templates, and a save bridge.</li>
           <li>Add <code>appify.json</code> only when the package needs more specificity than ecosystem-normal conventions provide.</li>

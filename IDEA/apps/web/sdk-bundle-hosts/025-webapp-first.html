@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="020-jobs.html">jobs</a> /
         <a href="030-layers.html">layers</a> /
         <a href="040-package-contract.html">package contract</a> /
@@ -35,6 +36,7 @@
         <ul>
           <li><code>Webapp.app</code> handles <code>.webapp</code> content packages.</li>
           <li>A <code>.webapp</code> package is a normal local web project: <code>index.html</code>, <code>package.json</code>, <code>src/</code>, <code>data/</code>, <code>public/</code>, and optional <code>appify.json</code>.</li>
+          <li><code>.webapp</code> is allowed to have npm ecosystem concerns; <code>.web</code> and <code>.website</code> are not.</li>
           <li>SDK identity starts as an example or manifest profile, not as a separate macOS app.</li>
           <li>Dedicated apps only graduate after examples prove repeated SDK-specific open, save, preview, template, or file-association behavior that generic <code>Webapp.app</code> cannot express cleanly.</li>
         </ul>
@@ -84,6 +86,15 @@
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section aria-labelledby="website-boundary">
+        <h2 id="website-boundary">Static Website Boundary</h2>
+        <ul>
+          <li>A D3 source package with <code>package.json</code> is a <code>.webapp</code>.</li>
+          <li>A prebuilt D3 visualization with plain <code>index.html</code>, browser JavaScript, CSS, and data files can be exported as <code>.web</code> or <code>.website</code>.</li>
+          <li>Do not make <code>.website</code> a softer name for <code>.webapp</code>. It should carry the opposite promise: no npm ecosystem machinery at open time.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="graduation">

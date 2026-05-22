@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="020-jobs.html">jobs</a> /
         <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
@@ -62,6 +63,16 @@
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section aria-labelledby="website-contract">
+        <h2 id="website-contract"><code>.web</code> / <code>.website</code> Contract</h2>
+        <ul>
+          <li><code>.webapp</code> may contain <code>package.json</code>, lockfiles, source transforms, and npm dependency declarations.</li>
+          <li><code>.web</code> and <code>.website</code> must not require <code>package.json</code>, <code>node_modules</code>, npm install, TypeScript compilation, JSX transform, or any bundler at open time.</li>
+          <li><code>.web</code> and <code>.website</code> are static web-native packages: <code>index.html</code>, CSS, browser JavaScript, assets, data, and relative links.</li>
+          <li>A <code>.webapp</code> may export a static <code>.website</code>, but the export must stand alone as static web tech.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="d3">
@@ -123,6 +134,7 @@
           <li><code>package.json</code> keeps ecosystem identity: name, scripts, dependencies, dev dependencies, type, exports, and license.</li>
           <li><code>appify.json</code> should only describe Appify document concerns: kind, entry, canonical files, permissions, dependency mode, and migrations.</li>
           <li><code>kind</code> starts as <code>webapp</code>; SDK identity belongs in <code>profile</code> until a dedicated app graduates.</li>
+          <li>Do not use <code>kind: "website"</code> for npm-backed packages. That boundary is semantic, not cosmetic.</li>
           <li>SDK packages imported by name should resolve to the app-owned SDK capsule when possible.</li>
           <li>Package-local <code>node_modules</code> is an explicit sealed mode, not the default living-document mode.</li>
           <li><code>dist/</code>, <code>.appify/cache/</code>, and generated previews are derived unless the manifest marks them canonical.</li>

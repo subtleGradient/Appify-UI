@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
         <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
         <a href="040-package-contract.html">package contract</a> /
@@ -45,6 +46,11 @@
               <td>Open a normal package</td>
               <td>Rename <code>chart</code> to <code>chart.webapp</code> and double-click it.</td>
               <td>Accept <code>package.json</code>, <code>index.html</code>, ESM source, relative assets, and Vite-like layout.</td>
+            </tr>
+            <tr>
+              <td>Protect static website bundles</td>
+              <td>Open <code>.web</code> and <code>.website</code> as static web-native packages only.</td>
+              <td>No npm, build-step, or dependency-cache expectation leaks across from <code>.webapp</code>.</td>
             </tr>
             <tr>
               <td>Create a blank document</td>
