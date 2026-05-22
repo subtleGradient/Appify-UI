@@ -149,7 +149,7 @@ for arg in "\$@"; do
   command="\$command \$(printf '%q' "\$arg")"
 done
 
-exec "\$nix_shell" -p nodejs nodePackages.tiddlywiki --run "\$command"
+exec "\$nix_shell" -p tiddlywiki --run "\$command"
 WRAPPER
   chmod +x "$wrapper"
   printf '%s\n' "$wrapper"
