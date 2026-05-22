@@ -2,26 +2,9 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-DEVELOPER_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-SOURCE_CONTENTS="$(cd "$DEVELOPER_ROOT/.." && pwd)"
-SOURCE_APP="$(cd "$SOURCE_CONTENTS/.." && pwd)"
+SOURCE_APP="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+REPO_ROOT="$(cd "$SOURCE_APP/.." && pwd)"
 
-find_repo_root() {
-  local dir="$SOURCE_APP"
-  while [[ "$dir" != "/" ]]; do
-    if [[ -f "$dir/source/AppifyHost/Package.swift" ]]; then
-      printf '%s\n' "$dir"
-      return 0
-    fi
-    dir="$(dirname "$dir")"
-  done
-
-  echo "Could not find repo root containing source/AppifyHost" >&2
-  return 1
-}
-
-REPO_ROOT="$(find_repo_root)"
-
-LAZYGIT_APP_OUTPUT="$REPO_ROOT/LazyGit.app" \
-LAZYGIT_APP_SIGN=0 \
-"$SCRIPT_DIR/build-app.sh"
+"$REPO_ROOT/Scripts/build-host-artifact.sh" >/dev/null
+"$REPO_ROOT/Scripts/verify-root-apps.sh"
+echo "$SOURCE_APP"

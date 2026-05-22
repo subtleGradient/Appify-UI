@@ -24,6 +24,9 @@ The repo is intentionally object-first:
 ├── WikiDock.app
 ├── litecli.app
 ├── tw.app
+├── bin/
+│   ├── appify-host
+│   └── appify-host.manifest.json
 ├── source/
 │   └── AppifyHost/
 ├── Scripts/
@@ -34,9 +37,12 @@ The repo is intentionally object-first:
 The rule is simple:
 
 - `*.app/` contains everything specific to that app: runtime payloads, app
-  servers, runners, scripts, fixtures, docs, and developer tooling.
+  servers, runners, scripts, fixtures, docs, and developer tooling. Root apps
+  are repo-bound thin apps; they delegate through a tiny launcher shim.
+- `bin/appify-host` is the one checked-in prebuilt host binary used so a cloned
+  or downloaded repo can double-click root apps without Xcode installed.
 - `source/AppifyHost/` contains the shared SwiftPM document host used by the app
-  bundles.
+  bundles. It is the only checked-in Swift source for the host.
 - Git history carries old experiments. The main tree stays clean.
 
 ## Apps
@@ -82,18 +88,30 @@ LazyGit, Tabiew, LiteCLI, TLCanvas, WebFormer, Bun, `ttyd`, or tldraw.
 
 ## Build
 
-Shared host:
+Shared host and root apps:
 
 ```sh
-cd source/AppifyHost
-swift test
+Scripts/build-host-artifact.sh
+Scripts/verify-root-apps.sh
+```
+
+Create a standalone distributable app from a root app:
+
+```sh
+Scripts/eject-app.sh WebFormer.app --output /private/tmp/WebFormer.app --sign -
+```
+
+For any root app, the app-local build script is now an eject wrapper:
+
+```sh
+cd WebFormer.app/Contents/Developer
+Scripts/build-app.sh
 ```
 
 LazyGit:
 
 ```sh
 cd LazyGit.app/Contents/Developer
-Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
 
@@ -101,7 +119,6 @@ LogScope:
 
 ```sh
 cd LogScope.app/Contents/Developer
-Scripts/build-root-app.sh
 Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.logscope LogScope
 ```
 
@@ -109,7 +126,6 @@ tw:
 
 ```sh
 cd tw.app/Contents/Developer
-Scripts/build-root-app.sh
 Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.tw tw
 ```
 
@@ -117,7 +133,6 @@ litecli:
 
 ```sh
 cd litecli.app/Contents/Developer
-Scripts/build-root-app.sh
 Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.litecli litecli
 ```
 
@@ -128,7 +143,6 @@ cd JSONCanvas.app/Contents/Resources/Runner
 bun test tests/*.test.ts
 
 cd ../../Developer
-Scripts/build-root-app.sh
 Scripts/smoke-ui.sh
 ```
 
@@ -141,7 +155,6 @@ bun test tests/*.test.ts
 bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
 
 cd ../../Developer
-Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
 
@@ -159,7 +172,7 @@ WikiDock:
 
 ```sh
 cd WikiDock.app/Contents/Developer
-Scripts/build-root-app.sh
+Scripts/build-app.sh
 ```
 
 Verify the checked-in root apps:
