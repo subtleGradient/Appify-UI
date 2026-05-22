@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Quick Look Package Convention</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">SPEC/macOS-platform / Quick Look</p>
+        <h1>Quick Look Package Convention</h1>
+        <p class="lede">
+          Appify UI is macOS-first. Package documents should lean into macOS package conventions instead of inventing app-specific preview plumbing unless a concrete product need forces it.
+        </p>
+      </header>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li>For AppifyHost package documents, the canonical Finder preview lives under <code>QuickLook/Preview.*</code>.</li>
+          <li>When a separate thumbnail is useful, it lives at <code>QuickLook/Thumbnail.*</code>.</li>
+          <li>The <code>QuickLook</code> directory is not smuggled cross-platform metadata. It is the macOS package-document preview surface.</li>
+          <li>Do not add a Quick Look app extension merely to avoid the package-local <code>QuickLook</code> directory.</li>
+          <li>Broader ecosystem compatibility is allowed, but it is a nice-to-have layered on top of the macOS-native package contract.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="examples">
+        <h2 id="examples">Canonical Shapes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Document type</th>
+              <th>Canonical preview file</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>.tlcanvas</code></td>
+              <td><code>QuickLook/Preview.png</code></td>
+              <td>Generated from the current canvas state. <code>QuickLook/Thumbnail.png</code> may point at it when one PNG is sufficient.</td>
+            </tr>
+            <tr>
+              <td><code>.hi</code></td>
+              <td><code>QuickLook/Preview.html</code></td>
+              <td>The preview HTML is the document's user-visible content for the hello-world probe.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="golf">
+        <h2 id="golf">Golf Rationale</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Thing Golf</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Use <code>QuickLook/Preview.*</code> inside the package</td>
+              <td>Low burden, high clarity, no new runtime surface.</td>
+              <td>Default.</td>
+            </tr>
+            <tr>
+              <td>Add app-owned Quick Look extensions for every AppifyHost app</td>
+              <td>Cleaner document packages, but more signing, packaging, registration, and lifecycle surface.</td>
+              <td>Only when generated previews cannot be stored as native Quick Look files.</td>
+            </tr>
+            <tr>
+              <td>Invent app-specific preview files such as <code>snapshot.png</code></td>
+              <td>Creates duplicate vocabulary and adapter files.</td>
+              <td>Avoid when the file exists primarily for Finder/user preview.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>Apple: <a href="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/Quicklook_Programming_Guide/Articles/QLImplementationOverview.html">Overview of Generator Implementation</a>, which documents <code>QuickLook/Thumbnail.ext</code> and <code>QuickLook/Preview.ext</code> inside document bundles.</li>
+          <li>Apple: <a href="https://developer.apple.com/documentation/QuickLook">Quick Look documentation</a>, which positions Quick Look previews and extensions as the platform preview system.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
