@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>TUI Devops and Network</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">TUI ops terrain</p>
+        <h1>TUI Devops and Network</h1>
+        <p class="lede">
+          Devops TUIs are very Appify-shaped when they open saved artifacts: captures, logs, plans, API specs, cluster profiles, and runbooks. They become risky when the document is really a key to production.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="method-slices.idea.html">method</a> /
+        <a href="tui-top-picks.idea.html">TUI top picks</a> /
+        <a href="tui-data-and-databases.idea.html">data</a> /
+        <a href="tui-authoring-and-personal.idea.html">authoring</a> /
+        <a href="prototype-backlog.idea.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="shortlist">
+        <h2 id="shortlist">Candidate Table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Natural Finder object</th>
+              <th>Why it belongs</th>
+              <th>Wrapper shape</th>
+              <th>Score</th>
+              <th>Guardrail</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="https://termshark.io/">Termshark</a></td>
+              <td><code>.pcap</code>, <code>.pcapng</code>, capture package</td>
+              <td>Terminal Wireshark-style inspection: display filters, TCP/UDP streams, conversations, saved capture flow.</td>
+              <td><code>PacketPeek.app</code> with <code>termshark -r {documentPath}</code>.</td>
+              <td>5</td>
+              <td>Ship saved-capture viewer first; avoid live capture privileges in v1.</td>
+            </tr>
+            <tr>
+              <td><a href="https://lnav.org/">lnav</a></td>
+              <td>Log file, log directory, <code>.logbundle</code></td>
+              <td>Auto-detection, merged timeline, SQL queries over logs, live tailing, sessions.</td>
+              <td><code>LogScope.app</code> with optional saved queries/formats package.</td>
+              <td>5</td>
+              <td>Disable arbitrary scripts unless explicitly trusted.</td>
+            </tr>
+            <tr>
+              <td><a href="https://posting.sh/guide/importing/">Posting</a></td>
+              <td>API collection directory, OpenAPI spec, Postman import</td>
+              <td>Keyboard API client with YAML requests, envs, scripts, and import flows.</td>
+              <td><code>APIWorkbench.app</code> package containing requests and redacted profiles.</td>
+              <td>5</td>
+              <td>Secrets live in Keychain or external env, not committed package files.</td>
+            </tr>
+            <tr>
+              <td><a href="https://slumber.lucaspickering.me/user_guide/tui/">Slumber</a></td>
+              <td><code>slumber.yaml</code>, HTTP collection file</td>
+              <td>One collection file drives one long-lived TUI session; reloads when file changes.</td>
+              <td>Single-file HTTP client or package wrapper.</td>
+              <td>5</td>
+              <td>Same secrets and script policy as Posting.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/ushiradineth/lazytf">lazytf</a></td>
+              <td><code>.tfplan</code>, Terraform/OpenTofu project</td>
+              <td>Plan review is a real document workflow: open the saved plan and navigate diffs/resources.</td>
+              <td><code>PlanPeek.app</code> with read-only default.</td>
+              <td>5</td>
+              <td>No apply/destroy actions in document viewer mode.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/veeso/termscp">termscp</a></td>
+              <td>SFTP/S3/WebDAV/SMB profile bundle</td>
+              <td>Remote file transfer and explorer for many protocols in one TUI.</td>
+              <td><code>RemoteFiles.app</code> profile package.</td>
+              <td>4</td>
+              <td>Keychain-backed credentials and explicit host trust.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/derailed/k9s">K9s</a> / <a href="https://github.com/sarub0b0/kubetui">kubetui</a></td>
+              <td>kubeconfig/context package</td>
+              <td>Cluster TUI is useful, but the "document" is a permissioned operational portal.</td>
+              <td><code>KubeContext.app</code> marker/profile package.</td>
+              <td>4</td>
+              <td>Read-only context first; hide secrets by default.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/mitmproxy/mitmproxy">mitmproxy</a></td>
+              <td>Flow capture, proxy profile</td>
+              <td>Interactive HTTP/WebSocket capture, replay, and modification is a strong security/API workflow.</td>
+              <td><code>FlowCapture.app</code> for saved flow files first.</td>
+              <td>4</td>
+              <td>CA install/proxy mutation must not be implicit.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/sqshq/sampler">Sampler</a></td>
+              <td><code>.sampler.yml</code>, runbook/dashboard bundle</td>
+              <td>Open a YAML file and get a live terminal dashboard made of commands.</td>
+              <td><code>Runbook.app</code> with safe-mode command allowlists.</td>
+              <td>3</td>
+              <td>Arbitrary command execution is the product, so trust boundaries matter.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/dlvhdr/gh-dash">gh-dash</a></td>
+              <td>Repo folder, <code>.gh-dash.yml</code></td>
+              <td>Good GitHub PR/issue dashboard companion to LazyGit.</td>
+              <td><code>GitHubDash.app</code> marker package.</td>
+              <td>3</td>
+              <td>Requires authenticated <code>gh</code> and API rate-limit handling.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="profile-docs">
+        <h2 id="profile-docs">Profile Documents Need a Different Bar</h2>
+        <ul>
+          <li>A profile document should describe a target and workflow, not contain raw secrets.</li>
+          <li>Read-only mode should be the default for production-like targets.</li>
+          <li>The app should show the resolved target before connecting: cluster, host, API base URL, account, or database.</li>
+          <li>Any command-running document should have an explicit trust prompt and a visible allowlist story.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O: <a href="https://termshark.io/">Termshark</a>, <a href="https://lnav.org/features">lnav features</a>, <a href="https://docs.lnav.org/en/v0.14.0/formats.html">lnav formats</a>.</li>
+          <li>O: <a href="https://posting.sh/guide/importing/">Posting importing</a>, <a href="https://slumber.lucaspickering.me/user_guide/tui/">Slumber TUI</a>, <a href="https://slumber.lucaspickering.me/api/request_collection/index.html">Slumber collection file</a>.</li>
+          <li>O/P: <a href="https://github.com/veeso/termscp">termscp</a>, <a href="https://github.com/sqshq/sampler">Sampler</a>, <a href="https://github.com/dlvhdr/gh-dash">gh-dash</a>.</li>
+          <li>O: <a href="https://github.com/mitmproxy/mitmproxy">mitmproxy</a>, <a href="https://github.com/derailed/k9s">K9s</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

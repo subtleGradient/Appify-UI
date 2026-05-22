@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web Canvas and Editors</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">web canvas/editor terrain</p>
+        <h1>Web Canvas and Editors</h1>
+        <p class="lede">
+          Browser-native editors are strongest when they store open, inspectable documents: JSON canvases, Markdown, HTML wikis, flow graphs, and block documents.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="method-slices.idea.html">method</a> /
+        <a href="web-tech-top-picks.idea.html">web top picks</a> /
+        <a href="web-data-maps-cad.idea.html">data/maps/CAD</a> /
+        <a href="appifyhost-patterns.idea.html">host patterns</a> /
+        <a href="prototype-backlog.idea.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="families">
+        <h2 id="families">Candidate Families</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Family</th>
+              <th>Candidate</th>
+              <th>Document shape</th>
+              <th>AppifyHost angle</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Open canvas format</td>
+              <td><a href="https://jsoncanvas.org/spec/1.0">JSON Canvas</a></td>
+              <td><code>.canvas</code> JSON with nodes and edges; package for attachments.</td>
+              <td>Best "TLCanvas sibling" because the format is open and local-first.</td>
+              <td>Editor UX must exceed a simple viewer.</td>
+            </tr>
+            <tr>
+              <td>Drawing canvas</td>
+              <td><a href="https://github.com/excalidraw/excalidraw">Excalidraw</a></td>
+              <td><code>.excalidraw</code> JSON plus embedded or package assets.</td>
+              <td>Ideal hand-drawn diagram app if save/asset paths are native.</td>
+              <td>Many users already use web/Obsidian wrappers.</td>
+            </tr>
+            <tr>
+              <td>Mature diagram editor</td>
+              <td><a href="https://github.com/jgraph/drawio">diagrams.net</a></td>
+              <td><code>.drawio</code> XML.</td>
+              <td>Could be a local file wrapper where the official desktop app is too heavy or not project-specific.</td>
+              <td>Existing app overlap is high.</td>
+            </tr>
+            <tr>
+              <td>Single-file wiki</td>
+              <td><a href="https://github.com/TiddlyWiki/TiddlyWiki5">TiddlyWiki</a></td>
+              <td>One <code>.html</code> file, or a package with tiddlers/assets.</td>
+              <td>AppifyHost can make self-saving local HTML feel like a native document again.</td>
+              <td>Autosave and merge conflict behavior.</td>
+            </tr>
+            <tr>
+              <td>Block editor</td>
+              <td><a href="https://blocksuite.io/">BlockSuite</a>, <a href="https://milkdown.dev/">Milkdown</a>, <a href="https://lexical.dev/">Lexical</a></td>
+              <td>Markdown, block JSON, CRDT-backed document packages.</td>
+              <td>Good substrate for a local Notion-like document where package owns the data.</td>
+              <td>Product design burden is higher than integration burden.</td>
+            </tr>
+            <tr>
+              <td>Code editor</td>
+              <td><a href="https://microsoft.github.io/monaco-editor/">Monaco</a>, <a href="https://codemirror.com/">CodeMirror</a></td>
+              <td>Plain text, project folder, structured source packages.</td>
+              <td>Useful inside specialized document apps: API clients, notebooks, DSL editors, diagram editors.</td>
+              <td>Do not accidentally rebuild VS Code.</td>
+            </tr>
+            <tr>
+              <td>Live code sandbox</td>
+              <td><a href="https://sandpack.codesandbox.io/">Sandpack</a>, <a href="https://webcontainers.io/">WebContainers</a></td>
+              <td>Small web project package with files and dependencies.</td>
+              <td>Powerful for runnable examples, component demos, and code lab documents.</td>
+              <td>Browser support, dependency install, security of executing package scripts.</td>
+            </tr>
+            <tr>
+              <td>Graph/workflow editor</td>
+              <td><a href="https://reactflow.dev/">React Flow</a>, <a href="https://retejs.org/">Rete.js</a>, <a href="https://js.cytoscape.org/">Cytoscape.js</a></td>
+              <td>Node/edge JSON plus assets and schema.</td>
+              <td>Strong base for workflow, agent, dependency, knowledge, and simulation documents.</td>
+              <td>Needs a real domain; generic node editors get muddy fast.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="bundle">
+        <h2 id="bundle">Preferred Bundle Anatomy</h2>
+        <ul>
+          <li><code>document.json</code> or the canonical upstream file at package root.</li>
+          <li><code>assets/</code> for images, videos, attachments, fonts, and imported files.</li>
+          <li><code>preview.png</code> for Finder/Quick Look later.</li>
+          <li><code>schema.json</code> or <code>manifest.json</code> with format version and upstream app version.</li>
+          <li><code>exports/</code> only for generated artifacts that can be rebuilt or intentionally shared.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://obsidian.md/blog/json-canvas/">Obsidian JSON Canvas announcement</a>.</li>
+          <li>O: <a href="https://github.com/excalidraw/excalidraw">Excalidraw GitHub</a>, <a href="https://github.com/jgraph/drawio">diagrams.net GitHub</a>, <a href="https://github.com/TiddlyWiki/TiddlyWiki5">TiddlyWiki GitHub</a>.</li>
+          <li>O: <a href="https://blocksuite.io/">BlockSuite</a>, <a href="https://milkdown.dev/">Milkdown</a>, <a href="https://lexical.dev/">Lexical</a>.</li>
+          <li>O: <a href="https://microsoft.github.io/monaco-editor/">Monaco</a>, <a href="https://codemirror.com/">CodeMirror</a>, <a href="https://sandpack.codesandbox.io/">Sandpack</a>, <a href="https://webcontainers.io/">WebContainers</a>.</li>
+          <li>O: <a href="https://reactflow.dev/">React Flow</a>, <a href="https://retejs.org/">Rete.js</a>, <a href="https://js.cytoscape.org/">Cytoscape.js</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

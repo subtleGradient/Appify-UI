@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>AppifyHost Document Patterns</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">local code evidence</p>
+        <h1>AppifyHost Document Patterns</h1>
+        <p class="lede">
+          The current repo already demonstrates the three wrapper shapes needed for the atlas: single files, marker folders, and real content packages.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="method-slices.idea.html">method</a> /
+        <a href="tui-top-picks.idea.html">TUI top picks</a> /
+        <a href="web-tech-top-picks.idea.html">web top picks</a> /
+        <a href="prototype-backlog.idea.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="modes">
+        <h2 id="modes">Document Modes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Mode</th>
+              <th>Current probe</th>
+              <th>What it means</th>
+              <th>Best future candidates</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>fileDocument</code></td>
+              <td><a href="../tw.app/">tw.app</a>, <a href="../litecli.app/">litecli.app</a></td>
+              <td>Finder opens one existing file. The server receives the path and starts a localhost UI for it.</td>
+              <td>Tabiew, VisiData, Harlequin, csvlens, termshark, doxx, lnav on one log file.</td>
+            </tr>
+            <tr>
+              <td><code>folderMarker</code></td>
+              <td><a href="../LazyGit.app/">LazyGit.app</a></td>
+              <td>A package folder is a marker. The parent directory is the real workspace.</td>
+              <td>LazyGit siblings, jjui, K9s/kubetui context markers, repo dashboards.</td>
+            </tr>
+            <tr>
+              <td><code>contentPackage</code></td>
+              <td><a href="../TLCanvas.app/">TLCanvas.app</a></td>
+              <td>The package is the document. It can hold a manifest, records, assets, snapshots, and editor state.</td>
+              <td>JSON Canvas, Excalidraw bundles, map bundles, API collections, flow/workflow bundles.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="existing">
+        <h2 id="existing">Existing App Probes</h2>
+        <div class="grid">
+          <section aria-labelledby="tw">
+            <h3 id="tw">tw</h3>
+            <ul>
+              <li>Imports delimited tables, Parquet, JSON/JSONL, Arrow, fixed-width, SQLite, and Excel-like formats.</li>
+              <li>Sets <code>TW_DOCUMENT={documentPath}</code>.</li>
+              <li>Starts <code>ttyd</code> with <code>tw {documentPath}</code>, using Nix packages <code>ttyd</code> and <code>tabiew</code> when available.</li>
+              <li>Best lesson: broad data-file support can be mostly a plist and a path-shaped shell script.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="litecli">
+            <h3 id="litecli">litecli</h3>
+            <ul>
+              <li>Imports <code>.db</code>, <code>.sqlite</code>, and <code>.sqlite3</code>.</li>
+              <li>Sets <code>LITECLI_DOCUMENT={documentPath}</code>.</li>
+              <li>Builds a read-only SQLite file URI with <code>?mode=ro</code> before launching <code>litecli</code> through <code>ttyd</code>.</li>
+              <li>Best lesson: write safety can be encoded in the AppServer launch path.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="lazygit">
+            <h3 id="lazygit">LazyGit</h3>
+            <ul>
+              <li>Exports a <code>.lazygit</code> package UTI, but the package is just a marker.</li>
+              <li>Runs <code>lazygit --path {workingDirectory}</code>, so Finder can open a repository without making the repository itself a package.</li>
+              <li>Best lesson: marker packages are the right shape for repo and workspace tools.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="tlcanvas">
+            <h3 id="tlcanvas">TLCanvas</h3>
+            <ul>
+              <li>Exports a <code>.tlcanvas</code> package UTI and uses persistent WebView storage.</li>
+              <li>The package holds <code>canvas.json5</code>, <code>records/</code>, <code>snapshot.png</code>, and readme material.</li>
+              <li>Runs a Bun server and prints <code>APPIFY_HOST_OPEN_URL</code>.</li>
+              <li>Best lesson: web-tech apps want package documents, not just loose JSON files.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="contract">
+        <h2 id="contract">Wrapper Contract</h2>
+        <ul>
+          <li>The AppServer must bind a safe local or app-bundle URL and print <code>APPIFY_HOST_OPEN_URL=...</code> before timeout.</li>
+          <li>The TUI pattern should use <code>ttyd --interface 127.0.0.1 --check-origin --once --max-clients 1</code> unless a candidate needs a different terminal strategy.</li>
+          <li>The browser pattern should serve from the app runner and keep document mutation inside the opened package path.</li>
+          <li>Credential-bearing candidates need Keychain integration or a profile document that deliberately excludes secrets.</li>
+          <li>Viewer-first apps can launch with fewer AppKit dirty-state concerns than editors.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="package-shapes">
+        <h2 id="package-shapes">Package Shapes Worth Standardizing</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Contents</th>
+              <th>Candidate apps</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>.logbundle</code></td>
+              <td><code>logs/</code>, <code>formats/</code>, <code>queries/</code>, <code>session.json</code></td>
+              <td>lnav</td>
+              <td>Format scripts can become arbitrary work unless locked down.</td>
+            </tr>
+            <tr>
+              <td><code>.apiworkbench</code></td>
+              <td><code>requests/</code>, <code>openapi.yaml</code>, <code>env.example</code>, redacted profiles</td>
+              <td>Posting, Slumber, ATAC</td>
+              <td>Secrets, scripts, and network history need a policy.</td>
+            </tr>
+            <tr>
+              <td><code>.mapbundle</code></td>
+              <td><code>style.json</code>, <code>data/</code>, <code>tiles.pmtiles</code>, <code>sources.json</code></td>
+              <td>MapLibre, PMTiles, DuckDB-Wasm</td>
+              <td>Tile licensing and large-file behavior.</td>
+            </tr>
+            <tr>
+              <td><code>.flowbundle</code></td>
+              <td><code>graph.json</code>, <code>nodes/</code>, <code>assets/</code>, <code>schema.json</code></td>
+              <td>React Flow, Rete.js, Cytoscape.js</td>
+              <td>Toolkit does not supply product semantics.</td>
+            </tr>
+            <tr>
+              <td><code>.notebookbundle</code></td>
+              <td><code>notebook.py</code> or <code>notebook.ipynb</code>, <code>data/</code>, <code>outputs/</code></td>
+              <td>marimo, JupyterLite, Sandpack</td>
+              <td>Execution safety and environment reproducibility.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>L: <a href="../tw.app/Contents/Info.plist">tw Info.plist</a>, <a href="../litecli.app/Contents/Info.plist">litecli Info.plist</a>, <a href="../LazyGit.app/Contents/Info.plist">LazyGit Info.plist</a>, <a href="../TLCanvas.app/Contents/Info.plist">TLCanvas Info.plist</a>.</li>
+          <li>L: <a href="../tw.app/Contents/Resources/AppServer/main.sh">tw AppServer</a>, <a href="../litecli.app/Contents/Resources/AppServer/main.sh">litecli AppServer</a>, <a href="../LazyGit.app/Contents/Resources/AppServer/main.sh">LazyGit AppServer</a>, <a href="../TLCanvas.app/Contents/Resources/AppServer/main.sh">TLCanvas AppServer</a>.</li>
+          <li>L: <a href="../source/AppifyHost/Sources/AppifyHostCore/AppifyHostCore.swift">AppifyHostCore.swift</a>, <a href="../source/AppifyHost/Sources/appify-host/AppifyHostDocument.swift">AppifyHostDocument.swift</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

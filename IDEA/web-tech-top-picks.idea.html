@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web Tech Top Picks</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">web-tech atlas / document-app potential</p>
+        <h1>Web Tech Top Picks</h1>
+        <p class="lede">
+          TLCanvas proves the web-tech lane: wrap a local browser app, make the package a real macOS document, and let excellent web libraries do the hard interaction work.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="method-slices.idea.html">method</a> /
+        <a href="appifyhost-patterns.idea.html">host patterns</a> /
+        <a href="web-canvas-and-editors.idea.html">canvas/editors</a> /
+        <a href="web-data-maps-cad.idea.html">data/maps/CAD</a> /
+        <a href="tui-top-picks.idea.html">TUI top picks</a> /
+        <a href="prototype-backlog.idea.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="ranking">
+        <h2 id="ranking">First-Round Ranking</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Candidate</th>
+              <th>Document object</th>
+              <th>Why it is a good AppifyHost app</th>
+              <th>Wrapper sketch</th>
+              <th>Risk</th>
+              <th>Evidence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><a href="https://jsoncanvas.org/spec/1.0">JSON Canvas</a></td>
+              <td><code>.canvas</code>, <code>.canvasbundle</code></td>
+              <td>Open file format for infinite canvas data. It is text, local, and made for interoperability.</td>
+              <td><code>JSONCanvas.app</code>: render/edit <code>.canvas</code> with package attachments.</td>
+              <td>Spec is conservative; product value comes from the editor layer.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><a href="https://github.com/excalidraw/excalidraw">Excalidraw</a></td>
+              <td><code>.excalidraw</code>, asset bundle</td>
+              <td>Open JSON drawing format, familiar hand-drawn diagram feel, strong offline story.</td>
+              <td><code>Excalidraw.app</code>: package JSON plus embedded assets.</td>
+              <td>Existing wrappers; asset path/save semantics need care.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><a href="https://github.com/TiddlyWiki/TiddlyWiki5">TiddlyWiki</a></td>
+              <td>single <code>.html</code>, <code>.tiddlybundle</code></td>
+              <td>It is already a self-contained web document. AppifyHost can solve the browser save friction.</td>
+              <td><code>TiddlyHost.app</code>: native open/save around one HTML wiki or package.</td>
+              <td>Single-file diffs and autosave conflict behavior.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><a href="https://docs.marimo.io/">marimo</a></td>
+              <td><code>.py</code> notebook, notebook package</td>
+              <td>Reactive notebook stored as pure Python; much better document ergonomics than opaque notebook JSON.</td>
+              <td><code>MarimoDoc.app</code>: open one notebook and run local server.</td>
+              <td>Python env management and execution trust.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><a href="https://maplibre.org/projects/gl-js/">MapLibre GL JS</a> + <a href="https://github.com/protomaps/PMTiles">PMTiles</a></td>
+              <td><code>.mapbundle</code>: style JSON, GeoJSON, tiles</td>
+              <td>A map can be a local document if the package owns its style, data, and tile sources.</td>
+              <td><code>MapBundle.app</code>: WebGL map editor/viewer for local/offline maps.</td>
+              <td>Tile licensing, large file handling, GPU behavior.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><a href="https://duckdb.org/docs/current/clients/wasm/overview.html">DuckDB-Wasm</a> + <a href="https://perspective.finos.org/guide/perspective.html">Perspective</a></td>
+              <td>Data dashboard package</td>
+              <td>Browser-side analytical SQL plus Web Component grids/charts makes a local BI document plausible.</td>
+              <td><code>DataCanvas.app</code>: package data, SQL, views, and chart state.</td>
+              <td>Large datasets, memory, and worker startup.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>7</td>
+              <td><a href="https://github.com/jgraph/drawio">diagrams.net / draw.io</a></td>
+              <td><code>.drawio</code></td>
+              <td>Very capable browser diagram editor with a mature file format.</td>
+              <td><code>DrawIOHost.app</code> if a lightweight local wrapper matters.</td>
+              <td>Existing desktop app is a strong competitor.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>8</td>
+              <td><a href="https://reactflow.dev/">React Flow</a> or <a href="https://retejs.org/">Rete.js</a></td>
+              <td><code>.flowbundle</code>, node/edge JSON</td>
+              <td>Excellent node-editor substrates for workflows, simulators, dataflow, and agent graphs.</td>
+              <td><code>FlowBundle.app</code>: domain-specific nodes plus assets and schema.</td>
+              <td>They are toolkits, not products; semantics must be invented.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>9</td>
+              <td><a href="https://jupyterlite.readthedocs.io/">JupyterLite</a></td>
+              <td><code>.ipynb</code>, notebook package</td>
+              <td>Jupyter running in-browser with WebAssembly can make notebooks portable without a full local server stack.</td>
+              <td><code>LiteNotebook.app</code>: static JupyterLab shell plus package-backed files.</td>
+              <td>Feature gaps versus full Jupyter; browser filesystem bridging.</td>
+              <td>O, I</td>
+            </tr>
+            <tr>
+              <td>10</td>
+              <td><a href="https://ocjs.org/">OpenCascade.js</a> / <a href="https://jscad.app/">JSCAD</a></td>
+              <td><code>.step</code>, <code>.brep</code>, <code>.jscad</code>, CAD package</td>
+              <td>WASM CAD kernels and code-CAD turn serious geometry into a local browser document.</td>
+              <td><code>CADSketch.app</code>: code, preview, exports, assets.</td>
+              <td>WASM size, licensing, and CAD UX complexity.</td>
+              <td>O, I</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="fit">
+        <h2 id="fit">What Makes Web Tech Native Enough</h2>
+        <ul>
+          <li>The package must own the durable document model, not just browser IndexedDB.</li>
+          <li>WebView persistence should be a cache, not the only source of truth.</li>
+          <li>Assets belong beside the primary JSON/HTML/source file so Finder copy/backup works.</li>
+          <li>The wrapper should provide document identity, sandboxed local server, and explicit import/export.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://github.com/obsidianmd/jsoncanvas">JSON Canvas GitHub</a>, <a href="https://github.com/excalidraw/excalidraw">Excalidraw GitHub</a>.</li>
+          <li>O: <a href="https://docs.marimo.io/">marimo docs</a>, <a href="https://marimo.io/blog/python-not-json">marimo Python format</a>, <a href="https://jupyterlite.readthedocs.io/">JupyterLite docs</a>.</li>
+          <li>O: <a href="https://maplibre.org/projects/gl-js/">MapLibre GL JS</a>, <a href="https://duckdb.org/docs/current/clients/wasm/overview.html">DuckDB-Wasm</a>, <a href="https://perspective.finos.org/guide/perspective.html">Perspective</a>.</li>
+          <li>O: <a href="https://reactflow.dev/">React Flow</a>, <a href="https://retejs.org/">Rete.js</a>, <a href="https://ocjs.org/">OpenCascade.js</a>, <a href="https://jscad.app/">JSCAD</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
