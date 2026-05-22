@@ -20,10 +20,12 @@ The repo is intentionally object-first:
 ├── JSONCanvas.app
 ├── LogScope.app
 ├── TLCanvas.app
+├── Web.app
 ├── WebFormer.app
 ├── WikiDock.app
 ├── litecli.app
 ├── tw.app
+├── ideas.web/
 ├── bin/
 │   ├── appify-host
 │   └── appify-host.manifest.json
@@ -63,6 +65,12 @@ shows the indexed log timeline in a native WebKit window.
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
 tests, schema, and lockfile.
 
+[`Web.app`](Web.app/) opens `.web` document packages. A `.web` package is a
+static browser-native folder: HTML, CSS, JavaScript, assets, data, and relative
+links. It uses Bun's HTML routes for live reload when possible, renders
+Markdown files as a convenience, and does not make npm or build tooling part of
+the `.web` contract.
+
 [`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
 serves the document through an app-local Bun runner, injects runtime save
 affordances with `HTMLRewriter`, and writes edited native form state back into
@@ -84,7 +92,7 @@ read-only SQLite URI.
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
 validate that URL, and show it in a native WebKit window. It does not know about
-LazyGit, Tabiew, LiteCLI, TLCanvas, WebFormer, Bun, `ttyd`, or tldraw.
+LazyGit, Tabiew, LiteCLI, TLCanvas, Web, WebFormer, Bun, `ttyd`, or tldraw.
 
 ## Build
 
@@ -156,6 +164,13 @@ bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
 
 cd ../../Developer
 Scripts/smoke-ui.sh
+```
+
+Web:
+
+```sh
+cd Web.app/Contents/Resources/Runner
+bun test tests/*.test.ts
 ```
 
 WebFormer:
