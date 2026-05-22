@@ -1,10 +1,12 @@
 import AppKit
 import AppifyHostCore
 import UniformTypeIdentifiers
+import WebKit
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
+    private var helpWindowController: AppifyHostHelpWindowController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -16,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         DispatchQueue.main.async { [weak self] in
             self?.configureMainMenu()
+            self?.showConfiguredHelpIfNeeded()
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -104,6 +107,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
            let linkURL = aboutNotice.linkURL,
            let url = URL(string: linkURL) {
             NSWorkspace.shared.open(url)
+        }
+    }
+
+    @objc private func showConfiguredHelpFromMenu(_ sender: Any?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let configuration = self.configuration, let help = configuration.firstLaunchHelp else {
+                return
+            }
+            self.showHelpWindow(help)
         }
     }
 
@@ -338,7 +350,47 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let helpMenu = NSMenu(title: "Help")
         helpMenuItem.submenu = helpMenu
         NSApp.helpMenu = helpMenu
-        helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
+        if let help = configuration.firstLaunchHelp {
+            let helpItem = helpMenu.addItem(
+                withTitle: help.windowTitle,
+                action: #selector(showConfiguredHelpFromMenu(_:)),
+                keyEquivalent: "?"
+            )
+            helpItem.target = self
+        } else {
+            helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
+        }
+    }
+
+    @MainActor
+    private func showConfiguredHelpIfNeeded() {
+        guard let configuration,
+              let help = configuration.firstLaunchHelp
+        else {
+            return
+        }
+
+        let key = firstLaunchHelpDefaultsKey(configuration: configuration, help: help)
+        guard !UserDefaults.standard.bool(forKey: key) else {
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: key)
+        showHelpWindow(help)
+    }
+
+    private func firstLaunchHelpDefaultsKey(
+        configuration: AppifyHostConfiguration,
+        help: AppifyHostFirstLaunchHelp
+    ) -> String {
+        "AppifyHost.FirstLaunchHelp.\(configuration.bundleIdentifier).\(help.url.absoluteString)"
+    }
+
+    @MainActor
+    private func showHelpWindow(_ help: AppifyHostFirstLaunchHelp) {
+        let controller = helpWindowController ?? AppifyHostHelpWindowController()
+        helpWindowController = controller
+        controller.show(title: help.windowTitle, url: help.url)
     }
 
     private func openPanelMessage(configuration: AppifyHostConfiguration) -> String {
@@ -379,5 +431,43 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+}
+
+final class AppifyHostHelpWindowController: NSWindowController {
+    private let webView: WKWebView
+
+    init() {
+        let webViewConfiguration = WKWebViewConfiguration()
+        webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        let webView = WKWebView(frame: .zero, configuration: webViewConfiguration)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.minSize = NSSize(width: 640, height: 420)
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.contentView = webView
+
+        self.webView = webView
+        super.init(window: window)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("AppifyHostHelpWindowController does not support NSCoder.")
+    }
+
+    func show(title: String, url: URL) {
+        window?.title = title
+        showWindow(nil)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        webView.load(URLRequest(url: url))
     }
 }
