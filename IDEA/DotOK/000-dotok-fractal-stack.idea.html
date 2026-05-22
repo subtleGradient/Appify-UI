@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>000 - DotOK Fractal Stack</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p, blockquote { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      pre { overflow: auto; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; padding: 1rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      blockquote { border-inline-start: 0.25rem solid color-mix(in oklch, CanvasText 28%, transparent); padding-inline-start: 1rem; color: color-mix(in oklch, CanvasText 76%, transparent); display: grid; gap: 0.75rem; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">IDEA/DotOK / fractal stack / 2026-05-22</p>
+        <h1>DotOK Fractal Stack</h1>
+        <p class="lede">
+          DotOK should be a specialized IDE built from smaller reusable document nouns, not a monolith. WebForm handles structured visible input. The generic noun layer handles file shapes, kind servers, and URI glue. DotOK owns the homeostatic ontology on top.
+        </p>
+      </header>
+
+      <nav aria-label="DotOK idea notes">
+        <strong>Dependencies:</strong>
+        <a href="../webform/000-single-file-webform.idea.html">single-file webform</a> /
+        <a href="../nouns/000-composable-document-nouns.idea.html">composable document nouns</a>
+      </nav>
+
+      <section aria-labelledby="raw">
+        <h2 id="raw">DotOK-Specific Capture</h2>
+        <blockquote>
+          <p>
+            Double-click a <code>.ok</code> bundle and open it in a new <code>DotOK.app</code> document window.
+          </p>
+          <p>
+            Inside a DotOK bundle are many things. Each thing has zero or more sub-things, which are also things. Each thing has many aspects.
+          </p>
+          <p>
+            Each aspect has one way in which it can be good, healthy, and stable: its homeostatic balance point, the needle hole to thread. It may have many bad failure modes: too high, too low, too far left or right, the wrong material, incomplete passage, stale evidence, and similar misses.
+          </p>
+          <p>
+            Assessments are point-in-time reports about how reality is now. Future snapshots are not-yet-real slices used to orient goals before concrete work orders exist.
+          </p>
+        </blockquote>
+      </section>
+
+      <section aria-labelledby="stack">
+        <h2 id="stack">Dependency Stack</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Owns</th>
+              <th>DotOK Uses It For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="../webform/000-single-file-webform.idea.html"><code>.webform</code></a></td>
+              <td>Single-file visible HTML form state and WebFormer rewrite/save behavior.</td>
+              <td>Balance-point forms, assessment prompts, future-snapshot prompts, review packets.</td>
+            </tr>
+            <tr>
+              <td><a href="../nouns/000-composable-document-nouns.idea.html">Composable nouns</a></td>
+              <td>Single-file versus bundle rules, kind servers, URI glue, fail-closed composition.</td>
+              <td>Opening each DotOK noun in the correct local view without a giant shared tool.</td>
+            </tr>
+            <tr>
+              <td><code>.canvas</code></td>
+              <td>Graph-shaped standard format.</td>
+              <td>Homeostatic maps, focus slices, thing/aspect graphs, work-order dependency maps.</td>
+            </tr>
+            <tr>
+              <td><code>.appdev</code></td>
+              <td>Workshop around a shippable app.</td>
+              <td>Designing <code>DotOK.app</code> while keeping private process outside the runnable app bundle.</td>
+            </tr>
+            <tr>
+              <td>DotOK ontology</td>
+              <td>Things, aspects, balance points, failure modes, assessments, futures, goals, work orders.</td>
+              <td>The specialized IDE experience that sits above the generic layers.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="ontology">
+        <h2 id="ontology">DotOK Nouns</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Noun</th>
+              <th>Meaning</th>
+              <th>Likely Representation</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>thing</code></td>
+              <td>Any object of care. A thing may contain sub-things, which are also things.</td>
+              <td><code>things/*.thing/thing.json5</code> plus child refs.</td>
+            </tr>
+            <tr>
+              <td><code>aspect</code></td>
+              <td>A dimension along which a thing can be healthy, drifting, broken, ambiguous, or unknown.</td>
+              <td><code>aspects/*.aspect/aspect.json5</code>, often with a balance-point <code>.webform</code>.</td>
+            </tr>
+            <tr>
+              <td><code>balance point</code></td>
+              <td>The one homeostatic way the aspect is good: the needle hole to thread.</td>
+              <td>A visible <code>.webform</code>, assertion, evaluator, or canvas node owned by the aspect.</td>
+            </tr>
+            <tr>
+              <td><code>failure mode</code></td>
+              <td>One recognizable way to miss the balance point.</td>
+              <td><code>failure-modes/*.mode.json5</code> with examples and detection notes.</td>
+            </tr>
+            <tr>
+              <td><code>assessment</code></td>
+              <td>A point-in-time reality snapshot with frozen observed values and evidence.</td>
+              <td><code>assessments/YYYYMMDD-HHMM.assessment/</code>.</td>
+            </tr>
+            <tr>
+              <td><code>future snapshot</code></td>
+              <td>A desired not-yet-real target slice. It is not a plan and does not own tasks.</td>
+              <td><code>futures/*.future/</code> with focus canvas and target-state webforms.</td>
+            </tr>
+            <tr>
+              <td><code>goal</code></td>
+              <td>A high-level desired outcome derived from a future snapshot or assessment gap.</td>
+              <td><code>goals/*.goal.json5</code>.</td>
+            </tr>
+            <tr>
+              <td><code>work order</code></td>
+              <td>An executable unit that can unblock goals or other work orders.</td>
+              <td><code>work-orders/*.work.json5</code> or compatibility with existing <code>.tasks/*.md</code>.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="ok-bundle">
+        <h2 id="ok-bundle">Proposed <code>.ok</code> Bundle</h2>
+        <pre><code>My Project.ok/
+  dotok.json5
+  home.ok.canvas
+  things/
+    product.thing/
+      thing.json5
+      aspects/
+        reliability.aspect/
+          aspect.json5
+          balance.webform
+          failure-modes/
+            too-brittle.mode.json5
+            too-expensive.mode.json5
+  assessments/
+    20260522-1430.assessment/
+      assessment.json5
+      thing-snapshot.canvas
+      evidence/
+      forms/
+  futures/
+    launch-ready.future/
+      future.json5
+      focus.canvas
+      target-state.webform
+  goals/
+    reduce-onboarding-drift.goal.json5
+  work-orders/
+    add-observable-startup-path.work.json5
+    write-first-calibration-form.work.json5</code></pre>
+      </section>
+
+      <section aria-labelledby="uri">
+        <h2 id="uri">DotOK URI Examples</h2>
+        <pre><code>dotok:///open?path=things/product.thing/aspects/reliability.aspect/balance.webform
+dotok:///view/canvas/home.ok.canvas#node=aspect-reliability
+dotok:///thing/product
+dotok:///assessment/20260522-1430
+dotok:///future/launch-ready
+dotok:///work/add-observable-startup-path</code></pre>
+      </section>
+
+      <section aria-labelledby="naming">
+        <h2 id="naming">Important Naming Tension</h2>
+        <p>
+          The current DotOK protocol already uses <code>&lt;FOCUS_ROOT&gt;/.ok/</code> as the hidden evergreen ideal-state directory. A Finder document named <code>My Project.ok</code> is different, but the conceptual overlap is sharp enough that the first implementation needs an explicit bridge.
+        </p>
+        <ul>
+          <li>Option A: <code>.ok</code> becomes the visible Finder package for new DotOK documents, while legacy project roots keep hidden <code>.ok/</code>.</li>
+          <li>Option B: <code>.ok</code> stays the hidden protocol directory and the Finder package uses <code>.dotok</code> or <code>.okbundle</code>.</li>
+          <li>Option C: DotOK.app opens both visible <code>*.ok/</code> packages and regular project folders with hidden <code>.ok/</code> and <code>.tasks/</code>.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="appdev">
+        <h2 id="appdev">DotOK <code>.appdev</code> Workshop</h2>
+        <pre><code>DotOK.appdev/
+  appdev.json5
+  README.md
+  decisions/
+  experiments/
+    0001-webform-static-roundtrip/
+    0002-open-ok-package/
+    0003-dotok-uri-router/
+    0004-kind-server-contract/
+  fixtures/
+    sample-intake.webform
+    needle-threading.ok/
+  DotOK.app/
+    Contents/
+      Info.plist
+      Resources/
+        AppServer/
+        Developer/</code></pre>
+      </section>
+
+      <section aria-labelledby="sequence">
+        <h2 id="sequence">Likely Build Sequence</h2>
+        <ol>
+          <li>Build the standalone <a href="../webform/000-single-file-webform.idea.html"><code>.webform</code></a> fixture and WebFormer rewrite loop first.</li>
+          <li>Prove the <a href="../nouns/000-composable-document-nouns.idea.html">generic kind-server and URI pattern</a> on <code>.webform</code> and <code>.canvas</code>.</li>
+          <li>Create a toy <code>needle-threading.ok</code> bundle with one thing, one aspect, one balance point, several failure modes, one assessment, one future, one goal, and two work orders.</li>
+          <li>Prototype <code>DotOK.app</code> opening the <code>.ok</code> bundle and dispatching each noun to its kind-specific local server.</li>
+          <li>Only then start designing the specialized DotOK IDE views.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="open">
+        <h2 id="open">DotOK Open Decisions</h2>
+        <ul>
+          <li>How much snapshot content is copied versus content-addressed. Assessments need to stay stable when live definitions evolve.</li>
+          <li>Whether failure modes are global reusable patterns, aspect-local children, or both.</li>
+          <li>Whether future snapshots become immutable after goal generation or remain editable with versioned revisions.</li>
+          <li>How work orders map to the existing DotOK <code>.tasks/*.md</code> YAML protocol without creating two task systems.</li>
+          <li>How <code>dotok:///</code> handles moved bundles, multiple open documents, URL encoding, permissions, and cross-document links.</li>
+          <li>How the IDE stays cognitively quiet when the underlying graph becomes enormous.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

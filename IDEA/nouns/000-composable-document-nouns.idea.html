@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>000 - Composable Document Nouns</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      pre { overflow: auto; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; padding: 1rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">IDEA/nouns / generic composition layer / 2026-05-22</p>
+        <h1>Composable Document Nouns</h1>
+        <p class="lede">
+          Use fractal decomposition: every complexity pocket becomes a small noun with a file shape, a handler, links to neighbors, and fail-closed rules. Big systems stay understandable by composing those nouns instead of centralizing all behavior.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea notes">
+        <strong>Depends on:</strong>
+        <a href="../webform/000-single-file-webform.idea.html">single-file webform</a>
+        /
+        <strong>Used by:</strong>
+        <a href="../DotOK/000-dotok-fractal-stack.idea.html">DotOK stack</a>
+      </nav>
+
+      <section aria-labelledby="fractal">
+        <h2 id="fractal">Fractal Rule</h2>
+        <ol>
+          <li>If a concept can stand alone, give it a standalone noun.</li>
+          <li>If a noun is just one document, prefer a custom filename extension over a bundle.</li>
+          <li>If a noun needs related artifacts, make it a bundle folder with a tiny source-of-truth file.</li>
+          <li>If a noun needs runtime behavior, give it a kind-specific local server.</li>
+          <li>If nouns need to compose, link them through explicit refs or app URIs, not shared hidden state.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="shapes">
+        <h2 id="shapes">Document Shapes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Shape</th>
+              <th>Use When</th>
+              <th>Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Single file</td>
+              <td>The artifact is fully understandable as one standard-format document.</td>
+              <td><code>.webform</code>, <code>.canvas</code>, <code>.idea.html</code>, <code>.ok.md</code></td>
+            </tr>
+            <tr>
+              <td>Bundle folder</td>
+              <td>The noun owns multiple files that must move together.</td>
+              <td><code>.thing/</code>, <code>.assessment/</code>, <code>.future/</code>, <code>.appdev/</code>, <code>.ok/</code></td>
+            </tr>
+            <tr>
+              <td>Generated export</td>
+              <td>The file is useful for sharing or printing but not the source of truth.</td>
+              <td><code>latest.pdf</code>, static filled HTML, thumbnails, Quick Look previews</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="handlers">
+        <h2 id="handlers">Kind Servers</h2>
+        <p class="lede">
+          Each noun kind should have a small local handler that owns exactly the behaviors needed for that kind. This keeps the host app from becoming a large object with random verbs.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Kind</th>
+              <th>Handler</th>
+              <th>Default View</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>.webform</code></td>
+              <td><code>webform-server</code></td>
+              <td>Visible form state, save diagnostics, exports</td>
+            </tr>
+            <tr>
+              <td><code>.canvas</code></td>
+              <td><code>canvas-server</code></td>
+              <td>Graph, focus slice, dependency map</td>
+            </tr>
+            <tr>
+              <td><code>.thing/</code></td>
+              <td><code>thing-server</code></td>
+              <td>Thing overview, children, aspects, evidence links</td>
+            </tr>
+            <tr>
+              <td><code>.assessment/</code></td>
+              <td><code>assessment-server</code></td>
+              <td>Frozen reality snapshot and evidence</td>
+            </tr>
+            <tr>
+              <td><code>.future/</code></td>
+              <td><code>future-server</code></td>
+              <td>Not-yet-real target slice</td>
+            </tr>
+            <tr>
+              <td><code>.work</code></td>
+              <td><code>work-server</code></td>
+              <td>Execution state, blockers, unblocked dependents</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="uris">
+        <h2 id="uris">URI Glue</h2>
+        <p>
+          App URIs should open nouns in the right view without forcing every file to know every app detail. A URI points to a noun and optional view state; the kind server resolves what that means.
+        </p>
+        <pre><code>dotok:///open?path=things/product.thing/aspects/reliability.aspect/balance.webform
+dotok:///view/canvas/home.ok.canvas#node=aspect-reliability
+dotok:///thing/product
+dotok:///assessment/20260522-1430
+dotok:///work/add-observable-startup-path</code></pre>
+      </section>
+
+      <section aria-labelledby="pit">
+        <h2 id="pit">Pit Of Success</h2>
+        <ul>
+          <li>Prefer visible source of truth over invisible sidecars.</li>
+          <li>Prefer convention over manifests until a real fixture proves convention cannot carry the case.</li>
+          <li>Prefer native standard formats over custom JSON when humans or agents need to inspect the artifact.</li>
+          <li>Prefer one handler per noun kind over one generic manager with many special cases.</li>
+          <li>Fail closed on unknown fields, stale source hashes, ambiguous refs, and round-trip mismatches.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="open">
+        <h2 id="open">Open Decisions</h2>
+        <ul>
+          <li>How much naming convention belongs in the generic layer versus each app.</li>
+          <li>Whether bundle manifests should share one minimal shape or remain kind-specific.</li>
+          <li>How app URI permissions work across multiple open documents.</li>
+          <li>How generated exports declare their source without becoming source-of-truth themselves.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
