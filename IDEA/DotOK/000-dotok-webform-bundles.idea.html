@@ -135,7 +135,7 @@
             <tr>
               <td><code>data.json</code></td>
               <td>Saved responses</td>
-              <td>Pure JSON, not executable script. It stores a <code>FormData</code>-shaped entry list. <code>form.html</code> imports it with ESM JSON import attributes when running from WebFormer, localhost, or another server that can provide correct JSON MIME behavior.</td>
+              <td>Pure JSON, not executable script. It is a field-value object: keys match control names, scalar controls use scalar values, and repeated controls use arrays. <code>form.html</code> imports it with ESM JSON import attributes when running from WebFormer, localhost, or another server that can provide correct JSON MIME behavior.</td>
             </tr>
             <tr>
               <td><code>attachments/</code></td>
@@ -200,46 +200,16 @@
     &lt;script type="module"&gt;
       import data from "./data.json" with { type: "json" }
 
-      hydrateForm(clientIntake, data.entries)
+      for (const [name, value] of Object.entries(data)) {
+        const controls = clientIntake.elements[name]
+        const values = [value].flat()
 
-      function hydrateForm(form, entries) {
-        const saved = new Map()
-        for (const [name, value] of entries) {
-          if (!saved.has(name)) saved.set(name, [])
-          saved.get(name).push(value)
+        for (const control of Array.from(controls instanceof RadioNodeList ? controls : [controls])) {
+          if (!control) continue
+          if (control.type === "radio" || control.type === "checkbox") control.checked = values.includes(control.value || "on")
+          else if (control.multiple) for (const option of control.options) option.selected = values.includes(option.value)
+          else control.value = values.at(-1) ?? ""
         }
-
-        for (const [name, values] of saved) {
-          for (const control of controlsFor(form, name)) {
-            setControl(control, values)
-          }
-        }
-      }
-
-      function controlsFor(form, name) {
-        const controls = form.elements[name]
-        if (!controls) return []
-        if (controls instanceof RadioNodeList) return Array.from(controls)
-        return [controls]
-      }
-
-      function setControl(control, values) {
-        if (control.type === "radio") {
-          control.checked = values.includes(control.value)
-          return
-        }
-
-        if (control.type === "checkbox") {
-          control.checked = values.includes(control.value || "on")
-          return
-        }
-
-        if (control.tagName === "SELECT" &amp;&amp; control.multiple) {
-          for (const option of control.options) option.selected = values.includes(option.value)
-          return
-        }
-
-        control.value = values.at(-1) ?? ""
       }
     &lt;/script&gt;
   &lt;/body&gt;
@@ -249,16 +219,12 @@
       <section aria-labelledby="webform-data">
         <h2 id="webform-data">Expected <code>data.json</code> Shape</h2>
         <p class="lede">
-          The saved file is plain JSON. It mirrors what WebFormer can produce from <code>Array.from(new FormData(form).entries())</code>. Native browser JSON module imports accept JSON, not JSON5; if humans want to author JSON5, WebFormer can keep that as an authoring convenience and compile it to canonical JSON.
+          The saved file is plain JSON. It is the tightest useful reduction of <code>FormData</code>: a name-to-value object where duplicate names collapse into arrays. Native browser JSON module imports accept JSON, not JSON5; if humans want to author JSON5, WebFormer can keep that as an authoring convenience and compile it to canonical JSON.
         </p>
         <pre><code>{
-  "form": "clientIntake",
-  "entries": [
-    ["client.name", "Acme Studio"],
-    ["scope.summary", "Create a printable intake that survives plain file opening."],
-    ["channels", "email"],
-    ["channels", "phone"]
-  ]
+  "client.name": "Acme Studio",
+  "scope.summary": "Create a printable intake that survives plain file opening.",
+  "channels": ["email", "phone"]
 }</code></pre>
       </section>
 
