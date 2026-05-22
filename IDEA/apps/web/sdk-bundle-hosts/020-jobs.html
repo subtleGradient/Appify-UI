@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
         <a href="040-package-contract.html">package contract</a> /
         <a href="050-node-modules.html">dependencies</a> /
@@ -42,7 +43,7 @@
           <tbody>
             <tr>
               <td>Open a normal package</td>
-              <td>Rename <code>chart</code> to <code>chart.d3</code> and double-click it.</td>
+              <td>Rename <code>chart</code> to <code>chart.webapp</code> and double-click it.</td>
               <td>Accept <code>package.json</code>, <code>index.html</code>, ESM source, relative assets, and Vite-like layout.</td>
             </tr>
             <tr>
@@ -74,6 +75,11 @@
               <td>Avoid surprise execution</td>
               <td>Opening a package does not silently install packages or run lifecycle scripts.</td>
               <td>Dependency resolution and script execution need explicit modes and logs.</td>
+            </tr>
+            <tr>
+              <td>Decide whether to specialize</td>
+              <td>Build SDK examples as <code>.webapp</code> packages before minting new app extensions.</td>
+              <td>Dedicated apps should be evidence-backed, not naming-first.</td>
             </tr>
             <tr>
               <td>Upgrade over time</td>

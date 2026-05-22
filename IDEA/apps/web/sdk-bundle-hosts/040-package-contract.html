@@ -13,7 +13,7 @@
         <p class="tag">04 / package contract</p>
         <h1>Package Contract</h1>
         <p class="lede">
-          The package should be as normal as possible first, and Appify-specific only when needed. That gives a low floor for renamed web packages and a high ceiling for custom editors.
+          The package should be a normal <code>.webapp</code> first, and Appify-specific only when needed. SDK-specific extensions are later aliases for packages whose examples prove they deserve a separate Finder identity.
         </p>
       </header>
 
@@ -22,6 +22,7 @@
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
         <a href="020-jobs.html">jobs</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
         <a href="050-node-modules.html">dependencies</a> /
         <a href="060-sdk-profiles.html">SDK profiles</a> /
@@ -64,8 +65,8 @@
       </section>
 
       <section aria-labelledby="d3">
-        <h2 id="d3">Normal <code>.d3</code> Package</h2>
-        <pre><code>sales-chart.d3/
+        <h2 id="d3">Normal D3 <code>.webapp</code> Package</h2>
+        <pre><code>sales-chart.webapp/
   package.json
   index.html
   src/
@@ -78,7 +79,7 @@
 
       <section aria-labelledby="annotated">
         <h2 id="annotated">Annotated Package</h2>
-        <pre><code>sales-chart.d3/
+        <pre><code>sales-chart.webapp/
   package.json
   appify.json
   index.html
@@ -97,7 +98,8 @@
         <h2 id="manifest">Small <code>appify.json</code></h2>
         <pre><code>{
   "appify": 1,
-  "kind": "d3",
+  "kind": "webapp",
+  "profile": "d3",
   "entry": "./src/main.ts",
   "document": {
     "canonical": ["./src", "./data"],
@@ -120,6 +122,7 @@
         <ul>
           <li><code>package.json</code> keeps ecosystem identity: name, scripts, dependencies, dev dependencies, type, exports, and license.</li>
           <li><code>appify.json</code> should only describe Appify document concerns: kind, entry, canonical files, permissions, dependency mode, and migrations.</li>
+          <li><code>kind</code> starts as <code>webapp</code>; SDK identity belongs in <code>profile</code> until a dedicated app graduates.</li>
           <li>SDK packages imported by name should resolve to the app-owned SDK capsule when possible.</li>
           <li>Package-local <code>node_modules</code> is an explicit sealed mode, not the default living-document mode.</li>
           <li><code>dist/</code>, <code>.appify/cache/</code>, and generated previews are derived unless the manifest marks them canonical.</li>

@@ -13,7 +13,7 @@
         <p class="tag">03 / layers</p>
         <h1>Encapsulation Layers</h1>
         <p class="lede">
-          The elegant generic move is layer discipline. AppifyHost handles document identity and safe local hosting; each SDK app handles its SDK capsule; each opened package owns its source, data, assets, and canonical state.
+          The elegant generic move is layer discipline. AppifyHost handles document identity and safe local hosting; <code>Webapp.app</code> proves the shared web package runner; dedicated SDK apps only appear after examples prove a real specialization boundary.
         </p>
       </header>
 
@@ -22,6 +22,7 @@
         <a href="index.html">index</a> /
         <a href="010-problem.html">problem</a> /
         <a href="020-jobs.html">jobs</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
         <a href="040-package-contract.html">package contract</a> /
         <a href="050-node-modules.html">dependencies</a> /
         <a href="060-sdk-profiles.html">SDK profiles</a> /
@@ -54,9 +55,15 @@
               <td>User package dependency policy.</td>
             </tr>
             <tr>
+              <td>Generic webapp host</td>
+              <td><code>Webapp.app</code></td>
+              <td>Open <code>.webapp</code>, infer entry, serve package assets, expose generic file bridge, run examples.</td>
+              <td>SDK-specific product identity.</td>
+            </tr>
+            <tr>
               <td>SDK capsule</td>
-              <td>Each app bundle</td>
-              <td>Pinned SDK packages, adapter shell, starter templates, import aliases, save bridge.</td>
+              <td><code>Webapp.app</code> profile first; dedicated app later if justified</td>
+              <td>Pinned SDK packages, adapter shell, starter templates, import aliases, optional save bridge.</td>
               <td>Per-document source of truth.</td>
             </tr>
             <tr>
@@ -88,15 +95,15 @@
           <li><code>APPIFY_HOST_DOCUMENT_PATH</code> and <code>APPIFY_HOST_WORKING_DIRECTORY</code> already give the web runtime stable package paths.</li>
           <li><code>APPIFY_HOST_OPEN_URL</code> already lets the AppServer choose a safe loopback URL or package-local file URL.</li>
           <li>Navigation restriction already keeps WebView browsing inside the ready URL scope, document package, or app bundle.</li>
-          <li>The missing shared layer is an SDK package runner: inspect package, resolve entry, resolve dependencies, expose a save bridge, then serve.</li>
+          <li>The missing shared layer is a generic web package runner: inspect package, resolve entry, resolve dependencies, expose file/save bridges, then serve.</li>
         </ul>
       </section>
 
       <section aria-labelledby="runner">
         <h2 id="runner">Generic Runner Shape</h2>
         <ol>
-          <li>Resolve the opened package and detect SDK kind from extension or <code>appify.json</code>.</li>
-          <li>If the package is empty, scaffold the SDK template.</li>
+          <li>Resolve the opened <code>.webapp</code> package and detect optional SDK profile from <code>appify.json</code>.</li>
+          <li>If the package is empty, scaffold a normal webapp template.</li>
           <li>If no manifest exists, infer entry from <code>index.html</code>, <code>src/main.*</code>, or SDK-specific default files.</li>
           <li>Create an ephemeral runtime overlay with host SDK aliases and package-relative asset mounts.</li>
           <li>Serve a host shell that imports the package entry and injects an <code>appifyDocument</code> bridge.</li>

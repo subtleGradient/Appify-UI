@@ -21,6 +21,7 @@
         <strong>Read order:</strong>
         <a href="010-problem.html">problem</a> /
         <a href="020-jobs.html">jobs</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
         <a href="030-layers.html">layers</a> /
         <a href="040-package-contract.html">package contract</a> /
         <a href="050-node-modules.html">dependencies</a> /
@@ -41,10 +42,11 @@
       <section aria-labelledby="thesis">
         <h2 id="thesis">Thesis</h2>
         <ul>
-          <li>The low floor is: rename a normal small web package to <code>.d3</code>, <code>.cytoscape</code>, <code>.rete</code>, <code>.xyflow</code>, or <code>.tlcanvas</code>, double-click it, and let the matching AppifyHost app open it.</li>
+          <li>The first app should be <code>Webapp.app</code>: rename a normal small web package to <code>.webapp</code>, double-click it, and let AppifyHost open it as a local document package.</li>
+          <li>The first D3, Cytoscape, Rete, React Flow, and tldraw probes should be <code>.webapp</code> examples, not dedicated apps.</li>
           <li>The high ceiling is: custom source code, custom nodes, custom data, custom assets, and optional extra dependencies remain possible without making every document carry the whole SDK runtime.</li>
           <li>The source of truth should stay in the package: code, data, graph JSON, snapshots, assets, and previews. IndexedDB and build output are caches unless the package explicitly says otherwise.</li>
-          <li>The generic unit is an Appify web SDK capsule: one app-bundled SDK/runtime layer, one package inspection layer, one dependency/cache policy, and one save bridge per SDK.</li>
+          <li>Dedicated SDK apps should only graduate after <code>.webapp</code> examples prove repeated SDK-specific affordances that a generic webapp host cannot express cleanly.</li>
         </ul>
       </section>
 
@@ -60,6 +62,12 @@
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td><code>Webapp.app</code></td>
+              <td><code>.webapp</code></td>
+              <td>Normal web project package with optional <code>appify.json</code> profile.</td>
+              <td>Generic file bridge first; SDK save bridges are example-level adapters.</td>
+            </tr>
             <tr>
               <td><code>Cytoscaper.app</code></td>
               <td><code>.cytoscape</code></td>

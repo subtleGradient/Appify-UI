@@ -114,10 +114,10 @@
             </tr>
             <tr>
               <td>SDK bundle host</td>
-              <td><a href="sdk-bundle-hosts/index.html">Cytoscaper, Reter, React Flow Composer, TLCanvas, Dee Three</a></td>
-              <td><code>.cytoscape</code>, <code>.rete</code>, <code>.xyflow</code>, <code>.tlcanvas</code>, and <code>.d3</code> packages as normal web projects plus a small Appify contract.</td>
-              <td>One generic AppifyHost package runner can preserve ecosystem-normal source while the app owns SDK dependencies.</td>
-              <td>Dependency resolution, custom node serialization, and surprise script execution need strict policy.</td>
+              <td><a href="sdk-bundle-hosts/index.html">Webapp first, then possible SDK apps</a></td>
+              <td><code>.webapp</code> examples first; later <code>.cytoscape</code>, <code>.rete</code>, <code>.xyflow</code>, <code>.tlcanvas</code>, or <code>.d3</code> only if justified.</td>
+              <td>Start with <code>Webapp.app</code> and <code>.webapp</code> examples, then graduate dedicated apps only if the examples need separate Finder identity.</td>
+              <td>Dependency resolution, custom node serialization, surprise script execution, and premature app naming need strict policy.</td>
             </tr>
           </tbody>
         </table>
