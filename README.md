@@ -17,6 +17,7 @@ The repo is intentionally object-first:
 ```text
 .
 ├── LazyGit.app
+├── LogScope.app
 ├── TLCanvas.app
 ├── litecli.app
 ├── tw.app
@@ -40,6 +41,10 @@ The rule is simple:
 [`LazyGit.app`](LazyGit.app/) opens `.lazygit` marker packages. The marker lives
 inside a repo folder; the app starts `ttyd`, runs `lazygit --path` for that repo,
 and shows it in a native WebKit window.
+
+[`LogScope.app`](LogScope.app/) opens log-shaped files including `.log`, `.out`,
+`.err`, `.trace`, `.jsonl`, and `.ndjson`. It starts `ttyd`, runs `lnav`, and
+shows the indexed log timeline in a native WebKit window.
 
 [`TLCanvas.app`](TLCanvas.app/) opens `.tlcanvas` document packages. Its bundled
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
@@ -73,6 +78,14 @@ LazyGit:
 cd LazyGit.app/Contents/Developer
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
+```
+
+LogScope:
+
+```sh
+cd LogScope.app/Contents/Developer
+Scripts/build-root-app.sh
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.logscope LogScope
 ```
 
 tw:
