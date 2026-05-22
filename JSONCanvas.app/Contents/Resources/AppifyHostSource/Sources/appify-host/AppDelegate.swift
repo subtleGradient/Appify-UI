@@ -13,6 +13,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
     private var helpWindowController: AppifyHostHelpWindowController?
+    private var terminateAfterHostWindowsClose = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -53,6 +54,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if terminateAfterHostWindowsClose {
+            terminateAfterHostWindowsClose = false
+            return .terminateNow
+        }
+
+        let hostWindows = visibleHostWindows(in: sender)
+        guard !hostWindows.isEmpty else {
+            return .terminateNow
+        }
+
+        terminateAfterHostWindowsClose = true
+        hostWindows.forEach { $0.performClose(nil) }
+        finishTerminationAfterHostWindowsClose(deadline: Date().addingTimeInterval(30.0))
+        return .terminateCancel
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
@@ -147,6 +165,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             }
             self.showHelpWindow(help)
         }
+    }
+
+    private func visibleHostWindows(in application: NSApplication) -> [NSWindow] {
+        application.windows.filter { window in
+            window.isVisible && window.windowController is HostWindowController
+        }
+    }
+
+    private func finishTerminationAfterHostWindowsClose(deadline: Date) {
+        if visibleHostWindows(in: NSApplication.shared).isEmpty {
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
+        if Date() < deadline {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                self?.finishTerminationAfterHostWindowsClose(deadline: deadline)
+            }
+            return
+        }
+
+        terminateAfterHostWindowsClose = false
     }
 
     @MainActor
