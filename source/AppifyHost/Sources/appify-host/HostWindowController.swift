@@ -5,7 +5,7 @@ import WebKit
 
 final class HostWindowController: NSWindowController, WKNavigationDelegate {
     private let configuration: AppifyHostConfiguration
-    private weak var hostDocument: AppifyHostDocument?
+    private var hostDocument: AppifyHostDocument?
     private var webView: WKWebView?
     private var serverProcess: Process?
     private var stdoutPipe: Pipe?
@@ -30,6 +30,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
             defer: false
         )
         window.minSize = NSSize(width: 640, height: 420)
+        window.isReleasedWhenClosed = false
         window.isRestorable = false
 
         super.init(window: window)
@@ -101,6 +102,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
         isClosing = true
         stopServer()
         closeLog()
+        DispatchQueue.main.async { [weak self] in
+            self?.document = nil
+            self?.hostDocument = nil
+        }
     }
 
     private func restartServer() {

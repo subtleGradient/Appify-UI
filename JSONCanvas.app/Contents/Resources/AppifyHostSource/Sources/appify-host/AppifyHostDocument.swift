@@ -85,6 +85,7 @@ final class AppifyHostDocument: NSDocument {
 
     override func close() {
         let disposableURL = temporaryDocumentURL
+        stopServerForAppTermination()
         super.close()
         if let disposableURL {
             try? FileManager.default.removeItem(at: disposableURL)
