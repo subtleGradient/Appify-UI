@@ -67,6 +67,10 @@
               <td>Saved answers live in native HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, <code>textarea</code> text, and vetted <code>contenteditable</code> HTML.</td>
             </tr>
             <tr>
+              <td>Source style</td>
+              <td>Lean into HTML5's forgiving syntax. Omit optional <code>html</code>, <code>head</code>, and <code>body</code> tags when they add noise. Use unquoted attribute values when valid and readable. Prefer flat, low-indent source.</td>
+            </tr>
+            <tr>
               <td>Names and ids</td>
               <td>Optional. Add <code>id</code> or <code>name</code> only when useful for a human or agent reference. WebFormer can inject temporary names while serving.</td>
             </tr>
@@ -85,37 +89,31 @@
       <section aria-labelledby="source">
         <h2 id="source">Smallest Useful Source</h2>
         <pre><code>&lt;!doctype html&gt;
-&lt;html lang="en"&gt;
-  &lt;head&gt;
-    &lt;meta charset="utf-8" /&gt;
-    &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
-    &lt;title&gt;Client Intake&lt;/title&gt;
-  &lt;/head&gt;
-  &lt;body&gt;
-    &lt;h1&gt;Client Intake&lt;/h1&gt;
+&lt;meta charset=utf-8&gt;
+&lt;meta name=viewport content="width=device-width, initial-scale=1"&gt;
+&lt;title&gt;Client Intake&lt;/title&gt;
 
-    &lt;form&gt;
-      &lt;fieldset&gt;
-        &lt;legend&gt;Decision Context&lt;/legend&gt;
+&lt;h1&gt;Client Intake&lt;/h1&gt;
 
-        &lt;label&gt;
-          Client name
-          &lt;input value="Acme Studio" autocomplete="organization" /&gt;
-        &lt;/label&gt;
+&lt;form&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;Decision Context&lt;/legend&gt;
 
-        &lt;label&gt;
-          Scope
-          &lt;textarea&gt;Create a printable intake that survives plain file opening.&lt;/textarea&gt;
-        &lt;/label&gt;
+&lt;label&gt;Client name
+&lt;input value="Acme Studio" autocomplete=organization&gt;
+&lt;/label&gt;
 
-        &lt;section contenteditable="true"&gt;
-          &lt;h2&gt;Rich Notes&lt;/h2&gt;
-          &lt;p&gt;This editable area can hold structured WYSIWYG notes.&lt;/p&gt;
-        &lt;/section&gt;
-      &lt;/fieldset&gt;
-    &lt;/form&gt;
-  &lt;/body&gt;
-&lt;/html&gt;</code></pre>
+&lt;label&gt;Scope
+&lt;textarea&gt;Create a printable intake that survives plain file opening.&lt;/textarea&gt;
+&lt;/label&gt;
+
+&lt;section contenteditable=true&gt;
+&lt;h2&gt;Rich Notes&lt;/h2&gt;
+&lt;p&gt;This editable area can hold structured WYSIWYG notes.&lt;/p&gt;
+&lt;/section&gt;
+
+&lt;/fieldset&gt;
+&lt;/form&gt;</code></pre>
       </section>
 
       <section aria-labelledby="webformer">
@@ -182,7 +180,7 @@ POST client-intake.webform
       <section aria-labelledby="diffs">
         <h2 id="diffs">Diff-Friendly Saves</h2>
         <p>
-          WebFormer should behave like a careful structured editor, not a formatter. When a user or agent edits a value, the save path should modify the smallest source span that represents that value and leave unrelated whitespace, attribute order, quote style, indentation, comments, and surrounding markup untouched. Clean git diffs are part of the format's trust model.
+          WebFormer should behave like a careful structured editor, not a formatter. When a user or agent edits a value, the save path should modify the smallest source span that represents that value and leave unrelated whitespace, optional tag choices, attribute order, quote style, indentation, comments, and surrounding markup untouched. Clean git diffs are part of the format's trust model.
         </p>
         <ul>
           <li>Changing a text input should update only that input's <code>value</code> attribute.</li>
@@ -190,6 +188,8 @@ POST client-intake.webform
           <li>Changing a <code>contenteditable</code> region should update only that region's vetted inner HTML.</li>
           <li>Changing a checkbox, radio, or option should update only the relevant <code>checked</code> or <code>selected</code> state.</li>
           <li>Drag-and-drop reorder operations should move the smallest stable element range rather than reserializing the whole document.</li>
+          <li>Do not add optional <code>html</code>, <code>head</code>, or <code>body</code> tags just because the parser exposes them in the DOM.</li>
+          <li>Do not quote or unquote existing attributes unless the edited value requires it.</li>
           <li>Normalization is an explicit repair/export action, not the default save behavior.</li>
           <li>If a minimal patch cannot be proven safe, WebFormer should block with a diagnostic instead of silently reformatting the document.</li>
         </ul>
