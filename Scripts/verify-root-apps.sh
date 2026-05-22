@@ -43,7 +43,7 @@ assert_file_lists_equal() {
 
 expected_root_apps="$(make_temp)"
 actual_root_apps="$(make_temp)"
-printf 'JSONCanvas.app\nLazyGit.app\nLogScope.app\nTLCanvas.app\nWebFormer.app\nlitecli.app\ntw.app\n' > "$expected_root_apps"
+printf 'JSONCanvas.app\nLazyGit.app\nLogScope.app\nTLCanvas.app\nWebFormer.app\nWikiDock.app\nlitecli.app\ntw.app\n' > "$expected_root_apps"
 (
   cd "$ROOT"
   find . -maxdepth 1 -type d -name '*.app' -print | sed 's#^\./##' | LC_ALL=C sort
@@ -52,6 +52,7 @@ assert_file_lists_equal "$expected_root_apps" "$actual_root_apps" "root apps"
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/JSONCanvas.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -59,6 +60,7 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/LazyGit.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -66,6 +68,7 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/LogScope.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -73,6 +76,7 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/TLCanvas.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -80,6 +84,7 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/WebFormer.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -87,6 +92,15 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
+  -x '.appify-host-source-hash' \
+  "$ROOT/source/AppifyHost" \
+  "$ROOT/WikiDock.app/Contents/Resources/AppifyHostSource" >/dev/null \
+  || fail "WikiDock.app bundled AppifyHostSource does not match source/AppifyHost"
+
+diff -qr \
+  -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/tw.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -94,6 +108,7 @@ diff -qr \
 
 diff -qr \
   -x '.build' \
+  -x '.DS_Store' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
   "$ROOT/litecli.app/Contents/Resources/AppifyHostSource" >/dev/null \
@@ -114,6 +129,9 @@ diff -qr \
 [[ -x "$ROOT/WebFormer.app/Contents/Resources/AppServer/main.sh" ]] \
   || fail "WebFormer.app is missing bundled AppServer/main.sh"
 
+[[ -x "$ROOT/WikiDock.app/Contents/Resources/AppServer/main.sh" ]] \
+  || fail "WikiDock.app is missing bundled AppServer/main.sh"
+
 [[ -x "$ROOT/tw.app/Contents/Resources/AppServer/main.sh" ]] \
   || fail "tw.app is missing bundled AppServer/main.sh"
 
@@ -123,7 +141,7 @@ diff -qr \
 [[ -f "$ROOT/litecli.app/Contents/Resources/AppServer/liteclirc" ]] \
   || fail "litecli.app is missing bundled AppServer/liteclirc"
 
-for app in JSONCanvas.app LazyGit.app LogScope.app TLCanvas.app WebFormer.app litecli.app tw.app; do
+for app in JSONCanvas.app LazyGit.app LogScope.app TLCanvas.app WebFormer.app WikiDock.app litecli.app tw.app; do
   executable="$(plutil -extract CFBundleExecutable raw "$ROOT/$app/Contents/Info.plist")"
   [[ "$executable" == "appify-host" ]] \
     || fail "$app CFBundleExecutable should be appify-host, got $executable"
@@ -157,6 +175,9 @@ done
 [[ -x "$ROOT/WebFormer.app/Contents/Developer/Scripts/build-app.sh" ]] \
   || fail "WebFormer.app is missing developer build script"
 
+[[ -x "$ROOT/WikiDock.app/Contents/Developer/Scripts/build-app.sh" ]] \
+  || fail "WikiDock.app is missing developer build script"
+
 [[ -x "$ROOT/tw.app/Contents/Developer/Scripts/build-app.sh" ]] \
   || fail "tw.app is missing developer build script"
 
@@ -168,6 +189,7 @@ APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/JSONCanvas.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LogScope.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/WebFormer.app/Contents/MacOS/main.sh"
+APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/WikiDock.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/tw.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/litecli.app/Contents/MacOS/main.sh"
 

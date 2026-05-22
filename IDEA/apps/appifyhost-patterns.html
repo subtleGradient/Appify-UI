@@ -69,9 +69,9 @@
             </tr>
             <tr>
               <td><code>contentPackage</code></td>
-              <td><a href="../../TLCanvas.app/">TLCanvas.app</a></td>
+              <td><a href="../../TLCanvas.app/">TLCanvas.app</a>, <a href="../../WikiDock.app/">WikiDock.app</a></td>
               <td>The package is the document. It can hold a manifest, records, assets, snapshots, and editor state.</td>
-              <td>JSON Canvas, Excalidraw bundles, map bundles, API collections, flow/workflow bundles.</td>
+              <td>JSON Canvas, Excalidraw bundles, TiddlyWiki folder packages, map bundles, API collections, flow/workflow bundles.</td>
             </tr>
           </tbody>
         </table>
@@ -113,6 +113,15 @@
               <li>The package holds <code>canvas.json5</code>, <code>records/</code>, <code>QuickLook/Preview.png</code>, and readme material.</li>
               <li>Runs a Bun server and prints <code>APPIFY_HOST_OPEN_URL</code>.</li>
               <li>Best lesson: web-tech apps want package documents, not just loose JSON files.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="wikidock">
+            <h3 id="wikidock">WikiDock</h3>
+            <ul>
+              <li>Exports a <code>.tiddlywiki</code> package UTI but keeps the package root as a standard TiddlyWikiFolder.</li>
+              <li>The package owns <code>tiddlywiki.info</code>, <code>tiddlers/</code>, and normal optional <code>plugins/</code>, <code>themes/</code>, and <code>languages/</code> folders.</li>
+              <li>Starts TiddlyWiki on Node.js against the package and does not register as a generic <code>.html</code> app.</li>
+              <li>Best lesson: when an upstream folder format exists, make the macOS package be that folder rather than wrapping it in a second manifest.</li>
             </ul>
           </section>
         </div>

@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>WikiDock</string>
+  <key>CFBundleExecutable</key>
+  <string>appify-host</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.subtlegradient.wikidock</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>WikiDock</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleSupportedPlatforms</key>
+  <array>
+    <string>MacOSX</string>
+  </array>
+  <key>CFBundleVersion</key>
+  <string>0.1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright (c) 2026 subtleGradient</string>
+
+  <key>AppifyHost</key>
+  <dict>
+    <key>DocumentMode</key>
+    <string>contentPackage</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
+    <array/>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.subtlegradient.wikidock.tiddlywiki-package</string>
+    <key>LogName</key>
+    <string>WikiDock</string>
+    <key>WindowTitlePrefix</key>
+    <string>WikiDock</string>
+    <key>StartupTimeoutSeconds</key>
+    <integer>120</integer>
+    <key>WebViewDataStore</key>
+    <string>nonPersistent</string>
+    <key>AboutNotice</key>
+    <dict>
+      <key>Message</key>
+      <string>WikiDock is an independent local document host for TiddlyWiki folder packages.
+
+It is not affiliated with, endorsed by, or sponsored by TiddlyWiki, TiddlyDesktop, or Tiddlyhost.</string>
+      <key>LinkTitle</key>
+      <string>Open tiddlywiki.com</string>
+      <key>LinkURL</key>
+      <string>https://tiddlywiki.com/</string>
+    </dict>
+    <key>FirstLaunchHelp</key>
+    <dict>
+      <key>URL</key>
+      <string>https://tiddlywiki.com/static/TiddlyWikiFolders.html</string>
+      <key>WindowTitle</key>
+      <string>TiddlyWiki Folder Format</string>
+    </dict>
+  </dict>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.subtlegradient.wikidock.tiddlywiki-package</string>
+      <key>UTTypeDescription</key>
+      <string>TiddlyWiki Folder Package</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>com.apple.package</string>
+        <string>public.directory</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>tiddlywiki</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>TiddlyWiki Folder Package</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>tiddlywiki</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSTypeIsPackage</key>
+      <true/>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.subtlegradient.wikidock.tiddlywiki-package</string>
+      </array>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
+    </dict>
+  </array>
+</dict>
+</plist>

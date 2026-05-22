@@ -21,6 +21,7 @@ The repo is intentionally object-first:
 ├── LogScope.app
 ├── TLCanvas.app
 ├── WebFormer.app
+├── WikiDock.app
 ├── litecli.app
 ├── tw.app
 ├── source/
@@ -60,6 +61,11 @@ tests, schema, and lockfile.
 serves the document through an app-local Bun runner, injects runtime save
 affordances with `HTMLRewriter`, and writes edited native form state back into
 the same HTML file with narrow source-span patches.
+
+[`WikiDock.app`](WikiDock.app/) opens `.tiddlywiki` document packages. The
+package is a standard TiddlyWikiFolder with `tiddlywiki.info`, `tiddlers/`, and
+the usual optional `plugins/`, `themes/`, and `languages/` folders. It does not
+register as a generic `.html` handler.
 
 [`tw.app`](tw.app/) opens tabular data files supported by Tabiew, including CSV,
 TSV, Parquet, JSON, JSONL, Arrow, FWF, SQLite, and Excel files. It starts
@@ -147,6 +153,13 @@ bun test tests/*.test.ts
 
 cd ../../Developer
 Scripts/build-app.sh
+```
+
+WikiDock:
+
+```sh
+cd WikiDock.app/Contents/Developer
+Scripts/build-root-app.sh
 ```
 
 Verify the checked-in root apps:
