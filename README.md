@@ -17,8 +17,10 @@ The repo is intentionally object-first:
 ```text
 .
 ├── LazyGit.app
+├── JSONCanvas.app
 ├── LogScope.app
 ├── TLCanvas.app
+├── WebFormer.app
 ├── litecli.app
 ├── tw.app
 ├── source/
@@ -42,6 +44,10 @@ The rule is simple:
 inside a repo folder; the app starts `ttyd`, runs `lazygit --path` for that repo,
 and shows it in a native WebKit window.
 
+[`JSONCanvas.app`](JSONCanvas.app/) opens `.canvas` files. It starts a bundled
+Bun web runner, validates JSON Canvas nodes and edges, and writes the document
+back as plain JSON.
+
 [`LogScope.app`](LogScope.app/) opens log-shaped files including `.log`, `.out`,
 `.err`, `.trace`, `.jsonl`, and `.ndjson`. It starts `ttyd`, runs `lnav`, and
 shows the indexed log timeline in a native WebKit window.
@@ -49,6 +55,11 @@ shows the indexed log timeline in a native WebKit window.
 [`TLCanvas.app`](TLCanvas.app/) opens `.tlcanvas` document packages. Its bundled
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
 tests, schema, and lockfile.
+
+[`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
+serves the document through an app-local Bun runner, injects runtime save
+affordances with `HTMLRewriter`, and writes edited native form state back into
+the same HTML file with narrow source-span patches.
 
 [`tw.app`](tw.app/) opens tabular data files supported by Tabiew, including CSV,
 TSV, Parquet, JSON, JSONL, Arrow, FWF, SQLite, and Excel files. It starts
@@ -61,7 +72,7 @@ read-only SQLite URI.
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
 validate that URL, and show it in a native WebKit window. It does not know about
-LazyGit, Tabiew, LiteCLI, TLCanvas, Bun, `ttyd`, or tldraw.
+LazyGit, Tabiew, LiteCLI, TLCanvas, WebFormer, Bun, `ttyd`, or tldraw.
 
 ## Build
 
@@ -104,6 +115,17 @@ Scripts/build-root-app.sh
 Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.litecli litecli
 ```
 
+JSONCanvas:
+
+```sh
+cd JSONCanvas.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+
+cd ../../Developer
+Scripts/build-root-app.sh
+Scripts/smoke-ui.sh
+```
+
 TLCanvas:
 
 ```sh
@@ -115,6 +137,16 @@ bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
 cd ../../Developer
 Scripts/build-app.sh
 Scripts/smoke-ui.sh
+```
+
+WebFormer:
+
+```sh
+cd WebFormer.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+
+cd ../../Developer
+Scripts/build-app.sh
 ```
 
 Verify the checked-in root apps:
