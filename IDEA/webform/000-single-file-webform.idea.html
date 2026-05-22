@@ -76,7 +76,7 @@
             </tr>
             <tr>
               <td>Runtime affordances</td>
-              <td>Injected by WebFormer into the served response with Bun <code>HTMLRewriter</code>. They are not part of the source file unless explicitly saved as source.</td>
+              <td>Injected by WebFormer into the served response with Bun <code>HTMLRewriter</code>. They are not part of the source file unless explicitly saved as source. WebFormer should expose <code>window.AppifyHost.save()</code> and <code>window.AppifyHost.isDirty()</code> for native macOS save/close affordances and autosave form edits without a visible web Save button.</td>
             </tr>
             <tr>
               <td>Default appearance</td>
@@ -120,7 +120,8 @@
         <pre><code>GET client-intake.webform
   read source HTML
   rewrite served response with HTMLRewriter
-  inject color-scheme meta, default stylesheet, save UI, diagnostics, generated field addresses, source hash
+  inject color-scheme meta, default stylesheet, autosave runtime, diagnostics, generated field addresses, source hash
+  expose window.AppifyHost.save()/isDirty() so Command-S and close checks can flush through AppifyHost
   optionally upgrade controls with web-native components
 
 POST client-intake.webform

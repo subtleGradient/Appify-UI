@@ -387,31 +387,45 @@ export function createInjectedRuntimeHTML(analysis: WebFormAnalysis, documentNam
   }).replaceAll("</script", "<\\/script");
 
   return `<style id=__webformer_style>
-#__webformer_bar{position:fixed;inset:auto 16px 16px 16px;z-index:2147483647;display:flex;align-items:center;gap:10px;box-sizing:border-box;padding:10px 12px;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);border-radius:8px;background:color-mix(in oklch,Canvas 94%,CanvasText 6%);color:CanvasText;font:13px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 10px 30px color-mix(in oklch,CanvasText 18%,transparent)}
-#__webformer_bar button{appearance:none;border:1px solid color-mix(in oklch,CanvasText 22%,transparent);border-radius:6px;background:Canvas;color:CanvasText;font:inherit;padding:6px 10px}
-#__webformer_bar button:disabled{opacity:.55}
-#__webformer_status{min-inline-size:10rem}
+#__webformer_status_panel{position:fixed;inset:auto 16px 16px auto;z-index:2147483647;box-sizing:border-box;max-inline-size:min(30rem,calc(100vw - 32px));padding:8px 10px;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);border-radius:8px;background:color-mix(in oklch,Canvas 94%,CanvasText 6%);color:CanvasText;display:none;font:13px ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 10px 30px color-mix(in oklch,CanvasText 18%,transparent)}
+#__webformer_status_panel[data-visible]{display:block}
+#__webformer_status:empty{display:none}
 #__webformer_errors{margin:0;padding-inline-start:18px;color:MarkText}
 #__webformer_errors:empty{display:none}
 </style>
-<aside id=__webformer_bar aria-label=WebFormer>
-  <button id=__webformer_save type=button>Save</button>
-  <span id=__webformer_status>WebFormer</span>
+<aside id=__webformer_status_panel aria-label=WebFormer aria-live=polite>
+  <span id=__webformer_status></span>
   <ol id=__webformer_errors></ol>
 </aside>
 <script type=module id=__webformer_script>
 const WebFormer=${model};
 let sourceHash=WebFormer.sourceHash;
+let dirtyVersion=0;
+let savedVersion=0;
+let autosaveTimer=0;
+let hideStatusTimer=0;
+let savePromise=null;
+const statusPanel=document.getElementById("__webformer_status_panel");
 const statusEl=document.getElementById("__webformer_status");
-const saveButton=document.getElementById("__webformer_save");
 const errorList=document.getElementById("__webformer_errors");
-const setStatus=(text)=>{ statusEl.textContent=text; };
+const updatePanel=()=>{
+  statusPanel.toggleAttribute("data-visible", Boolean(statusEl.textContent||errorList.children.length));
+};
+const setStatus=(text,{transient=false}={})=>{
+  clearTimeout(hideStatusTimer);
+  statusEl.textContent=text;
+  updatePanel();
+  if(transient){
+    hideStatusTimer=setTimeout(()=>setStatus(""),1200);
+  }
+};
 const setErrors=(items=[])=>{
   errorList.replaceChildren(...items.map((item)=>{
     const li=document.createElement("li");
     li.textContent=item.message||String(item);
     return li;
   }));
+  updatePanel();
 };
 const elementFor=(field)=>document.getElementById(field.id)||window[field.id];
 const valueFor=(field)=>{
@@ -422,32 +436,75 @@ const valueFor=(field)=>{
   if(field.kind==="contenteditable") return element.innerHTML;
   return element.value;
 };
+const visibleFields=()=>WebFormer.fields.map((field)=>({key:field.key,value:valueFor(field)}));
+const messageFrom=(body)=>body?.diagnostics?.map((item)=>item.message||String(item)).join(" ")||body?.error||"Save failed.";
+const isDirty=()=>dirtyVersion!==savedVersion||savePromise!==null;
 async function save(formIndex=null){
-  if(!WebFormer.canSave) return;
-  const selected=WebFormer.fields.filter((field)=>formIndex===null||field.formIndex===formIndex);
-  setStatus("Saving...");
-  setErrors([]);
-  try{
-    const response=await fetch(WebFormer.savePath,{
-      method:"POST",
-      headers:{"content-type":"application/json","if-match":sourceHash},
-      body:JSON.stringify({sourceHash,formIndex,fields:selected.map((field)=>({key:field.key,value:valueFor(field)}))})
-    });
-    const body=await response.json().catch(()=>({diagnostics:[{message:"WebFormer returned a non-JSON response."}]}));
-    if(!response.ok){
-      setErrors(body.diagnostics||[{message:body.error||"Save failed."}]);
-      setStatus("Not saved");
-      return;
-    }
-    sourceHash=body.sourceHash;
-    setStatus("Saved");
-  }catch(error){
-    setErrors([{message:error instanceof Error?error.message:String(error)}]);
-    setStatus("Not saved");
+  clearTimeout(autosaveTimer);
+  if(savePromise){
+    await savePromise;
+    if(isDirty()) return save(formIndex);
+    return {ok:true,saved:false};
   }
+  if(!WebFormer.canSave){
+    const message="Fix diagnostics before saving.";
+    setStatus(message);
+    return {ok:false,message};
+  }
+  const versionToSave=dirtyVersion;
+  const selected=formIndex===null?visibleFields():WebFormer.fields.filter((field)=>field.formIndex===formIndex).map((field)=>({key:field.key,value:valueFor(field)}));
+  setErrors([]);
+  setStatus("Saving...");
+  savePromise=(async()=>{
+    try{
+      const response=await fetch(WebFormer.savePath,{
+        method:"POST",
+        headers:{"content-type":"application/json","if-match":sourceHash},
+        body:JSON.stringify({sourceHash,formIndex,fields:selected})
+      });
+      const body=await response.json().catch(()=>({diagnostics:[{message:"WebFormer returned a non-JSON response."}]}));
+      if(!response.ok){
+        const message=messageFrom(body);
+        setErrors(body.diagnostics||[{message}]);
+        setStatus("Not saved");
+        return {ok:false,message};
+      }
+      sourceHash=body.sourceHash;
+      savedVersion=Math.max(savedVersion,versionToSave);
+      if(dirtyVersion===savedVersion){
+        setStatus("Saved",{transient:true});
+      }else{
+        scheduleAutosave();
+      }
+      return {ok:true,saved:true};
+    }catch(error){
+      const message=error instanceof Error?error.message:String(error);
+      setErrors([{message}]);
+      setStatus("Not saved");
+      return {ok:false,message};
+    }finally{
+      savePromise=null;
+    }
+  })();
+  return savePromise;
 }
-saveButton.disabled=!WebFormer.canSave;
-saveButton.addEventListener("click",()=>save(null));
+function scheduleAutosave(){
+  clearTimeout(autosaveTimer);
+  autosaveTimer=setTimeout(()=>save(null),650);
+}
+function markDirty(){
+  dirtyVersion+=1;
+  setStatus("Unsaved changes");
+  scheduleAutosave();
+}
+document.addEventListener("input",markDirty,true);
+document.addEventListener("change",markDirty,true);
+document.addEventListener("keydown",(event)=>{
+  if((event.metaKey||event.ctrlKey)&&event.key.toLowerCase()==="s"){
+    event.preventDefault();
+    save(null);
+  }
+},true);
 for(const form of document.forms){
   const index=Array.prototype.indexOf.call(document.forms,form);
   form.addEventListener("submit",(event)=>{
@@ -457,7 +514,8 @@ for(const form of document.forms){
 }
 setErrors(WebFormer.diagnostics);
 if(!WebFormer.canSave) setStatus("Fix diagnostics before saving");
-window.WebFormer={save};
+window.WebFormer={save,isDirty};
+window.AppifyHost={save:()=>save(null),isDirty};
 </script>`;
 }
 
@@ -491,8 +549,8 @@ label:has(> input[type=checkbox]),label:has(> input[type=radio]){align-items:cen
 :where(table){border-collapse:collapse;inline-size:100%}
 :where(th,td){border-block-start:1px solid var(--webformer-border);padding:.5rem;text-align:start;vertical-align:top}
 :where(code,pre){font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-@media (prefers-color-scheme:dark){#__webformer_bar{box-shadow:none}}
-@media print{body{max-inline-size:none;padding:0}#__webformer_bar{display:none}}
+@media (prefers-color-scheme:dark){#__webformer_status_panel{box-shadow:none}}
+@media print{body{max-inline-size:none;padding:0}#__webformer_status_panel{display:none}}
 </style>
 `;
 }

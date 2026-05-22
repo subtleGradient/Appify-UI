@@ -102,15 +102,20 @@ test("turns invisible persistent state into a hard diagnostic", () => {
   expect(analysis.diagnostics.some((diagnostic) => diagnostic.message.includes("Hidden inputs"))).toBe(true);
 });
 
-test("injects runtime affordances without adding a viewport meta tag", async () => {
+test("injects autosave runtime affordances without adding a web save button or viewport meta tag", async () => {
   const response = await renderWebForm(`<form><input value=ok></form>`, "sample.webform");
   const html = await response.text();
 
-  expect(html).toContain("__webformer_bar");
+  expect(html).toContain("__webformer_status_panel");
+  expect(html).toContain("<span id=__webformer_status></span>");
+  expect(html).toContain("window.AppifyHost");
+  expect(html).toContain("document.addEventListener(\"input\",markDirty,true)");
   expect(html).toContain("name=color-scheme");
   expect(html).toContain("__webformer_default_style");
   expect(html).toContain("ui-sans-serif");
   expect(html).toContain('id="__webformer_field_0"');
+  expect(html).not.toContain("__webformer_save");
+  expect(html).not.toContain(">Save</button>");
   expect(html).not.toContain("name=\"viewport\"");
 });
 

@@ -31,6 +31,18 @@ final class AppifyHostDocument: NSDocument {
         super.init()
     }
 
+    @IBAction override func save(_ sender: Any?) {
+        flushWebDocumentBeforeNativeSave { [weak self] in
+            self?.performNativeSave(sender)
+        }
+    }
+
+    @IBAction override func saveAs(_ sender: Any?) {
+        flushWebDocumentBeforeNativeSave { [weak self] in
+            self?.performNativeSaveAs(sender)
+        }
+    }
+
     func configureUntitledDocument(at url: URL) {
         temporaryDocumentURL = url.standardizedFileURL
     }
@@ -81,6 +93,32 @@ final class AppifyHostDocument: NSDocument {
 
     func stopServerForAppTermination() {
         hostWindowController?.stopForAppTermination()
+    }
+
+    private func flushWebDocumentBeforeNativeSave(_ nativeSave: @escaping () -> Void) {
+        guard let hostWindowController else {
+            nativeSave()
+            return
+        }
+
+        hostWindowController.flushWebDocumentSave { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    nativeSave()
+                case .failure(let error):
+                    self?.presentError(error)
+                }
+            }
+        }
+    }
+
+    private func performNativeSave(_ sender: Any?) {
+        super.save(sender)
+    }
+
+    private func performNativeSaveAs(_ sender: Any?) {
+        super.saveAs(sender)
     }
 
     override func close() {

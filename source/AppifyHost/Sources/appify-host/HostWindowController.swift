@@ -101,6 +101,51 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         closeLog()
     }
 
+    func flushWebDocumentSave(completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let webView, didLoadServerURL else {
+            completion(.success(()))
+            return
+        }
+
+        webView.callAsyncJavaScript(
+            """
+            const hook = window.AppifyHost && window.AppifyHost.save;
+            if (typeof hook !== "function") {
+              return { handled: false, ok: true };
+            }
+
+            const result = await hook();
+            if (result === false) {
+              return { handled: true, ok: false, message: "The web document refused to save." };
+            }
+            if (result && typeof result === "object" && result.ok === false) {
+              return { handled: true, ok: false, message: String(result.message || "The web document refused to save.") };
+            }
+            return { handled: true, ok: true };
+            """,
+            arguments: [:],
+            in: nil,
+            in: .page
+        ) { [weak self] result in
+            switch result {
+            case .success(let value):
+                let dictionary = value as? [String: Any] ?? [:]
+                let ok = boolValue(dictionary["ok"], defaultValue: true)
+                if ok {
+                    completion(.success(()))
+                    return
+                }
+
+                let message = dictionary["message"] as? String ?? "The web document could not be saved."
+                completion(.failure(webDocumentSaveError(message)))
+
+            case .failure(let error):
+                self?.writeLog("WARN: web document save hook failed: \(String(describing: error))\n")
+                completion(.failure(error))
+            }
+        }
+    }
+
     private func handleWindowWillClose() {
         isClosing = true
         stopServer()
@@ -191,12 +236,15 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
               const tw = window.$tw;
               const syncer = tw && tw.syncer;
               const saver = tw && tw.saverHandler;
+              const appifyHost = window.AppifyHost;
+              const appifyHostDirty = !!(appifyHost && typeof appifyHost.isDirty === "function" && appifyHost.isDirty());
               const syncerDirty = !!(syncer && typeof syncer.isDirty === "function" && syncer.isDirty());
               const saverDirty = !!(saver && typeof saver.isDirty === "function" && saver.isDirty());
               const bodyDirty = !!(document.body && document.body.classList.contains("tc-dirty"));
               const inProgress = Number((syncer && syncer.numTasksInProgress) || 0);
               return {
-                dirty: syncerDirty || saverDirty || bodyDirty || inProgress > 0,
+                dirty: appifyHostDirty || syncerDirty || saverDirty || bodyDirty || inProgress > 0,
+                appifyHostDirty,
                 syncerDirty,
                 saverDirty,
                 bodyDirty,
@@ -212,12 +260,13 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
             }
 
             let dictionary = result as? [String: Any] ?? [:]
+            let appifyHostDirty = boolValue(dictionary["appifyHostDirty"])
             let syncerDirty = boolValue(dictionary["syncerDirty"])
             let saverDirty = boolValue(dictionary["saverDirty"])
             let bodyDirty = boolValue(dictionary["bodyDirty"])
             let inProgress = intValue(dictionary["inProgress"])
             let dirty = boolValue(dictionary["dirty"])
-            let detail = "syncerDirty=\(syncerDirty), saverDirty=\(saverDirty), bodyDirty=\(bodyDirty), inProgress=\(inProgress)"
+            let detail = "appifyHostDirty=\(appifyHostDirty), syncerDirty=\(syncerDirty), saverDirty=\(saverDirty), bodyDirty=\(bodyDirty), inProgress=\(inProgress)"
             completion(WebDirtyState(dirty: dirty, detail: detail))
         }
     }
@@ -728,14 +777,14 @@ private func uniquePIDs(_ pids: [pid_t]) -> [pid_t] {
     return result
 }
 
-private func boolValue(_ value: Any?) -> Bool {
+private func boolValue(_ value: Any?, defaultValue: Bool = false) -> Bool {
     if let value = value as? Bool {
         return value
     }
     if let value = value as? NSNumber {
         return value.boolValue
     }
-    return false
+    return defaultValue
 }
 
 private func intValue(_ value: Any?) -> Int {
@@ -746,4 +795,14 @@ private func intValue(_ value: Any?) -> Int {
         return value.intValue
     }
     return 0
+}
+
+private func webDocumentSaveError(_ message: String) -> NSError {
+    NSError(
+        domain: "AppifyHostWebDocumentSaveError",
+        code: 1,
+        userInfo: [
+            NSLocalizedDescriptionKey: message,
+        ]
+    )
 }
