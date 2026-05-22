@@ -78,6 +78,10 @@
               <td>Runtime affordances</td>
               <td>Injected by WebFormer into the served response with Bun <code>HTMLRewriter</code>. They are not part of the source file unless explicitly saved as source.</td>
             </tr>
+            <tr>
+              <td>Default appearance</td>
+              <td>WebFormer should inject served-only light/dark appearance support: <code>meta name=color-scheme</code>, <code>color-scheme: light dark</code>, system-font typography, readable spacing, and native form control styling. A plain <code>.webform</code> should not open as Times New Roman unless the author explicitly wants that.</td>
+            </tr>
           </tbody>
         </table>
       </section>
@@ -116,7 +120,7 @@
         <pre><code>GET client-intake.webform
   read source HTML
   rewrite served response with HTMLRewriter
-  inject save UI, diagnostics, generated field addresses, source hash
+  inject color-scheme meta, default stylesheet, save UI, diagnostics, generated field addresses, source hash
   optionally upgrade controls with web-native components
 
 POST client-intake.webform

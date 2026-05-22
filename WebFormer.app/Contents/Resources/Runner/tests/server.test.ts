@@ -79,6 +79,9 @@ test("serves the opened webform with injected runtime", async () => {
     expect(response.status).toBe(200);
     expect(html).toContain("<title>Server Test</title>");
     expect(html).toContain("__webformer_bar");
+    expect(html).toContain("name=color-scheme");
+    expect(html).toContain("__webformer_default_style");
+    expect(html).toContain("ui-sans-serif");
     expect(html).not.toContain("name=\"viewport\"");
   } finally {
     await stopServer(process);

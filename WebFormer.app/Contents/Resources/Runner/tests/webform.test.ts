@@ -2,6 +2,7 @@ import { expect, test } from "bun:test";
 import {
   analyzeWebForm,
   createSourceHash,
+  injectDocumentHeadHTML,
   renderWebForm,
   saveWebFormSource,
 } from "../src/webform";
@@ -106,6 +107,24 @@ test("injects runtime affordances without adding a viewport meta tag", async () 
   const html = await response.text();
 
   expect(html).toContain("__webformer_bar");
+  expect(html).toContain("name=color-scheme");
+  expect(html).toContain("__webformer_default_style");
+  expect(html).toContain("ui-sans-serif");
   expect(html).toContain('id="__webformer_field_0"');
+  expect(html).not.toContain("name=\"viewport\"");
+});
+
+test("injects default appearance after doctype without changing the source shape", () => {
+  const source = `<!doctype html>
+<meta charset=utf-8>
+<title>Plain</title>
+<form><input value=ok></form>`;
+
+  const html = injectDocumentHeadHTML(source);
+
+  expect(html.startsWith(`<!doctype html>
+<meta name=color-scheme content="light dark">
+<style id=__webformer_default_style>`)).toBe(true);
+  expect(html).toContain("<meta charset=utf-8>");
   expect(html).not.toContain("name=\"viewport\"");
 });

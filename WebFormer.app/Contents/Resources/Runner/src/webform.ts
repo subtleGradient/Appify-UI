@@ -461,9 +461,62 @@ window.WebFormer={save};
 </script>`;
 }
 
+export function createInjectedDocumentHeadHTML(): string {
+  return `<meta name=color-scheme content="light dark">
+<style id=__webformer_default_style>
+:root{color-scheme:light dark;--webformer-page-max:72ch;--webformer-gap:.875rem;--webformer-radius:8px;--webformer-border:color-mix(in oklch,CanvasText 18%,transparent);--webformer-muted:color-mix(in oklch,CanvasText 66%,transparent)}
+html{background:Canvas;color:CanvasText;font:16px/1.5 ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+body{box-sizing:border-box;margin:0;max-inline-size:var(--webformer-page-max);padding:clamp(18px,4vw,40px) clamp(16px,4vw,44px) 96px}
+body>*+*{margin-block-start:1rem}
+:where(h1,h2,h3,h4,p,figure,blockquote,pre,ul,ol,dl){margin-block:.75rem 0}
+:where(h1,h2,h3,h4){color:CanvasText;font-weight:650;line-height:1.18}
+h1{font-size:clamp(1.9rem,5vw,3rem)}
+h2{font-size:1.35rem}
+h3{font-size:1.1rem}
+:where(p,li,dd,figcaption){color:var(--webformer-muted)}
+a{color:LinkText}
+form{display:grid;gap:var(--webformer-gap);margin-block:1.25rem}
+fieldset{border:1px solid var(--webformer-border);border-radius:var(--webformer-radius);display:grid;gap:var(--webformer-gap);margin:0;padding:1rem}
+legend{font-weight:650;padding-inline:.25rem}
+label{display:grid;gap:.35rem;font-weight:600}
+label:has(> input[type=checkbox]),label:has(> input[type=radio]){align-items:center;display:flex;font-weight:500;gap:.55rem}
+:where(input,textarea,select,button){box-sizing:border-box;color:CanvasText;color-scheme:light dark;font:inherit}
+:where(input:not([type]),input[type=text],input[type=email],input[type=url],input[type=tel],input[type=search],input[type=password],input[type=number],input[type=date],input[type=time],input[type=datetime-local],textarea,select){background:Canvas;border:1px solid var(--webformer-border);border-radius:6px;inline-size:min(100%,42rem);padding:.5rem .62rem}
+:where(textarea){min-block-size:7rem;resize:vertical}
+:where(input[type=checkbox],input[type=radio]){block-size:1.05rem;inline-size:1.05rem;margin:0}
+:where(button,input[type=button],input[type=submit],input[type=reset]){background:ButtonFace;border:1px solid var(--webformer-border);border-radius:6px;color:ButtonText;padding:.48rem .8rem}
+:where(input,textarea,select,button,[contenteditable]):focus-visible{outline:2px solid Highlight;outline-offset:2px}
+[contenteditable]{border:1px solid var(--webformer-border);border-radius:var(--webformer-radius);min-block-size:4rem;padding:.75rem}
+[contenteditable]:empty:before{color:var(--webformer-muted);content:"Edit rich text here"}
+:where(table){border-collapse:collapse;inline-size:100%}
+:where(th,td){border-block-start:1px solid var(--webformer-border);padding:.5rem;text-align:start;vertical-align:top}
+:where(code,pre){font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){#__webformer_bar{box-shadow:none}}
+@media print{body{max-inline-size:none;padding:0}#__webformer_bar{display:none}}
+</style>
+`;
+}
+
+export function injectDocumentHeadHTML(source: string, injectedHTML = createInjectedDocumentHeadHTML()): string {
+  const headMatch = source.match(/<head(?:\s[^>]*)?>/i);
+  if (headMatch?.index !== undefined) {
+    const insertionPoint = headMatch.index + headMatch[0].length;
+    return `${source.slice(0, insertionPoint)}\n${injectedHTML}${source.slice(insertionPoint)}`;
+  }
+
+  const doctypeMatch = source.match(/^\s*<!doctype html\s*>/i);
+  if (doctypeMatch?.index !== undefined) {
+    const insertionPoint = doctypeMatch.index + doctypeMatch[0].length;
+    return `${source.slice(0, insertionPoint)}\n${injectedHTML}${source.slice(insertionPoint)}`;
+  }
+
+  return `${injectedHTML}${source}`;
+}
+
 export async function renderWebForm(source: string, documentName: string): Promise<Response> {
   const analysis = analyzeWebForm(source);
   const runtimeHTML = createInjectedRuntimeHTML(analysis, documentName);
+  const servedSource = injectDocumentHeadHTML(source);
   const fieldByTagOccurrence = createFieldTagLookup(analysis.fields);
   const formByTagOccurrence = new Map(analysis.forms.map((form) => [form.tagOccurrence, form]));
   const contenteditableByOccurrence = new Map(
@@ -526,7 +579,7 @@ export async function renderWebForm(source: string, documentName: string): Promi
       },
     });
 
-  return rewriter.transform(new Response(source, {
+  return rewriter.transform(new Response(servedSource, {
     headers: {
       "Content-Type": "text/html; charset=utf-8",
       "Cache-Control": "no-store",
