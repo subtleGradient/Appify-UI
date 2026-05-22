@@ -180,6 +180,7 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <string>Log File</string>
       <key>UTTypeConformsTo</key>
       <array>
+        <string>public.text</string>
         <string>public.data</string>
       </array>
       <key>UTTypeTagSpecification</key>
@@ -218,6 +219,9 @@ cat > "$CONTENTS/Info.plist" <<PLIST
       <key>LSItemContentTypes</key>
       <array>
         <string>com.subtlegradient.logscope.log</string>
+        <string>public.text</string>
+        <string>public.plain-text</string>
+        <string>public.utf8-plain-text</string>
       </array>
       <key>NSDocumentClass</key>
       <string>AppifyHostDocument</string>
