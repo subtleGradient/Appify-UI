@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>080 - macOS Bundle Taxonomy</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 92rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; margin-block-end: 0.35rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      li + li { margin-block-start: 0.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 74rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+      .grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(min(24rem, 100%), 1fr)); }
+      .callout { background: color-mix(in oklch, CanvasText 6%, transparent); border-radius: 0.5rem; padding: 0.75rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">IDEA/appdev / hyperslice / 2026-05-22</p>
+        <h1>macOS Bundle Taxonomy</h1>
+        <p class="lede">
+          The previous note collected bundle conventions as a pile. This note sorts them by category: generic packages, modern bundles, app bundles, document packages, code-bearing nested bundles, metadata bundles, helper-process bundles, and niche platform bundles.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="060-hello-world-probe.idea.html">060 hello world</a> /
+        <a href="070-macos-bundle-conventions.idea.html">070 conventions pile</a> /
+        <a href="../../SPEC/macOS-platform/QuickLook.SPEC.html">Quick Look spec</a>
+      </nav>
+
+      <section aria-labelledby="core-distinction">
+        <h2 id="core-distinction">Core Distinction</h2>
+        <div class="grid">
+          <div class="callout">
+            <h3>Package</h3>
+            <p>A directory presented by Finder as one file. Package-ness is a user interface behavior. Apps, plug-ins, frameworks, document packages, and installer packages can all be packages.</p>
+          </div>
+          <div class="callout">
+            <h3>Bundle</h3>
+            <p>A directory with a standardized hierarchy for code and resources. Bundle-ness is a developer/runtime contract. Many bundles are also packages, but document packages are not necessarily bundles.</p>
+          </div>
+          <div class="callout">
+            <h3>Appify reading</h3>
+            <p><code>.appdev</code>, <code>.tlcanvas</code>, and <code>.hi</code> should be document packages first. <code>.app</code> should be the code-bearing bundle that registers, opens, previews, indexes, and explains those packages.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="hyperslices">
+        <h2 id="hyperslices">Hyperslice Razors</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Razor</th>
+              <th>Blob A</th>
+              <th>Blob B</th>
+              <th>What survives the cut</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Presentation vs runtime</td>
+              <td>Finder package opacity</td>
+              <td>NSBundle/CFBundle code-resource lookup</td>
+              <td><code>.appdev</code> wants A; <code>.app</code>, <code>.framework</code>, <code>.bundle</code>, and <code>.xpc</code> want B.</td>
+            </tr>
+            <tr>
+              <td>Owns code vs owns content</td>
+              <td>Executable bundle</td>
+              <td>Document package</td>
+              <td>AppifyHost apps own code. Appify documents own state, previews, notes, and assets.</td>
+            </tr>
+            <tr>
+              <td>Universal bundle substrate vs special surface</td>
+              <td><code>Info.plist</code>, <code>Resources</code>, <code>.lproj</code>, bundle ID, version</td>
+              <td>Document types, URL schemes, Services, Help Books, Finder Sync, XPC</td>
+              <td>Use substrate everywhere it applies. Add special surfaces only when the user-facing behavior is real.</td>
+            </tr>
+            <tr>
+              <td>Passive declaration vs active process</td>
+              <td>Files and plist keys discovered by the OS</td>
+              <td>Nested code loaded by Finder, Spotlight, Quick Look, launchd, or the app</td>
+              <td>Default to passive. Escalate to active code only for indexing, isolation, background work, or true extension UI.</td>
+            </tr>
+            <tr>
+              <td>Ancient compatibility vs modern participation</td>
+              <td>Package directories, four-character type codes, versioned framework bundles, <code>.lproj</code></td>
+              <td>UTTypes, app extensions, XPC, App Intents, privacy manifests</td>
+              <td>Do not romanticize old affordances, but learn from the durable ones: directory-as-object, local resources, and self-contained code.</td>
+            </tr>
+            <tr>
+              <td>Package-local truth vs system-wide registration</td>
+              <td><code>QuickLook/Preview.*</code>, package files, bundled docs</td>
+              <td>UTType declarations, Launch Services handlers, URL schemes, Services, Spotlight importers</td>
+              <td>Keep content truth inside packages. Register only names, handlers, and extractors with the system.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="categories">
+        <h2 id="categories">Category Map</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Category</th>
+              <th>Canonical examples</th>
+              <th>Applies to</th>
+              <th>Free behavior</th>
+              <th>Compatibility depth</th>
+              <th>Appify stance</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Generic packages</td>
+              <td>Any directory Finder treats as one file: <code>.app</code>, <code>.bundle</code>, <code>.framework</code>, app-claimed document packages</td>
+              <td>All package directories, whether code-bearing or not</td>
+              <td>Finder opacity, drag-install ergonomics, Show Package Contents, accidental-edit protection</td>
+              <td>Deep macOS lineage. Apple documents package recognition by known extension, claimed extension, or package bit.</td>
+              <td>Make <code>.appdev</code>, <code>.tlcanvas</code>, and <code>.hi</code> packages, but do not make them full bundles unless runtime lookup needs it.</td>
+            </tr>
+            <tr>
+              <td>Modern macOS bundles</td>
+              <td><code>Contents/Info.plist</code>, <code>Contents/MacOS</code>, <code>Contents/Resources</code>, <code>Contents/Frameworks</code>, <code>Contents/PlugIns</code>, <code>Contents/SharedSupport</code></td>
+              <td>App bundles and loadable bundles; frameworks use a different versioned shape</td>
+              <td>Bundle identity, resource lookup, localization, executable lookup, code signing shape, private support files</td>
+              <td>Modern-style macOS bundle. Apple explicitly says <code>Contents</code> separates modern bundles from document and legacy bundle types.</td>
+              <td>Generated <code>.app</code> bundles should be boringly conventional here. Put runtime-required files in <code>Resources</code>; optional hackable examples in <code>SharedSupport</code>.</td>
+            </tr>
+            <tr>
+              <td>Application bundles</td>
+              <td><code>MyApp.app/Contents/Info.plist</code>, main executable, app icon, document declarations, URL declarations, Services, Help Book, privacy manifest</td>
+              <td>Only launchable apps</td>
+              <td>Double-click launch, Dock/Finder identity, Open With, document ownership, app-local resources, native Help menu, deep-link entry points</td>
+              <td>Old and central. Some keys are legacy, some are modern. The app bundle is the main integration point for AppifyHost.</td>
+              <td>AppifyHost templates should aggressively own this category. The <code>.app</code> is the distributable, hackable, self-contained product.</td>
+            </tr>
+            <tr>
+              <td>Document packages</td>
+              <td><code>Report.pages</code>, <code>Canvas.tlcanvas</code>, <code>Hello.hi</code>, future <code>App.appdev</code></td>
+              <td>Directories registered by an app as document types and presented as one file</td>
+              <td>Complex internal files with a simple user-facing document object; package-local Quick Look preview files; standard filesystem access</td>
+              <td>Durable macOS pattern. Apple does not prescribe internal document package structure and says <code>NSFileWrapper</code> is the Cocoa-preferred write path.</td>
+              <td>Keep package contents legible: <code>QuickLook/Preview.*</code>, JSON5 manifests when needed, assets, notes, and source truth. Avoid nested <code>Contents</code> unless the document is intentionally also a bundle.</td>
+            </tr>
+            <tr>
+              <td>Type and Launch Services declarations</td>
+              <td><code>UTExportedTypeDeclarations</code>, <code>UTImportedTypeDeclarations</code>, <code>CFBundleDocumentTypes</code>, <code>LSItemContentTypes</code>, <code>LSTypeIsPackage</code>, <code>LSHandlerRank</code></td>
+              <td>Mostly app bundles, describing documents they create/open</td>
+              <td>Kind identity, file association, package treatment, document icons, Open With ranking, pasteboard/content-type interop</td>
+              <td>Mixed. Four-character OS types are legacy; UTIs/UTTypes are the modern layer. <code>LSItemContentTypes</code> supersedes older extension/MIME/OSType declarations on macOS 10.5 and later.</td>
+              <td>Mandatory for serious AppifyHost apps. Prefer explicit UTTypes and package conformance. Include legacy fields only if a concrete compatibility target needs them.</td>
+            </tr>
+            <tr>
+              <td>Framework bundles</td>
+              <td><code>Thing.framework/Versions/A</code>, <code>Versions/Current</code>, <code>Headers</code>, <code>Resources</code></td>
+              <td>Shared libraries with associated resources; public frameworks and private app-embedded frameworks</td>
+              <td>Resource-bearing dynamic libraries, versioned layout, stable link/import object</td>
+              <td>Historically deep. Apple says framework structure predates macOS and supports multiple framework versions for older applications.</td>
+              <td>Defer. Use private frameworks only when AppifyHost native code is large enough to justify rpaths, signing, and binary lifecycle.</td>
+            </tr>
+            <tr>
+              <td>Loadable bundles and plug-ins</td>
+              <td><code>.bundle</code>, <code>.plugin</code>, app-owned modules under <code>Contents/PlugIns</code></td>
+              <td>Code loaded into a host application's process</td>
+              <td>Lazy feature loading, host-defined extension points, app-local modularity</td>
+              <td>Old macOS feature. Apple describes loadable bundles as app-bundle-like directories with no normal <code>main</code> entry point.</td>
+              <td>Only for intentional Appify plug-in APIs. Do not use plug-ins to solve plain file organization.</td>
+            </tr>
+            <tr>
+              <td>App extensions</td>
+              <td>Finder Sync, Finder Action/Action extension, Share extension, Quick Look Preview extension under <code>Contents/PlugIns</code></td>
+              <td>Containing app plus system host processes</td>
+              <td>System-hosted UI and actions in Finder, Share sheets, Quick Look, and other extension points</td>
+              <td>Modern compared with classic bundles. Requires extension <code>Info.plist</code> keys, entitlements, host lifecycle discipline, and usually a separate target.</td>
+              <td>Prototype only after passive package conventions fail. Finder Sync in particular is not a general Finder modification toy.</td>
+            </tr>
+            <tr>
+              <td>Quick Look conventions</td>
+              <td>Package-local <code>QuickLook/Preview.*</code> and <code>Thumbnail.*</code>; older generator plug-ins; modern preview extensions</td>
+              <td>Document packages first; app extensions only for dynamic formats that cannot store previews</td>
+              <td>Finder previews and thumbnails, often without custom extension code</td>
+              <td>Stable enough to standardize for Appify. Static package previews are the lowest-cost path.</td>
+              <td>Already adopted: <code>.tlcanvas/QuickLook/Preview.png</code> and <code>.hi/QuickLook/Preview.html</code>.</td>
+            </tr>
+            <tr>
+              <td>Spotlight metadata bundles</td>
+              <td><code>Contents/Library/Spotlight/*.mdimporter</code></td>
+              <td>Apps that own custom document types</td>
+              <td>Custom document metadata becomes searchable in Spotlight and Finder search</td>
+              <td>Classic Mac OS X era. Importers are plug-in bundles and must not depend on the creating app running.</td>
+              <td>Strong candidate for <code>.appdev</code> once metadata vocabulary stabilizes: app name, document types, notes, task titles, bundled app summary.</td>
+            </tr>
+            <tr>
+              <td>Helper process bundles</td>
+              <td><code>Contents/XPCServices/*.xpc</code>, login helper apps managed through <code>SMAppService</code></td>
+              <td>Apps that need isolation, crash containment, privilege separation, or background/login behavior</td>
+              <td>On-demand helpers, launchd management, separate sandbox, crash isolation, user-approved background presence</td>
+              <td>Modern. XPC Services documentation distinguishes low-level Mac OS X 10.7 compatibility from higher-level 10.8 APIs.</td>
+              <td>Defer until a renderer, parser, indexer, or build worker is dangerous enough to deserve a process boundary.</td>
+            </tr>
+            <tr>
+              <td>Native command surfaces</td>
+              <td><code>CFBundleURLTypes</code>, <code>NSServices</code>, App Intents, App Shortcuts</td>
+              <td>Mostly app bundles; App Intents are Swift code plus system metadata</td>
+              <td>Deep links, selected-text/file actions, Shortcuts and Spotlight action discovery</td>
+              <td>Mixed. URL types and Services are older plist surfaces; App Intents are modern.</td>
+              <td>URL schemes and Services are good near-term experiments. App Intents should wait until Appify commands are stable and human-language-friendly.</td>
+            </tr>
+            <tr>
+              <td>Help and localized resource bundles</td>
+              <td><code>*.lproj</code>, <code>InfoPlist.strings</code>, <code>Localizable.strings</code>, Help Books via <code>CFBundleHelpBookFolder</code> and <code>CFBundleHelpBookName</code></td>
+              <td>All modern bundles for localization; app bundles for Help menu integration</td>
+              <td>Localized names/resources, native Help menu, Help Viewer lookup</td>
+              <td>Very old and very durable. Human-readable <code>English.lproj</code>-style names are still supported for backward compatibility, though ISO names are preferred.</td>
+              <td>Use <code>.lproj</code> if we localize. Consider Help Books for self-documenting generated apps, but plain HTML in <code>SharedSupport</code> may be enough first.</td>
+            </tr>
+            <tr>
+              <td>Niche platform bundles</td>
+              <td>Preference panes, Quartz Composer plug-ins, WebKit plug-ins, legacy Quick Look generators, legacy Dashboard widgets, installer packages</td>
+              <td>Specific host apps or system features</td>
+              <td>Host-specific extension and distribution behaviors</td>
+              <td>Varies wildly. Some are deprecated or historical, some remain useful in narrow contexts.</td>
+              <td>Learn the shape, but do not copy the commitment. Promote only when an Appify app truly wants that host surface.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="compatibility">
+        <h2 id="compatibility">Compatibility Strata</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Stratum</th>
+              <th>Examples</th>
+              <th>Reliability note</th>
+              <th>Appify implication</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Deep lineage</td>
+              <td>Directory-as-object packages, localized <code>.lproj</code> resources, framework versioning, four-character package/type codes</td>
+              <td>Some exact history reaches back through NeXTSTEP and classic Mac OS families, but modern behavior should be judged by current macOS docs and tests.</td>
+              <td>Copy durable ideas, not nostalgia. The durable idea is "a directory can be a coherent object".</td>
+            </tr>
+            <tr>
+              <td>Universal modern bundle substrate</td>
+              <td><code>Info.plist</code>, bundle identifier, executable/resource lookup, <code>Resources</code>, <code>.lproj</code>, <code>CFBundleVersion</code></td>
+              <td>Applies across modern bundle types, with structural variation for apps, frameworks, and plug-ins.</td>
+              <td>Generated code-bearing bundles should look ordinary to <code>NSBundle</code>, Launch Services, code signing, and humans.</td>
+            </tr>
+            <tr>
+              <td>App-only registration layer</td>
+              <td>Document types, URL schemes, Services, app icon/name, Help Book, app category, privacy manifest</td>
+              <td>The app is where macOS expects ownership declarations and many user-facing integrations.</td>
+              <td>Put declarations in the generated AppifyHost app, not inside every document package.</td>
+            </tr>
+            <tr>
+              <td>Document-package affordance layer</td>
+              <td><code>LSTypeIsPackage</code>, package UTType conformance, <code>QuickLook/Preview.*</code>, <code>NSFileWrapper</code></td>
+              <td>The owning app registers the type; the package stores the content. Apple does not prescribe internal layout.</td>
+              <td>Appify packages can be opinionated but should stay readable. <code>QuickLook</code> is the blessed macOS exception to platform-neutral internal names.</td>
+            </tr>
+            <tr>
+              <td>System-hosted extension layer</td>
+              <td>Finder Sync, Action/Share extensions, Quick Look preview extensions, Spotlight importers</td>
+              <td>These are powerful but introduce separate lifecycle, signing, entitlements, and host-process constraints.</td>
+              <td>Use after the passive file/plist convention is not enough.</td>
+            </tr>
+            <tr>
+              <td>Process-isolation layer</td>
+              <td>XPC services, login helpers, background agents</td>
+              <td>These change trust, state, and failure semantics.</td>
+              <td>Reserve for dangerous parsing/rendering, indexing, build workers, and user-visible background promises.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="appify-rules">
+        <h2 id="appify-rules">Proposed Appify Rules</h2>
+        <ol>
+          <li><code>.app</code> is the self-contained runtime and source distribution object. It should use normal <code>Contents</code> structure.</li>
+          <li><code>.appdev</code> is a document package/workshop, not a bundle by default. It may contain apps, notes, research, tasks, templates, and private design process.</li>
+          <li>Every Appify document package type should have an exported UTType, a document icon, package declaration, and package-local <code>QuickLook/Preview.*</code>.</li>
+          <li>Do not put <code>Contents/Info.plist</code> in a document package unless the package is intentionally both a document and a bundle.</li>
+          <li>Prefer <code>Contents/SharedSupport/Appify</code> for optional hackable examples/templates inside generated apps; prefer <code>Contents/Resources</code> for files required to run.</li>
+          <li>Prototype <code>.appdev</code> Spotlight indexing before Finder Sync, because search makes appdev projects feel native without modifying Finder UI.</li>
+          <li>Prototype <code>appify:</code> URLs and <code>NSServices</code> after document identity is stable, because they create command surfaces without new helper processes.</li>
+          <li>Keep XPC and app extensions as escalation tools, not baseline architecture.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="matrix">
+        <h2 id="matrix">Appify Decision Matrix</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Need</th>
+              <th>First convention to try</th>
+              <th>Escalate to</th>
+              <th>Do not start with</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Make a directory feel like a file</td>
+              <td>Registered document package extension</td>
+              <td>Package bit only for unusual local experiments</td>
+              <td>Nested app or fake bundle structure</td>
+            </tr>
+            <tr>
+              <td>Give Finder a preview</td>
+              <td><code>QuickLook/Preview.*</code></td>
+              <td>Quick Look Preview extension or generator</td>
+              <td>App-specific <code>snapshot.png</code> aliases</td>
+            </tr>
+            <tr>
+              <td>Make files searchable</td>
+              <td>Stable metadata inside the package</td>
+              <td><code>.mdimporter</code> in the app bundle</td>
+              <td>Background indexer daemon</td>
+            </tr>
+            <tr>
+              <td>Open documents by double-click</td>
+              <td><code>CFBundleDocumentTypes</code> plus UTType</td>
+              <td>Multiple owner/viewer apps with handler ranks</td>
+              <td>Custom launcher databases</td>
+            </tr>
+            <tr>
+              <td>Link into app state</td>
+              <td><code>CFBundleURLTypes</code></td>
+              <td>App Intents or Shortcuts</td>
+              <td>Always-running local server</td>
+            </tr>
+            <tr>
+              <td>Run risky parsing or rendering</td>
+              <td>In-process until a real failure mode appears</td>
+              <td><code>Contents/XPCServices</code></td>
+              <td>General plug-in architecture</td>
+            </tr>
+            <tr>
+              <td>Add Finder actions</td>
+              <td>Services or Finder Quick Actions</td>
+              <td>Finder Sync only for monitored-folder state</td>
+              <td>Finder Sync as decoration</td>
+            </tr>
+            <tr>
+              <td>Ship docs with a hackable app</td>
+              <td><code>SharedSupport</code> HTML/Markdown</td>
+              <td>Help Book</td>
+              <td>External hosted docs as the only source</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="unsolved">
+        <h2 id="unsolved">Open Questions</h2>
+        <ol>
+          <li>Should <code>.appdev</code> itself ever become a true bundle with <code>Contents/Info.plist</code>, or should that be reserved for code-bearing objects?</li>
+          <li>Should Appify UI define one canonical internal document package shape, or should each generated app own its own package vocabulary as long as Quick Look is standardized?</li>
+          <li>How much legacy declaration should templates include: UTTypes only, or UTTypes plus older extension/MIME/OSType fields for older macOS targets?</li>
+          <li>Would a Help Book make generated apps feel delightfully self-contained, or would it feel like ceremony compared with plain bundled docs?</li>
+          <li>Is Spotlight indexing for private <code>.appdev</code> notes a feature or a privacy footgun?</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Apple Sources Consulted</h2>
+        <ul>
+          <li><a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/AboutBundles/AboutBundles.html">Bundle Programming Guide: About Bundles</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/BundleTypes/BundleTypes.html">Bundle Programming Guide: Bundle Structures</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/DocumentPackages/DocumentPackages.html">Bundle Programming Guide: Document Packages</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/Quicklook_Programming_Guide/Articles/QLImplementationOverview.html">Quick Look Programming Guide: Overview of Generator Implementation</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html">Information Property List Key Reference: Core Foundation Keys</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/MDImporters/Concepts/Importers.html">Spotlight Importer Programming Guide: Extracting Metadata from Files</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/MetadataIntro/Concepts/DocumentBundles.html">Spotlight Overview: Spotlight and Document Bundles</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingXPCServices.html">Daemons and Services Programming Guide: Creating XPC Services</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/ExtensionCreation.html">App Extension Programming Guide: Creating an App Extension</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/Finder.html">App Extension Programming Guide: Finder Sync</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
