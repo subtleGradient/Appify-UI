@@ -64,7 +64,7 @@
             DotOK.app can handle many bundles and formats by exposing a different Bun server for each kind. A <code>dotok:///</code> scheme can let nouns naturally open in the correct DotOK view. This avoids smuggling complexity everywhere and reduces cognitive overwhelm by composing a few simple patterns repeatedly.
           </p>
           <p>
-            The even more basic missing primitive is a web-tech version of a fillable PDF form: <code>.webform</code> bundles that open in <code>WebFormer.app</code>. The bundle contains <code>form.html</code> and saves responses as <code>data.jsonp</code>. The form loads <code>./data.jsonp</code> so it degrades to a filled-out printable HTML page on systems without WebFormer.app.
+            The even more basic missing primitive is a web-tech version of a fillable PDF form: <code>.webform</code> bundles that open in <code>WebFormer.app</code>. The bundle contains <code>form.html</code> and saves responses as <code>data.jsonp</code>. The form loads <code>./data.jsonp</code> so it degrades to a filled-out printable HTML page on systems without WebFormer.app. This was the initial sketch; later correction below rejects JSONP as the canonical saved-data format.
           </p>
           <p>
             <code>.webform/form.html</code> files should use CDN ESM and CSS imports from GitHub. Fancy form inputs, JSON editors, Markdown controls, and related components should live in the sibling <code>/Users/tom/Developer/web-native/</code> project instead of being smuggled into DotOK.
@@ -81,13 +81,13 @@
           <article aria-labelledby="webform-app">
             <h3 id="webform-app">Native When Available</h3>
             <p>
-              <code>WebFormer.app</code> opens <code>.webform</code> bundles, gives them save semantics, validates fields, writes <code>data.jsonp</code>, and can provide richer local affordances such as autosave, file pickers, signing, and controlled printing.
+              <code>WebFormer.app</code> opens <code>.webform</code> bundles, gives them save semantics, validates fields, writes pure <code>data.json</code>, serves the bundle with correct local MIME types, and can provide richer local affordances such as autosave, file pickers, signing, and controlled printing.
             </p>
           </article>
           <article aria-labelledby="webform-web">
             <h3 id="webform-web">Plain Web Otherwise</h3>
             <p>
-              Without WebFormer.app, the user opens <code>form.html</code> directly. The page imports <code>./data.jsonp</code>, renders the saved answers, and remains printable, inspectable, and portable across macOS, Windows, Linux, and static web hosts.
+              Without WebFormer.app, the user opens <code>form.html</code> directly. If the browser permits the local module import, the page imports <code>./data.json</code>, renders the saved answers, and remains printable. For fully reliable no-server printing, WebFormer should also maintain a static export.
             </p>
           </article>
           <article aria-labelledby="web-native">
@@ -109,7 +109,7 @@
         <h2 id="webform-tree">Proposed <code>.webform</code> Bundle</h2>
         <pre><code>client-intake.webform/
   form.html
-  data.jsonp
+  data.json
   attachments/
   exports/
     latest.pdf
@@ -133,9 +133,9 @@
               <td>The bundle extension says "this is a webform." The filename says "open this." The form uses a unique JavaScript-identifier-safe <code>id</code>, matching <code>name</code>, and named controls; no custom <code>data-*</code> attributes are required for the core convention.</td>
             </tr>
             <tr>
-              <td><code>data.jsonp</code></td>
+              <td><code>data.json</code></td>
               <td>Saved responses</td>
-              <td>Included by convention immediately after the closing <code>&lt;/form&gt;</code>. It should be a generated old-school script include that replays a modern <code>FormData</code>-shaped entry list into matching named controls. This keeps direct <code>file://</code> loading simple, but it makes trust and escaping rules non-negotiable.</td>
+              <td>Pure JSON, not executable script. It stores a <code>FormData</code>-shaped entry list. <code>form.html</code> imports it with ESM JSON import attributes when running from WebFormer, localhost, or another server that can provide correct JSON MIME behavior.</td>
             </tr>
             <tr>
               <td><code>attachments/</code></td>
@@ -150,10 +150,27 @@
             <tr>
               <td><code>webform.json5</code></td>
               <td>Optional escape hatch</td>
-              <td>Only appears when convention breaks down: signed forms, external schemas, non-default data conventions, import allowlists, native-only policies, version negotiation, or non-default entrypoints.</td>
+              <td>Only appears when convention breaks down: signed forms, external schemas, JSON5 authoring that must compile to <code>data.json</code>, import allowlists, native-only policies, version negotiation, or non-default entrypoints.</td>
             </tr>
           </tbody>
         </table>
+      </section>
+
+      <section aria-labelledby="jsonp-rejected">
+        <h2 id="jsonp-rejected">JSONP Correction</h2>
+        <p>
+          <code>data.jsonp</code> is rejected as the canonical webform data file. Real JSONP is data wrapped in a callback, such as <code>callback({ ... })</code>, not an arbitrary generated hydrator script. That still means executable data, which is exactly the historical security hole. The canonical saved state should be pure <code>data.json</code>; all hydration logic belongs in <code>form.html</code> or in trusted WebFormer/web-native code.
+        </p>
+      </section>
+
+      <section aria-labelledby="json-import">
+        <h2 id="json-import">Modern JSON Import Reality</h2>
+        <ul>
+          <li>Modern ESM can import JSON with <code>import data from "./data.json" with { type: "json" }</code>.</li>
+          <li>This is a server-shaped feature, not a magic local-file escape hatch. The browser expects JSON module semantics and correct JSON MIME behavior.</li>
+          <li>Browsers do not natively import JSON5. If humans want JSON5 authoring, WebFormer can compile <code>data.json5</code> to canonical <code>data.json</code>.</li>
+          <li>Bare <code>file://</code> opening may fail in browsers that treat local files as opaque origins. WebFormer should serve the bundle locally and should keep <code>exports/latest.html</code> as the reliable filled, printable, no-server artifact.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="webform-html">
@@ -180,83 +197,69 @@
       &lt;/label&gt;
     &lt;/form&gt;
 
-    &lt;script src="./data.jsonp"&gt;&lt;/script&gt;
+    &lt;script type="module"&gt;
+      import data from "./data.json" with { type: "json" }
+
+      hydrateForm(clientIntake, data.entries)
+
+      function hydrateForm(form, entries) {
+        const saved = new Map()
+        for (const [name, value] of entries) {
+          if (!saved.has(name)) saved.set(name, [])
+          saved.get(name).push(value)
+        }
+
+        for (const [name, values] of saved) {
+          for (const control of controlsFor(form, name)) {
+            setControl(control, values)
+          }
+        }
+      }
+
+      function controlsFor(form, name) {
+        const controls = form.elements[name]
+        if (!controls) return []
+        if (controls instanceof RadioNodeList) return Array.from(controls)
+        return [controls]
+      }
+
+      function setControl(control, values) {
+        if (control.type === "radio") {
+          control.checked = values.includes(control.value)
+          return
+        }
+
+        if (control.type === "checkbox") {
+          control.checked = values.includes(control.value || "on")
+          return
+        }
+
+        if (control.tagName === "SELECT" &amp;&amp; control.multiple) {
+          for (const option of control.options) option.selected = values.includes(option.value)
+          return
+        }
+
+        control.value = values.at(-1) ?? ""
+      }
+    &lt;/script&gt;
   &lt;/body&gt;
 &lt;/html&gt;</code></pre>
       </section>
 
       <section aria-labelledby="webform-data">
-        <h2 id="webform-data">Expected <code>data.jsonp</code> Shape</h2>
+        <h2 id="webform-data">Expected <code>data.json</code> Shape</h2>
         <p class="lede">
-          The elegant version is old-school and modern at the same time: put the classic <code>&lt;script src="./data.jsonp"&gt;</code> immediately after <code>&lt;/form&gt;</code>, refer to the already-parsed form by its global <code>id</code>, and store the payload as entries compatible with <code>new FormData(form)</code>. WebFormer can save with <code>Array.from(new FormData(form).entries())</code>; the generated file can replay those entries without requiring any author-written JavaScript in <code>form.html</code>.
+          The saved file is plain JSON. It mirrors what WebFormer can produce from <code>Array.from(new FormData(form).entries())</code>. Native browser JSON module imports accept JSON, not JSON5; if humans want to author JSON5, WebFormer can keep that as an authoring convenience and compile it to canonical JSON.
         </p>
-        <pre><code>;(function () {
-  var form = clientIntake
-  var entries = [
+        <pre><code>{
+  "form": "clientIntake",
+  "entries": [
     ["client.name", "Acme Studio"],
     ["scope.summary", "Create a printable intake that survives plain file opening."],
     ["channels", "email"],
     ["channels", "phone"]
   ]
-
-  var saved = {}
-  for (var i = 0; i &lt; entries.length; i++) {
-    var name = entries[i][0]
-    var value = entries[i][1]
-    if (!saved[name]) saved[name] = []
-    saved[name].push(value)
-  }
-
-  function has(values, value) {
-    for (var i = 0; i &lt; values.length; i++) {
-      if (values[i] === value) return true
-    }
-
-    return false
-  }
-
-  function controlsFor(form, name) {
-    var controls = form.elements[name]
-    if (!controls) return []
-    if (controls.nodeType) return [controls]
-
-    var list = []
-    for (var i = 0; i &lt; controls.length; i++) list.push(controls[i])
-    return list
-  }
-
-  function setControl(control, values) {
-    if (control.type === "radio") {
-      control.checked = has(values, control.value)
-      return
-    }
-
-    if (control.type === "checkbox") {
-      control.checked = has(values, control.value || "on")
-      return
-    }
-
-    if (control.tagName === "SELECT" &amp;&amp; control.multiple) {
-      for (var i = 0; i &lt; control.options.length; i++) {
-        var option = control.options[i]
-        option.selected = has(values, option.value)
-      }
-
-      return
-    }
-
-    var last = values[values.length - 1]
-    control.value = last == null ? "" : last
-  }
-
-  for (var key in saved) {
-    if (!Object.prototype.hasOwnProperty.call(saved, key)) continue
-    var controls = controlsFor(form, key)
-    for (var i = 0; i &lt; controls.length; i++) {
-      setControl(controls[i], saved[key])
-    }
-  }
-})()</code></pre>
+}</code></pre>
       </section>
 
       <section aria-labelledby="dotok-core">
@@ -327,7 +330,7 @@
           aspect.json5
           balance.webform/
             form.html
-            data.jsonp
+            data.json
           failure-modes/
             too-brittle.mode.json5
             too-expensive.mode.json5
@@ -461,9 +464,9 @@
       <section aria-labelledby="sequence">
         <h2 id="sequence">Likely Build Sequence</h2>
         <ol>
-          <li>Build the smallest <code>.webform</code> fixture that opens directly as <code>form.html</code>, places <code>&lt;script src="./data.jsonp"&gt;</code> after <code>&lt;/form&gt;</code>, hydrates regular named controls without author-written JavaScript in the HTML, and prints with saved values visible.</li>
-          <li>Prototype <code>WebFormer.app</code> as an AppifyHost app that registers <code>.webform</code>, opens the bundle, saves data, and exports static HTML or PDF.</li>
-          <li>Write down the fixed conventions for entrypoint, data hydration, escaping, and optional exports. Add <code>webform.json5</code> only after a real fixture proves HTML conventions cannot carry a needed declaration.</li>
+          <li>Build the smallest <code>.webform</code> fixture with <code>form.html</code> importing pure <code>data.json</code> through ESM JSON import attributes and hydrating regular named controls without <code>DOMContentLoaded</code>.</li>
+          <li>Prototype <code>WebFormer.app</code> as an AppifyHost app that registers <code>.webform</code>, opens the bundle through a local server, saves pure JSON data, and exports static HTML or PDF.</li>
+          <li>Write down the fixed conventions for entrypoint, data hydration, JSON MIME serving, escaping, and optional exports. Add <code>webform.json5</code> only after a real fixture proves HTML conventions cannot carry a needed declaration.</li>
           <li>Create a toy <code>needle-threading.ok</code> bundle with one thing, one aspect, one balance point, several failure modes, one assessment, one future, one goal, and two work orders.</li>
           <li>Prototype <code>DotOK.app</code> opening the <code>.ok</code> bundle and dispatching to kind-specific local servers.</li>
           <li>Add <code>dotok:///</code> routing after file opening works, so links become integration glue instead of the primary persistence model.</li>
@@ -474,9 +477,9 @@
       <section aria-labelledby="uncertainties">
         <h2 id="uncertainties">Uncertainties And Decisions</h2>
         <ul>
-          <li>Whether <code>data.jsonp</code> is acceptable as executable data, or whether WebFormer should also maintain a non-executable <code>data.json</code> canonical copy for safer tooling.</li>
-          <li>Whether the generated hydrator should be copied into every <code>data.jsonp</code> file, loaded from a pinned CDN, or generated as the smallest possible stable prelude plus payload. The v0 bias is copied inline so the script works directly from <code>file://</code>.</li>
-          <li>How custom elements participate without form-specific JavaScript. Form-associated custom elements or hidden native input mirrors may be the right boundary.</li>
+          <li>Whether <code>data.json</code> alone is enough, or whether WebFormer should also permit human-authored <code>data.json5</code> that compiles to canonical JSON.</li>
+          <li>Whether the hydrator should live inline in each <code>form.html</code>, import from a pinned <code>web-native</code> module, or be generated by WebFormer. The v0 bias is inline in <code>form.html</code> so the data file stays pure.</li>
+          <li>How custom elements participate without form-specific data glue. Form-associated custom elements or hidden native input mirrors may be the right boundary.</li>
           <li>How file inputs and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
           <li>How to prevent imported CDN components from turning a portable form into a supply-chain gamble. Pinning to commit SHAs seems mandatory for serious forms.</li>
           <li>Whether complex forms eventually need an optional <code>webform.json5</code>, and what concrete pressure justifies crossing that line.</li>
