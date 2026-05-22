@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>030 - Appify UI 26 Bundle Shape</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      pre { overflow: auto; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; padding: 1rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">bundle format sketch / source-of-truth contract</p>
+        <h1>Appify UI 26 Bundle Shape</h1>
+        <p class="lede">
+          <code>appify-ui.appdev</code> is the workshop. <code>Appify UI 26.app</code> is the target app. The manifest is the boundary contract between private process and shippable implementation.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="010-hyperslices.idea.html">010 hyperslices</a> /
+        <a href="020-constraints.idea.html">020 constraints</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a>
+      </nav>
+
+      <section aria-labelledby="tree">
+        <h2 id="tree">Proposed First Tree</h2>
+        <pre><code>IDEA/appdev/
+  appify-ui.appdev/
+    appdev.json
+    README.md
+    notes/
+      intent.md
+      constraints.md
+      glossary.md
+    decisions/
+      0001-self-hosted-appifyhost.md
+    experiments/
+      0001-host-boots-own-app/
+        experiment.md
+        result.md
+        scratch/
+    assets/
+      sketches/
+      screenshots/
+    fixtures/
+      hello.appdev/
+    Appify UI 26.app/
+      Contents/
+        Info.plist
+        MacOS/
+        Resources/
+          AppServer/
+          Developer/
+            README.md
+            source/
+            scripts/
+            templates/
+            fixtures/
+            appify-app.json</code></pre>
+      </section>
+
+      <section aria-labelledby="manifest">
+        <h2 id="manifest">Minimal <code>appdev.json</code></h2>
+        <pre><code>{
+  "kind": "appify.appdev",
+  "schemaVersion": 1,
+  "name": "appify-ui",
+  "private": true,
+  "targetApp": "Appify UI 26.app",
+  "purpose": "Design and prototype a generic self-hosted AppifyHost app.",
+  "sourceOfTruth": "appdev",
+  "openPolicy": {
+    "defaultAction": "inspect",
+    "runNestedApps": "explicit-trust-required"
+  },
+  "shipAllowlist": [
+    "Appify UI 26.app"
+  ],
+  "implementation": {
+    "path": "Appify UI 26.app",
+    "bundleId": "appify.ui.26",
+    "version": "0.0.0",
+    "contentHash": null
+  },
+  "artifacts": {
+    "runnableApp": "Appify UI 26.app",
+    "notes": "notes",
+    "decisions": "decisions",
+    "experiments": "experiments",
+    "fixtures": "fixtures"
+  },
+  "privacy": {
+    "neverShip": [
+      "notes",
+      "decisions",
+      "experiments",
+      "caches",
+      "DerivedData",
+      "node_modules",
+      ".tasks",
+      ".ok",
+      "*.log",
+      "*secret*"
+    ]
+  }
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="appmanifest">
+        <h2 id="appmanifest">Minimal App Manifest Inside <code>.app</code></h2>
+        <pre><code>{
+  "kind": "appify.app",
+  "schemaVersion": 1,
+  "name": "Appify UI 26",
+  "bundleId": "appify.ui.26",
+  "role": "host",
+  "entry": "Contents/Resources/AppServer/main.sh",
+  "host": {
+    "documentModes": [
+      "fileDocument",
+      "folderMarker",
+      "contentPackage"
+    ],
+    "canLoadApps": true,
+    "selfHosted": true
+  },
+  "developer": {
+    "source": "Contents/Resources/Developer/source",
+    "templates": "Contents/Resources/Developer/templates",
+    "scripts": "Contents/Resources/Developer/scripts",
+    "fixtures": "Contents/Resources/Developer/fixtures"
+  },
+  "permissions": [
+    "read-own-bundle",
+    "read-opened-appdev",
+    "launch-local-preview"
+  ]
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="boundary">
+        <h2 id="boundary">Boundary Rule</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>Ships in <code>.app</code>?</th>
+              <th>Lives in <code>.appdev</code>?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Does it explain how the app works?</td>
+              <td>Yes</td>
+              <td>Optional mirror or draft</td>
+            </tr>
+            <tr>
+              <td>Is it needed to run, inspect, rebuild, or hack the app?</td>
+              <td>Yes, if license and size allow</td>
+              <td>Maybe, as source input</td>
+            </tr>
+            <tr>
+              <td>Does it explain why the creator chose this design?</td>
+              <td>No by default</td>
+              <td>Yes</td>
+            </tr>
+            <tr>
+              <td>Is it a prompt, scratch note, rejected path, task log, private screenshot, or credential?</td>
+              <td>No</td>
+              <td>Yes, if appropriate</td>
+            </tr>
+            <tr>
+              <td>Is it generated output?</td>
+              <td>Only if required at runtime or useful for hacking</td>
+              <td>Generated outputs should be declared, not silently mixed with notes</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="experiment">
+        <h2 id="experiment">First Prototype Experiment</h2>
+        <ol>
+          <li>Create <code>experiments/0001-host-boots-own-app/</code>.</li>
+          <li>Read <code>Appify UI 26.app/Contents/Resources/Developer/appify-app.json</code>.</li>
+          <li>Validate only <code>kind</code>, <code>schemaVersion</code>, <code>name</code>, <code>entry</code>, and <code>host.selfHosted</code>.</li>
+          <li>Render a host shell showing the current app identity.</li>
+          <li>Prove that opening a foreign <code>.appdev</code> inspects manifests and files without running a nested executable.</li>
+          <li>Load a tiny <code>hello.app</code> fixture through the same loader path.</li>
+          <li>Record whether one loader can treat the host app and child apps uniformly enough that "self-hosted AppifyHost" is real.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>

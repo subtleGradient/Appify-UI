@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>040 - Two Golfed Appify UI 26 Proposals</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section, article { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(22rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">map/reduce result / two genuinely different bets</p>
+        <h1>Two Golfed Proposals</h1>
+        <p class="lede">
+          Both proposals preserve the core wish: an AppifyHost app that makes AppifyHost apps, with a private <code>.appdev</code> workshop and a shippable <code>.app</code>. They differ on what the product primarily is.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="010-hyperslices.idea.html">010 hyperslices</a> /
+        <a href="020-constraints.idea.html">020 constraints</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a>
+      </nav>
+
+      <section aria-labelledby="summary">
+        <h2 id="summary">Short Version</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Proposal</th>
+              <th>What it gives you</th>
+              <th>What it refuses</th>
+              <th>Golf verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Recipe Foundry</td>
+              <td>A reliable app factory: recipe, validation, generated bundle, launch, smoke, zip.</td>
+              <td>It refuses to treat the signed <code>.app</code> as the canonical mutable workspace.</td>
+              <td>Lowest technical badness. Best first spine.</td>
+            </tr>
+            <tr>
+              <td>Living App Dollhouse</td>
+              <td>A magical recursive construction toy: duplicate real app parts, mutate them, watch them run.</td>
+              <td>It refuses to hide the bundle structure behind a conventional project wizard.</td>
+              <td>Highest delight. Needs sharper signing/update rules.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="proposal-a">
+        <h2 id="proposal-a">Proposal A: Recipe Foundry</h2>
+        <div class="grid">
+          <article aria-labelledby="a-core">
+            <h3 id="a-core">Core Shape</h3>
+            <p>
+              <code>Appify UI 26.app</code> opens an <code>.appdev</code> package, edits a compact AppifyHost recipe, validates it, generates or updates a nested <code>.app</code>, launches a fixture, captures logs, and produces a zip-safe artifact.
+            </p>
+          </article>
+          <article aria-labelledby="a-why">
+            <h3 id="a-why">Why It Matches The Wish</h3>
+            <p>
+              It makes app-making feel small and doable. The recipe is the handle; the generated files are visible; the launch proves it; the zip is the clean handoff.
+            </p>
+          </article>
+          <article aria-labelledby="a-ui">
+            <h3 id="a-ui">First Screen</h3>
+            <p>
+              A dense workbench with lanes for app identity, document mode, runner command, environment, templates, fixtures, diagnostics, and package output. Every diagnostic links to the actual generated file.
+            </p>
+          </article>
+          <article aria-labelledby="a-risk">
+            <h3 id="a-risk">Main Risk</h3>
+            <p>
+              It could become too bureaucratic. The fix is to make "launch the current fixture" and "show the generated bundle diff" more prominent than forms.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="proposal-b">
+        <h2 id="proposal-b">Proposal B: Living App Dollhouse</h2>
+        <div class="grid">
+          <article aria-labelledby="b-core">
+            <h3 id="b-core">Core Shape</h3>
+            <p>
+              <code>Appify UI 26.app</code> is itself the tutorial and the construction kit. The user sees app-bundle organs as manipulable objects: document type, AppServer, template, fixture, icon, launch log, source folder, zip profile.
+            </p>
+          </article>
+          <article aria-labelledby="b-why">
+            <h3 id="b-why">Why It Matches The Wish</h3>
+            <p>
+              It preserves the strange joy of self-hosting. You are not filling out a generator; you are opening a real app, cloning a living pattern, and making another native object.
+            </p>
+          </article>
+          <article aria-labelledby="b-ui">
+            <h3 id="b-ui">First Screen</h3>
+            <p>
+              A visual bundle map with real AppifyHost examples: file document, folder marker, content package, and web runner. Each part has inspect, duplicate, swap, run, and smoke controls.
+            </p>
+          </article>
+          <article aria-labelledby="b-risk">
+            <h3 id="b-risk">Main Risk</h3>
+            <p>
+              It can blur runtime, source, and private process. The fix is a strong source-of-truth banner: "you are editing the workshop recipe" vs "you are inspecting a generated app."
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="questions">
+        <h2 id="questions">Follow-Up Questions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Question</th>
+              <th>If yes</th>
+              <th>If no</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Should the first real build optimize for "I can ship a clean app today" or "I can feel the recursive magic today"?</td>
+              <td>Recipe Foundry first, with one delightful self-hosting demo.</td>
+              <td>Living App Dollhouse first, with signing and zip as later hardening.</td>
+            </tr>
+            <tr>
+              <td>Is the nested <code>.app</code> allowed to be regenerated from <code>.appdev</code>, or must it be treated as hand-authored canonical source?</td>
+              <td>Manifest and templates become the spine.</td>
+              <td>Bundle inspection and direct editing become the spine, and signing gets harder.</td>
+            </tr>
+            <tr>
+              <td>Should Appify UI start by wrapping existing working probes like <code>tw</code>, <code>litecli</code>, <code>LazyGit</code>, and <code>TLCanvas</code>?</td>
+              <td>Fast validation against real repo patterns.</td>
+              <td>More freedom to invent a cleaner model, but more risk of designing in abstraction.</td>
+            </tr>
+            <tr>
+              <td>What does "contains all source necessary to hack on it" mean: source snapshot, reproducible build graph, or a full offline toolchain?</td>
+              <td>Clear package size and build guarantees.</td>
+              <td>The promise must be softened to "inspectable and modifiable with documented prerequisites."</td>
+            </tr>
+            <tr>
+              <td>Should <code>.appdev</code> be private by default, team-shareable by default, or explicitly mode-switched?</td>
+              <td>The packager needs privacy classes and leak tests.</td>
+              <td>The format can stay simpler but less expressive.</td>
+            </tr>
+            <tr>
+              <td>When a user opens someone else's <code>.appdev</code>, should Appify UI ever auto-run the nested app?</td>
+              <td>The product needs a clear trust prompt and provenance panel.</td>
+              <td>Open means inspect only; run/build/package are explicit actions.</td>
+            </tr>
+            <tr>
+              <td>Is <code>Appify UI 26</code> a version/year name, a product family, or a one-off codename?</td>
+              <td>Versioning and updates can be designed cleanly.</td>
+              <td>The name remains charming but may confuse bundle identity later.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="recommendation">
+        <h2 id="recommendation">My Current Pull</h2>
+        <p>
+          Build Recipe Foundry as the spine, then steal the best emotional mechanics from Living App Dollhouse: visible files, duplicable examples, launch logs, real fixtures, and recursive self-hosting as the final proof. That gives the vision a safe source-of-truth while keeping the thing that made the idea feel alive.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
