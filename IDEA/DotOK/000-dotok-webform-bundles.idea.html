@@ -64,10 +64,10 @@
             DotOK.app can handle many bundles and formats by exposing a different Bun server for each kind. A <code>dotok:///</code> scheme can let nouns naturally open in the correct DotOK view. This avoids smuggling complexity everywhere and reduces cognitive overwhelm by composing a few simple patterns repeatedly.
           </p>
           <p>
-            The even more basic missing primitive is a web-tech version of a fillable PDF form: <code>.webform</code> bundles that open in <code>WebFormer.app</code>. The bundle contains <code>form.html</code> and saves responses as <code>data.jsonp</code>. The form loads <code>./data.jsonp</code> so it degrades to a filled-out printable HTML page on systems without WebFormer.app. This was the initial sketch; later correction below rejects JSONP as the canonical saved-data format.
+            The even more basic missing primitive is a web-tech version of a fillable PDF form: <code>.webform</code> documents that open in <code>WebFormer.app</code>. The initial sketch used a bundle with <code>form.html</code> plus <code>data.jsonp</code>; the stronger direction is a single HTML file whose visible controls are the saved state.
           </p>
           <p>
-            <code>.webform/form.html</code> files should use CDN ESM and CSS imports from GitHub. Fancy form inputs, JSON editors, Markdown controls, and related components should live in the sibling <code>/Users/tom/Developer/web-native/</code> project instead of being smuggled into DotOK.
+            Fancy form inputs, JSON editors, Markdown controls, and related components should live in the sibling <code>/Users/tom/Developer/web-native/</code> project. WebFormer can inject those affordances into the served response; the source <code>.webform</code> stays clean, printable, parseable HTML unless the author intentionally chooses richer markup.
           </p>
         </blockquote>
       </section>
@@ -81,13 +81,13 @@
           <article aria-labelledby="webform-app">
             <h3 id="webform-app">Native When Available</h3>
             <p>
-              <code>WebFormer.app</code> opens <code>.webform</code> bundles, gives them save semantics, validates fields, writes pure <code>data.json</code>, serves the bundle with correct local MIME types, and can provide richer local affordances such as autosave, file pickers, signing, and controlled printing.
+              <code>WebFormer.app</code> opens a single <code>.webform</code> HTML file, serves a rewritten response with injected controls and styles, validates every save, then rewrites the source HTML with Bun <code>HTMLRewriter</code>.
             </p>
           </article>
           <article aria-labelledby="webform-web">
             <h3 id="webform-web">Plain Web Otherwise</h3>
             <p>
-              Without WebFormer.app, the user opens <code>form.html</code> directly. If the browser permits the local module import, the page imports <code>./data.json</code>, renders the saved answers, and remains printable. For fully reliable no-server printing, WebFormer should also maintain a static export.
+              Without WebFormer.app, the user opens the <code>.webform</code> file as ordinary HTML. The current answers are already in <code>value</code>, <code>checked</code>, <code>selected</code>, and <code>textarea</code> content, so the document remains inspectable and printable.
             </p>
           </article>
           <article aria-labelledby="web-native">
@@ -106,14 +106,18 @@
       </section>
 
       <section aria-labelledby="webform-tree">
-        <h2 id="webform-tree">Proposed <code>.webform</code> Bundle</h2>
-        <pre><code>client-intake.webform/
-  form.html
-  data.json
-  attachments/
-  exports/
-    latest.pdf
-    latest.html</code></pre>
+        <h2 id="webform-tree">Proposed <code>.webform</code> File</h2>
+        <pre><code>client-intake.webform</code></pre>
+        <p>
+          A <code>.webform</code> is an HTML document with a document extension, not a package. The durable state is the HTML itself. WebFormer may create exports beside it, but exports are derived artifacts, not part of the canonical format.
+        </p>
+      </section>
+
+      <section aria-labelledby="jtbd">
+        <h2 id="jtbd">Primary Job</h2>
+        <p>
+          The core job is agent-to-agent decision making, where an agent may be human or AI. A good <code>.webform</code> is therefore a semantic artifact first: readable headings, explicit choices, visible current values, inspectable tradeoffs, and no hidden state that a reviewer cannot see, edit, quote, or diff.
+        </p>
       </section>
 
       <section aria-labelledby="webform-contract">
@@ -121,111 +125,184 @@
         <table>
           <thead>
             <tr>
-              <th>File</th>
+              <th>Surface</th>
               <th>Role</th>
               <th>Rule</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td><code>form.html</code></td>
-              <td>Required entrypoint</td>
-              <td>The bundle extension says "this is a webform." The filename says "open this." The form uses a unique JavaScript-identifier-safe <code>id</code>, matching <code>name</code>, and named controls; no custom <code>data-*</code> attributes are required for the core convention.</td>
+              <td><code>*.webform</code></td>
+              <td>Source document</td>
+              <td>A single HTML file. No required bundle, manifest, sidecar JSON, embedded app script, embedded CSS, or build step.</td>
             </tr>
             <tr>
-              <td><code>data.json</code></td>
-              <td>Saved responses</td>
-              <td>Pure JSON, not executable script. It is a field-value object: keys match control names, scalar controls use scalar values, and repeated controls use arrays. <code>form.html</code> imports it with ESM JSON import attributes when running from WebFormer, localhost, or another server that can provide correct JSON MIME behavior.</td>
+              <td>Native controls</td>
+              <td>Durable state</td>
+              <td>Saved answers live in ordinary HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, and <code>textarea</code> text. If state exists, it should be visible or clearly represented in the document.</td>
             </tr>
             <tr>
-              <td><code>attachments/</code></td>
-              <td>User files</td>
-              <td>Optional. Stores referenced files by content hash or stable local name. The form should degrade gracefully when attachments are missing.</td>
+              <td>Names and ids</td>
+              <td>Optional handles</td>
+              <td>Authors add <code>id</code> or <code>name</code> only when useful for human or agent references. WebFormer can inject ephemeral names into the served response when the source omits them.</td>
             </tr>
             <tr>
-              <td><code>exports/</code></td>
-              <td>Derived output</td>
-              <td>Optional snapshots for printing, mailing, archiving, or non-interactive review. Never the source of truth.</td>
+              <td>Injected runtime</td>
+              <td>Disposable affordance</td>
+              <td>WebFormer injects scripts, styles, save buttons, diagnostics, field addresses, source hashes, and richer controls into the HTTP response. Those affordances are not written into the source file unless explicitly requested.</td>
             </tr>
             <tr>
-              <td><code>webform.json5</code></td>
-              <td>Optional escape hatch</td>
-              <td>Only appears when convention breaks down: signed forms, external schemas, JSON5 authoring that must compile to <code>data.json</code>, import allowlists, native-only policies, version negotiation, or non-default entrypoints.</td>
+              <td>Exports</td>
+              <td>Derived artifacts</td>
+              <td>PDF, filled static HTML, snapshots, and attachments can be produced beside the file. They are outputs, never hidden source-of-truth state.</td>
             </tr>
           </tbody>
         </table>
       </section>
 
       <section aria-labelledby="jsonp-rejected">
-        <h2 id="jsonp-rejected">JSONP Correction</h2>
+        <h2 id="jsonp-rejected">Sidecar Correction</h2>
         <p>
-          <code>data.jsonp</code> is rejected as the canonical webform data file. Real JSONP is data wrapped in a callback, such as <code>callback({ ... })</code>, not an arbitrary generated hydrator script. That still means executable data, which is exactly the historical security hole. The canonical saved state should be pure <code>data.json</code>; all hydration logic belongs in <code>form.html</code> or in trusted WebFormer/web-native code.
+          <code>data.jsonp</code> is rejected as the canonical webform data file. Real JSONP is data wrapped in a callback, such as <code>callback({ ... })</code>, not an arbitrary generated hydrator script. Pure <code>data.json</code> is safer, but a sidecar still creates invisible state and synchronization risk. The stronger v0 rule is: no sidecar data at all. The source HTML is the saved state.
         </p>
       </section>
 
       <section aria-labelledby="json-import">
-        <h2 id="json-import">Modern JSON Import Reality</h2>
+        <h2 id="json-import">Standards Reality</h2>
         <ul>
-          <li>Modern ESM can import JSON with <code>import data from "./data.json" with { type: "json" }</code>.</li>
-          <li>This is a server-shaped feature, not a magic local-file escape hatch. The browser expects JSON module semantics and correct JSON MIME behavior.</li>
-          <li>Browsers do not natively import JSON5. If humans want JSON5 authoring, WebFormer can compile <code>data.json5</code> to canonical <code>data.json</code>.</li>
-          <li>Bare <code>file://</code> opening may fail in browsers that treat local files as opaque origins. WebFormer should serve the bundle locally and should keep <code>exports/latest.html</code> as the reliable filled, printable, no-server artifact.</li>
+          <li>Modern ESM JSON import attributes are useful, but they do not beat a single HTML source file for this job. They need module semantics and correct MIME behavior, and browsers do not natively import JSON5.</li>
+          <li>Classic HTML form controls already have durable state locations: attributes for many controls, text content for <code>textarea</code>, and <code>selected</code> state for options.</li>
+          <li><code>FormData</code> remains the right transport shape for WebFormer saves, but not the durable storage shape. WebFormer translates request data back into HTML.</li>
+          <li>Form-associated custom elements and Declarative Shadow DOM are useful for rich controls, but they are not v0 primitives. Custom controls should mirror to native controls or participate in form submission cleanly.</li>
         </ul>
       </section>
 
       <section aria-labelledby="webform-html">
-        <h2 id="webform-html">Expected <code>form.html</code> Shape</h2>
+        <h2 id="webform-html">Expected <code>.webform</code> Source</h2>
         <pre><code>&lt;!doctype html&gt;
 &lt;html lang="en"&gt;
   &lt;head&gt;
     &lt;meta charset="utf-8" /&gt;
     &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
     &lt;title&gt;Client Intake&lt;/title&gt;
-    &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/subtleGradient/web-native@COMMIT/src/shadcn/themes/neutral.css" /&gt;
-    &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/subtleGradient/web-native@COMMIT/src/shadcn/styles/base-nova.css" /&gt;
   &lt;/head&gt;
   &lt;body&gt;
-    &lt;form id="clientIntake" name="clientIntake"&gt;
-      &lt;label&gt;
-        Client name
-        &lt;input name="client.name" autocomplete="organization" /&gt;
-      &lt;/label&gt;
+    &lt;h1&gt;Client Intake&lt;/h1&gt;
 
-      &lt;label&gt;
-        Scope
-        &lt;textarea name="scope.summary"&gt;&lt;/textarea&gt;
-      &lt;/label&gt;
+    &lt;form&gt;
+      &lt;fieldset&gt;
+        &lt;legend&gt;Decision Context&lt;/legend&gt;
+
+        &lt;label&gt;
+          Client name
+          &lt;input value="Acme Studio" autocomplete="organization" /&gt;
+        &lt;/label&gt;
+
+        &lt;label&gt;
+          Scope
+          &lt;textarea&gt;Create a printable intake that survives plain file opening.&lt;/textarea&gt;
+        &lt;/label&gt;
+      &lt;/fieldset&gt;
     &lt;/form&gt;
-
-    &lt;script type="module"&gt;
-      import data from "./data.json" with { type: "json" }
-
-      for (const [name, value] of Object.entries(data)) {
-        const controls = clientIntake.elements[name]
-        const values = [value].flat()
-
-        for (const control of Array.from(controls instanceof RadioNodeList ? controls : [controls])) {
-          if (!control) continue
-          if (control.type === "radio" || control.type === "checkbox") control.checked = values.includes(control.value || "on")
-          else if (control.multiple) for (const option of control.options) option.selected = values.includes(option.value)
-          else control.value = values.at(-1) ?? ""
-        }
-      }
-    &lt;/script&gt;
   &lt;/body&gt;
 &lt;/html&gt;</code></pre>
       </section>
 
-      <section aria-labelledby="webform-data">
-        <h2 id="webform-data">Expected <code>data.json</code> Shape</h2>
+      <section aria-labelledby="rewriter-model">
+        <h2 id="rewriter-model">WebFormer Rewrite Model</h2>
         <p class="lede">
-          The saved file is plain JSON. It is the tightest useful reduction of <code>FormData</code>: a name-to-value object where duplicate names collapse into arrays. Native browser JSON module imports accept JSON, not JSON5; if humans want to author JSON5, WebFormer can keep that as an authoring convenience and compile it to canonical JSON.
+          WebFormer owns runtime complexity. On <code>GET</code>, it reads the source HTML and uses Bun <code>HTMLRewriter</code> to inject a save UI, diagnostics, source hash, generated control names, and optional web-native components into the response. On <code>POST</code>, it verifies the source hash and field map, rewrites the source HTML, reparses it, and refuses to save if the round trip is not lossless.
         </p>
-        <pre><code>{
-  "client.name": "Acme Studio",
-  "scope.summary": "Create a printable intake that survives plain file opening.",
-  "channels": ["email", "phone"]
-}</code></pre>
+        <pre><code>GET client-intake.webform
+  read source HTML
+  parse/rewrite response with HTMLRewriter
+  inject generated names only into the served response
+  inject diagnostics and save controls outside source forms
+
+POST client-intake.webform
+  verify source hash
+  reject unknown submitted fields
+  reject missing expected fields unless intentionally disabled
+  rewrite source control state:
+    input value / checked
+    textarea text
+    option selected
+  reparse and verify visible state round-trips
+  write source or return a blocking diagnostic</code></pre>
+      </section>
+
+      <section aria-labelledby="zero-errors">
+        <h2 id="zero-errors">Zero Silent Errors</h2>
+        <ul>
+          <li>Unknown submitted field: hard error. WebFormer never drops it.</li>
+          <li>Source changed since page load: hard conflict. WebFormer never writes over a stale hash.</li>
+          <li>Generated field address no longer resolves to exactly one source control: hard error.</li>
+          <li>Duplicate explicit ids used as stable handles: hard error.</li>
+          <li>Persistent hidden state: hard warning or hard error. The default webform must be human- and agent-visible.</li>
+          <li>Multiple forms: allowed. WebFormer treats each form as a separate decision surface and injects save controls with form-specific source hashes.</li>
+          <li>Controls associated by the native <code>form</code> attribute: supported only when the association is unambiguous; otherwise WebFormer blocks the save with a visible report.</li>
+          <li>Custom elements: supported only if they mirror to native controls or are form-associated custom elements with inspectable values.</li>
+          <li>Round-trip mismatch after rewrite: hard error with before/after diagnostics.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="hyperslice">
+        <h2 id="hyperslice">Hyperslice Jr Webform Slices</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Slice Label</th>
+              <th>Heads Label</th>
+              <th>Tails Label</th>
+              <th>Heads Examples</th>
+              <th>Tails Examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Source of truth risk</td>
+              <td>Split state</td>
+              <td>Visible HTML state</td>
+              <td>HTML plus JSON sidecar, hidden inputs as data store, app-local database</td>
+              <td><code>value</code>, <code>checked</code>, <code>selected</code>, <code>textarea</code> text in one HTML file</td>
+            </tr>
+            <tr>
+              <td>Runtime ownership</td>
+              <td>Document ships an app</td>
+              <td>Reader injects affordances</td>
+              <td>Embedded script/style/import map in every form</td>
+              <td>WebFormer injects save UI, diagnostics, and web-native controls into the served response</td>
+            </tr>
+            <tr>
+              <td>Identification burden</td>
+              <td>Author must name everything</td>
+              <td>Names only when useful</td>
+              <td>Mandatory ids, schema keys, generated config files</td>
+              <td>WebFormer generated field addresses; optional ids/names for stable agent references</td>
+            </tr>
+            <tr>
+              <td>Error posture</td>
+              <td>Best-effort write</td>
+              <td>Fail closed</td>
+              <td>Ignore unknown fields, overwrite stale source, tolerate ambiguous controls</td>
+              <td>Hash checks, exact field maps, visible blocking diagnostics, round-trip verification</td>
+            </tr>
+            <tr>
+              <td>Modern web leverage</td>
+              <td>Novelty-first</td>
+              <td>Native-first</td>
+              <td>JSON modules, client state stores, custom elements as the baseline</td>
+              <td>HTML forms, constraint validation, FormData transport, HTMLRewriter, optional form-associated custom elements</td>
+            </tr>
+            <tr>
+              <td>Agent usefulness</td>
+              <td>Opaque interaction</td>
+              <td>Semantic artifact</td>
+              <td>Canvas-only UI, bespoke widgets, invisible sidecar state</td>
+              <td>Headings, fieldsets, labels, details/summary, tables, explicit visible choices and tradeoffs</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section aria-labelledby="dotok-core">
@@ -294,9 +371,7 @@
       aspects/
         reliability.aspect/
           aspect.json5
-          balance.webform/
-            form.html
-            data.json
+          balance.webform
           failure-modes/
             too-brittle.mode.json5
             too-expensive.mode.json5
@@ -310,7 +385,7 @@
     launch-ready.future/
       future.json5
       focus.canvas
-      target-state.webform/
+      target-state.webform
   goals/
     reduce-onboarding-drift.goal.json5
   work-orders/
@@ -396,7 +471,7 @@
         <ol>
           <li><code>DotOK.app</code> receives a document URL from Launch Services or a <code>dotok:///</code> URI.</li>
           <li>It resolves the target noun and starts or reuses the matching app-local Bun server.</li>
-          <li>The server exposes a narrow local API for that noun kind: read entrypoint, read optional manifest if present, render default view, validate edits, save edits, export, and link to neighbors.</li>
+          <li>The server exposes a narrow local API for that noun kind: read source, render default view, validate edits, save edits, export, and link to neighbors.</li>
           <li>The document window is just a local web surface pointed at the current noun server.</li>
           <li>Cross-noun navigation happens through links, not shared global state: <code>dotok:///thing/product</code>, <code>dotok:///assessment/...</code>, <code>dotok:///work/...</code>.</li>
         </ol>
@@ -417,7 +492,7 @@
     0003-dotok-uri-router/
     0004-kind-server-contract/
   fixtures/
-    sample-intake.webform/
+    sample-intake.webform
     needle-threading.ok/
   DotOK.app/
     Contents/
@@ -430,9 +505,9 @@
       <section aria-labelledby="sequence">
         <h2 id="sequence">Likely Build Sequence</h2>
         <ol>
-          <li>Build the smallest <code>.webform</code> fixture with <code>form.html</code> importing pure <code>data.json</code> through ESM JSON import attributes and hydrating regular named controls without <code>DOMContentLoaded</code>.</li>
-          <li>Prototype <code>WebFormer.app</code> as an AppifyHost app that registers <code>.webform</code>, opens the bundle through a local server, saves pure JSON data, and exports static HTML or PDF.</li>
-          <li>Write down the fixed conventions for entrypoint, data hydration, JSON MIME serving, escaping, and optional exports. Add <code>webform.json5</code> only after a real fixture proves HTML conventions cannot carry a needed declaration.</li>
+          <li>Build the smallest single-file <code>.webform</code> fixture with one native HTML form, visible saved values, no embedded scripts, no embedded styles, no sidecars, and no required control names.</li>
+          <li>Prototype <code>WebFormer.app</code> as an AppifyHost app that registers <code>.webform</code>, serves the file through a local Bun server, injects runtime affordances with <code>HTMLRewriter</code>, and saves by rewriting the HTML source.</li>
+          <li>Write down the fixed conventions for field addressing, source hashes, multi-form handling, zero-silent-error diagnostics, and exports. Add manifests or sidecars only after a real fixture proves HTML-as-state cannot carry a needed declaration.</li>
           <li>Create a toy <code>needle-threading.ok</code> bundle with one thing, one aspect, one balance point, several failure modes, one assessment, one future, one goal, and two work orders.</li>
           <li>Prototype <code>DotOK.app</code> opening the <code>.ok</code> bundle and dispatching to kind-specific local servers.</li>
           <li>Add <code>dotok:///</code> routing after file opening works, so links become integration glue instead of the primary persistence model.</li>
@@ -443,13 +518,13 @@
       <section aria-labelledby="uncertainties">
         <h2 id="uncertainties">Uncertainties And Decisions</h2>
         <ul>
-          <li>Whether <code>data.json</code> alone is enough, or whether WebFormer should also permit human-authored <code>data.json5</code> that compiles to canonical JSON.</li>
-          <li>Whether the hydrator should live inline in each <code>form.html</code>, import from a pinned <code>web-native</code> module, or be generated by WebFormer. The v0 bias is inline in <code>form.html</code> so the data file stays pure.</li>
-          <li>How custom elements participate without form-specific data glue. Form-associated custom elements or hidden native input mirrors may be the right boundary.</li>
+          <li>How stable generated field addresses should be across edits when authors omit <code>id</code> and <code>name</code>.</li>
+          <li>Whether hidden controls are ever allowed as persistent state. The v0 bias is no, because invisible state breaks agent-to-agent inspectability.</li>
+          <li>How custom elements participate without sidecar data. Form-associated custom elements or hidden native input mirrors may be the right boundary.</li>
           <li>How file inputs and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
-          <li>How to prevent imported CDN components from turning a portable form into a supply-chain gamble. Pinning to commit SHAs seems mandatory for serious forms.</li>
-          <li>Whether complex forms eventually need an optional <code>webform.json5</code>, and what concrete pressure justifies crossing that line.</li>
-          <li>How WebFormer saves when a static browser cannot: direct file access, File System Access API, drag-to-save download, or native-only writeback.</li>
+          <li>How to prevent injected web-native components from turning a portable form into a supply-chain gamble. Pinning to commit SHAs seems mandatory for serious forms.</li>
+          <li>Whether complex forms eventually need an optional manifest, and what concrete pressure justifies crossing that line.</li>
+          <li>Whether WebFormer should preserve author formatting exactly or normalize rewritten HTML. Exact preservation is nicer; deterministic normalization may be safer.</li>
           <li>How much DotOK snapshot content is copied versus content-addressed. Assessments need to be stable even when live thing definitions evolve.</li>
           <li>Whether failure modes are global reusable patterns, aspect-local children, or both.</li>
           <li>Whether future snapshots should be immutable once used to generate goals, or whether they are editable design targets with versioned revisions.</li>
