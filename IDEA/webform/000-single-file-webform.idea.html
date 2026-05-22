@@ -78,10 +78,6 @@
               <td>Runtime affordances</td>
               <td>Injected by WebFormer into the served response with Bun <code>HTMLRewriter</code>. They are not part of the source file unless explicitly saved as source.</td>
             </tr>
-            <tr>
-              <td>Exports</td>
-              <td>PDFs, static filled HTML, snapshots, and attachments may live beside the file. They are derived outputs, not source of truth.</td>
-            </tr>
           </tbody>
         </table>
       </section>
@@ -90,7 +86,6 @@
         <h2 id="source">Smallest Useful Source</h2>
         <pre><code>&lt;!doctype html&gt;
 &lt;meta charset=utf-8&gt;
-&lt;meta name=viewport content="width=device-width, initial-scale=1"&gt;
 &lt;title&gt;Client Intake&lt;/title&gt;
 
 &lt;h1&gt;Client Intake&lt;/h1&gt;
@@ -133,7 +128,7 @@ POST client-intake.webform
     textarea text
     contenteditable inner HTML
     option selected
-    drop results as visible HTML, native control state, or explicit attachments
+    drop results as visible HTML or native control state
   preserve unrelated source bytes and author formatting
   reparse and verify visible state round-trips
   write source or return a blocking diagnostic</code></pre>
@@ -171,7 +166,7 @@ POST client-intake.webform
             <tr>
               <td>File drop</td>
               <td>HTML Drag and Drop file items, file inputs</td>
-              <td>Copy files to an explicit attachment/export location or embed an explicit visible link/figure. Never create invisible attachment state.</td>
+              <td>Embed a visible link, figure, or native control state in the HTML. Never create invisible sidecar state.</td>
             </tr>
           </tbody>
         </table>
@@ -190,7 +185,7 @@ POST client-intake.webform
           <li>Drag-and-drop reorder operations should move the smallest stable element range rather than reserializing the whole document.</li>
           <li>Do not add optional <code>html</code>, <code>head</code>, or <code>body</code> tags just because the parser exposes them in the DOM.</li>
           <li>Do not quote or unquote existing attributes unless the edited value requires it.</li>
-          <li>Normalization is an explicit repair/export action, not the default save behavior.</li>
+          <li>Normalization is an explicit repair action, not the default save behavior.</li>
           <li>If a minimal patch cannot be proven safe, WebFormer should block with a diagnostic instead of silently reformatting the document.</li>
         </ul>
       </section>
@@ -207,7 +202,7 @@ POST client-intake.webform
           <li>Native <code>form</code> attribute associations: supported only when unambiguous.</li>
           <li>Custom elements: supported when they mirror to native controls or are form-associated custom elements with inspectable values.</li>
           <li>Rich text paste/drop includes disallowed markup or hidden payloads: hard diagnostic with a visible cleanup choice.</li>
-          <li>Dropped file cannot be copied, linked, embedded, or exported visibly: hard diagnostic.</li>
+          <li>Dropped file cannot be represented as visible HTML or native control state: hard diagnostic.</li>
           <li>Round-trip mismatch after rewrite: hard error with before/after diagnostics.</li>
         </ul>
       </section>
@@ -230,7 +225,7 @@ POST client-intake.webform
           <li>How stable generated field addresses should remain across edits when authors omit ids and names.</li>
           <li>Whether hidden controls are ever allowed as persistent state. V0 bias: no.</li>
           <li>What exact HTML subset is allowed for <code>contenteditable</code> saves.</li>
-          <li>How file inputs, dropped files, and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
+          <li>How file inputs and dropped files round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
           <li>How much source-location metadata WebFormer needs to preserve minimal patches across malformed-but-browser-recoverable HTML.</li>
         </ul>
       </section>
