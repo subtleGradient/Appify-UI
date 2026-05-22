@@ -145,8 +145,12 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
             window?.title = "\(configuration.windowTitlePrefix) - \(title)"
 
         case .fileDocument:
-            window?.representedURL = documentURL
-            window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
+            window?.representedURL = hostDocument?.fileURL
+            if hostDocument?.fileURL == nil {
+                window?.title = "Untitled"
+            } else {
+                window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
+            }
         }
     }
 

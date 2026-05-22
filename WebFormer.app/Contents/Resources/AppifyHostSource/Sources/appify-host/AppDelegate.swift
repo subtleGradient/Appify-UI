@@ -50,15 +50,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        false
+        guard let configuration else {
+            return false
+        }
+
+        return configuration.documentMode != .folderMarker
+    }
+
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        guard let configuration,
+              configuration.documentMode != .folderMarker
+        else {
+            return false
+        }
+
+        showNewDocument()
+        return true
     }
 
     func applicationShouldSaveApplicationState(_ sender: NSApplication) -> Bool {
-        false
+        true
     }
 
     func applicationShouldRestoreApplicationState(_ sender: NSApplication) -> Bool {
-        false
+        true
+    }
+
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -127,27 +146,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
         switch configuration.documentMode {
         case .contentPackage:
-            let alert = NSAlert()
-            alert.messageText = "Start \(configuration.appName)"
-            alert.informativeText = "Create a new document or open an existing .\(configuration.primaryDocumentExtension) package."
-            alert.addButton(withTitle: "New")
-            alert.addButton(withTitle: "Open Existing...")
-            alert.addButton(withTitle: "Cancel")
-
-            switch alert.runModal() {
-            case .alertFirstButtonReturn:
-                showNewDocument()
-            case .alertSecondButtonReturn:
-                showOpenPanel()
-            default:
-                return
-            }
+            showNewDocument()
 
         case .folderMarker:
             showFolderPicker()
 
         case .fileDocument:
-            showOpenPanel()
+            showNewDocument()
         }
     }
 
@@ -158,27 +163,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         switch configuration.documentMode {
-        case .contentPackage:
-            createUntitledContentPackage(configuration: configuration)
+        case .contentPackage, .fileDocument:
+            createUntitledDocument(configuration: configuration)
         case .folderMarker:
             showFolderPicker()
-        case .fileDocument:
-            showOpenPanel()
         }
     }
 
     @MainActor
-    private func createUntitledContentPackage(configuration: AppifyHostConfiguration) {
+    private func createUntitledDocument(configuration: AppifyHostConfiguration) {
         do {
-            let tempRoot = FileManager.default.temporaryDirectory
-                .appendingPathComponent("AppifyHost", isDirectory: true)
-                .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-            let documentURL = tempRoot.appendingPathComponent("Untitled.\(configuration.primaryDocumentExtension)", isDirectory: true)
-            try FileManager.default.createDirectory(at: documentURL, withIntermediateDirectories: true)
-
+            let documentURL = PackageDocument.untitledDocumentURL(configuration: configuration)
+            try PackageDocument.createUntitledDocument(at: documentURL, configuration: configuration)
             let document = AppifyHostDocument()
-            document.configureUntitledPackage(at: documentURL)
+            document.configureUntitledDocument(at: documentURL)
             NSDocumentController.shared.addDocument(document)
             document.makeWindowControllers()
             document.showWindows()

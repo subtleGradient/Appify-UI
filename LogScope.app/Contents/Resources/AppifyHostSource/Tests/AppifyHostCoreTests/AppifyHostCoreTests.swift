@@ -207,6 +207,46 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertThrowsError(try PackageDocument.workingDirectory(forPackage: symlink, configuration: config))
     }
 
+    func testUntitledDocumentURLUsesTemporaryUntitledFileForFileDocuments() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "canvas"),
+            bundleURL: URL(fileURLWithPath: "/Applications/JSONCanvas.app")
+        )
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempRoot)
+        }
+
+        let documentURL = PackageDocument.untitledDocumentURL(configuration: config, temporaryDirectory: tempRoot)
+        XCTAssertEqual(documentURL.lastPathComponent, "Untitled.canvas")
+        XCTAssertTrue(documentURL.deletingLastPathComponent().path.hasPrefix(tempRoot.path))
+
+        try PackageDocument.createUntitledDocument(at: documentURL, configuration: config)
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: documentURL.path, isDirectory: &isDirectory))
+        XCTAssertFalse(isDirectory.boolValue)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: documentURL, configuration: config).path, documentURL.deletingLastPathComponent().path)
+    }
+
+    func testUntitledDocumentURLUsesTemporaryUntitledPackageForContentPackages() throws {
+        let config = try sampleConfig()
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempRoot)
+        }
+
+        let documentURL = PackageDocument.untitledDocumentURL(configuration: config, temporaryDirectory: tempRoot)
+        XCTAssertEqual(documentURL.lastPathComponent, "Untitled.sketchdoc")
+
+        try PackageDocument.createUntitledDocument(at: documentURL, configuration: config)
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: documentURL.path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: documentURL, configuration: config).path, documentURL.path)
+    }
+
     func testFileDocumentAliasResolvesToTarget() throws {
         let config = try AppifyHostConfigurationLoader.load(
             infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),

@@ -31,7 +31,7 @@ final class AppifyHostDocument: NSDocument {
         super.init()
     }
 
-    func configureUntitledPackage(at url: URL) {
+    func configureUntitledDocument(at url: URL) {
         temporaryDocumentURL = url.standardizedFileURL
     }
 
@@ -135,6 +135,9 @@ final class AppifyHostDocument: NSDocument {
 
     private func writeFileDocument(to url: URL) throws {
         guard let activeDocumentURL else {
+            if !FileManager.default.fileExists(atPath: url.path) {
+                _ = FileManager.default.createFile(atPath: url.path, contents: Data())
+            }
             return
         }
 

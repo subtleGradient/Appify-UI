@@ -366,6 +366,38 @@ public enum PackageDocument {
         return standardized.appendingPathComponent("\(baseName).\(configuration.primaryDocumentExtension)", isDirectory: true)
     }
 
+    public static func untitledDocumentURL(
+        configuration: AppifyHostConfiguration,
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> URL {
+        let tempRoot = temporaryDirectory
+            .standardizedFileURL
+            .appendingPathComponent("AppifyHost", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        return tempRoot.appendingPathComponent(
+            "Untitled.\(configuration.primaryDocumentExtension)",
+            isDirectory: configuration.documentMode != .fileDocument
+        )
+    }
+
+    public static func createUntitledDocument(
+        at documentURL: URL,
+        configuration: AppifyHostConfiguration
+    ) throws {
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            try FileManager.default.createDirectory(at: documentURL, withIntermediateDirectories: true)
+        case .fileDocument:
+            try FileManager.default.createDirectory(
+                at: documentURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if !FileManager.default.fileExists(atPath: documentURL.path) {
+                _ = FileManager.default.createFile(atPath: documentURL.path, contents: Data())
+            }
+        }
+    }
+
     public static func validatePackageURL(_ packageURL: URL, configuration: AppifyHostConfiguration) throws {
         _ = try documentURL(forPackage: packageURL, configuration: configuration)
     }
