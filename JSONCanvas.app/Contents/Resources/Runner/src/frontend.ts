@@ -6,6 +6,7 @@ import {
   type JSONCanvasNode,
   type JSONCanvasNodeType,
 } from "./jsonCanvas";
+import { capturePointer } from "./pointerCapture";
 
 type Selection =
   | { kind: "node"; id: string }
@@ -498,7 +499,6 @@ function renderNodes() {
       nodeElement.append(header, body);
       nodeElement.addEventListener("pointerdown", (event) => {
         event.stopPropagation();
-        select({ kind: "node", id: node.id });
         dragState = {
           kind: "node",
           id: node.id,
@@ -506,7 +506,8 @@ function renderNodes() {
           startClient: { x: event.clientX, y: event.clientY },
           startNode: { x: node.x, y: node.y },
         };
-        nodeElement.setPointerCapture(event.pointerId);
+        capturePointer(elements.canvasViewport, event.pointerId);
+        select({ kind: "node", id: node.id });
       });
 
       return nodeElement;
@@ -800,7 +801,7 @@ function bindEvents() {
       startClient: { x: event.clientX, y: event.clientY },
       startPan: { ...state.pan },
     };
-    elements.canvasViewport.setPointerCapture(event.pointerId);
+    capturePointer(elements.canvasViewport, event.pointerId);
   });
 
   elements.canvasViewport.addEventListener("pointermove", (event) => {
