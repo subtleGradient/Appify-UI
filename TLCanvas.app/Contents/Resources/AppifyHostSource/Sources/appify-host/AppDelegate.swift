@@ -3,7 +3,7 @@ import AppifyHostCore
 import UniformTypeIdentifiers
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
     private var helpWindowController: AppifyHostHelpWindowController?
@@ -231,9 +231,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
         panel.treatsFilePackagesAsDirectories = false
-        let allowedTypes = allowedContentTypes(configuration: configuration)
-        if !allowedTypes.isEmpty {
-            panel.allowedContentTypes = allowedTypes
+        if configuration.documentMode == .fileDocument {
+            panel.delegate = self
+        } else {
+            let allowedTypes = allowedContentTypes(configuration: configuration)
+            if !allowedTypes.isEmpty {
+                panel.allowedContentTypes = allowedTypes
+            }
         }
 
         guard panel.runModal() == .OK else {
@@ -244,6 +248,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         for url in panel.urls {
             openDocument(at: url)
         }
+    }
+
+    func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
+        guard let configuration,
+              configuration.documentMode == .fileDocument
+        else {
+            return true
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+           isDirectory.boolValue
+        {
+            return true
+        }
+
+        let extensionName = url.pathExtension.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return configuration.documentExtensions.contains(extensionName)
     }
 
     @MainActor
