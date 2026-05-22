@@ -1,0 +1,10 @@
+2026-05-22T20:40:01Z INFO  AppifyHost document_opened path="examples/logscope/appify-host-demo.log" app="LogScope"
+2026-05-22T20:40:01Z INFO  AppifyHost server_launch command="ttyd --once lnav appify-host-demo.log" port=61244
+2026-05-22T20:40:02Z INFO  ttyd listening address="127.0.0.1" port=61244 base_path="/appify-host-demo"
+2026-05-22T20:40:03Z INFO  WebKit navigation_allowed url="http://127.0.0.1:61244/appify-host-demo/"
+2026-05-22T20:40:04Z WARN  LogScope slow_index file="appify-host-demo.log" rows=42000 elapsed_ms=812
+2026-05-22T20:40:05Z INFO  lnav format_detected format="generic-log" source="appify-host-demo.log"
+2026-05-22T20:40:08Z ERROR AppServer child_exit status=1 signal="" message="sample failure for filtering"
+2026-05-22T20:40:09Z INFO  AppifyHost restart_requested reason="demo recovery"
+2026-05-22T20:40:10Z INFO  ttyd listening address="127.0.0.1" port=61245 base_path="/appify-host-demo-restart"
+2026-05-22T20:40:11Z INFO  AppifyHost ready url="http://127.0.0.1:61245/appify-host-demo-restart/"
