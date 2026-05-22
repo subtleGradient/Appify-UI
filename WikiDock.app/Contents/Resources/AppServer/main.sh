@@ -40,16 +40,6 @@ allocate_port() {
   /usr/bin/python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1]); s.close()'
 }
 
-random_base_path() {
-  local token
-  if command -v uuidgen >/dev/null 2>&1; then
-    token="$(uuidgen | tr '[:upper:]' '[:lower:]' | tr -d '-')"
-  else
-    token="$RANDOM$RANDOM$RANDOM"
-  fi
-  printf '/wikidock-%s\n' "$token"
-}
-
 wait_for_port() {
   local port="$1"
   /usr/bin/python3 - "$port" <<'PY'
@@ -193,7 +183,6 @@ resolve_tiddlywiki() {
 start_tiddlywiki() {
   local tiddlywiki="$1"
   local port="$2"
-  local base_path="$3"
 
   "$tiddlywiki" \
     +plugins/tiddlywiki/filesystem \
@@ -201,8 +190,7 @@ start_tiddlywiki() {
     "$DOCUMENT_PATH" \
     --listen \
     host=127.0.0.1 \
-    port="$port" \
-    "path-prefix=$base_path" &
+    port="$port" &
 }
 
 ensure_wiki_folder
@@ -213,8 +201,7 @@ if ! TIDDLYWIKI="$(resolve_tiddlywiki)"; then
 fi
 
 PORT="$(allocate_port)"
-BASE_PATH="$(random_base_path)"
-OPEN_URL="http://127.0.0.1:$PORT$BASE_PATH/"
+OPEN_URL="http://127.0.0.1:$PORT/"
 CHILD_PID=""
 
 cleanup() {
@@ -224,7 +211,7 @@ cleanup() {
 }
 trap cleanup TERM INT EXIT
 
-start_tiddlywiki "$TIDDLYWIKI" "$PORT" "$BASE_PATH"
+start_tiddlywiki "$TIDDLYWIKI" "$PORT"
 CHILD_PID="$!"
 
 if ! wait_for_port "$PORT"; then
