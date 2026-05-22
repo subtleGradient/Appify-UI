@@ -130,12 +130,12 @@
             <tr>
               <td><code>form.html</code></td>
               <td>Required entrypoint</td>
-              <td>The bundle extension says "this is a webform." The filename says "open this." The HTML owns its title, imports, visible structure, print behavior, and any field-level metadata.</td>
+              <td>The bundle extension says "this is a webform." The filename says "open this." The form uses a unique JavaScript-identifier-safe <code>id</code>, matching <code>name</code>, and named controls; no custom <code>data-*</code> attributes are required for the core convention.</td>
             </tr>
             <tr>
               <td><code>data.jsonp</code></td>
               <td>Saved responses</td>
-              <td>Loaded by convention from beside <code>form.html</code>. It should be a generated old-school script include that replays a modern <code>FormData</code>-shaped entry list into matching named controls. This keeps direct <code>file://</code> loading simple, but it makes trust and escaping rules non-negotiable.</td>
+              <td>Included by convention immediately after the closing <code>&lt;/form&gt;</code>. It should be a generated old-school script include that replays a modern <code>FormData</code>-shaped entry list into matching named controls. This keeps direct <code>file://</code> loading simple, but it makes trust and escaping rules non-negotiable.</td>
             </tr>
             <tr>
               <td><code>attachments/</code></td>
@@ -150,7 +150,7 @@
             <tr>
               <td><code>webform.json5</code></td>
               <td>Optional escape hatch</td>
-              <td>Only appears when convention breaks down: signed forms, external schemas, non-default data conventions, import allowlists, native-only policies, or non-default entrypoints.</td>
+              <td>Only appears when convention breaks down: signed forms, external schemas, non-default data conventions, import allowlists, native-only policies, version negotiation, or non-default entrypoints.</td>
             </tr>
           </tbody>
         </table>
@@ -163,14 +163,12 @@
   &lt;head&gt;
     &lt;meta charset="utf-8" /&gt;
     &lt;meta name="viewport" content="width=device-width, initial-scale=1" /&gt;
-    &lt;meta name="webform:version" content="1" /&gt;
     &lt;title&gt;Client Intake&lt;/title&gt;
     &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/subtleGradient/web-native@COMMIT/src/shadcn/themes/neutral.css" /&gt;
     &lt;link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/subtleGradient/web-native@COMMIT/src/shadcn/styles/base-nova.css" /&gt;
-    &lt;script src="./data.jsonp" defer&gt;&lt;/script&gt;
   &lt;/head&gt;
   &lt;body&gt;
-    &lt;form data-webform-id="client-intake"&gt;
+    &lt;form id="clientIntake" name="clientIntake"&gt;
       &lt;label&gt;
         Client name
         &lt;input name="client.name" autocomplete="organization" /&gt;
@@ -181,6 +179,8 @@
         &lt;textarea name="scope.summary"&gt;&lt;/textarea&gt;
       &lt;/label&gt;
     &lt;/form&gt;
+
+    &lt;script src="./data.jsonp"&gt;&lt;/script&gt;
   &lt;/body&gt;
 &lt;/html&gt;</code></pre>
       </section>
@@ -188,66 +188,73 @@
       <section aria-labelledby="webform-data">
         <h2 id="webform-data">Expected <code>data.jsonp</code> Shape</h2>
         <p class="lede">
-          The elegant version is old-school and modern at the same time: use the classic <code>&lt;script src="./data.jsonp" defer&gt;</code> affordance, but store the payload as entries compatible with <code>new FormData(form)</code>. WebFormer can save with <code>Array.from(new FormData(form).entries())</code>; the generated file can replay those entries without requiring any author-written JavaScript in <code>form.html</code>.
+          The elegant version is old-school and modern at the same time: put the classic <code>&lt;script src="./data.jsonp"&gt;</code> immediately after <code>&lt;/form&gt;</code>, refer to the already-parsed form by its global <code>id</code>, and store the payload as entries compatible with <code>new FormData(form)</code>. WebFormer can save with <code>Array.from(new FormData(form).entries())</code>; the generated file can replay those entries without requiring any author-written JavaScript in <code>form.html</code>.
         </p>
-        <pre><code>;(() =&gt; {
-  const entries = [
+        <pre><code>;(function () {
+  var form = clientIntake
+  var entries = [
     ["client.name", "Acme Studio"],
     ["scope.summary", "Create a printable intake that survives plain file opening."],
     ["channels", "email"],
     ["channels", "phone"]
   ]
 
-  const saved = new Map()
-  for (const [name, value] of entries) {
-    if (!saved.has(name)) saved.set(name, [])
-    saved.get(name).push(value)
+  var saved = {}
+  for (var i = 0; i &lt; entries.length; i++) {
+    var name = entries[i][0]
+    var value = entries[i][1]
+    if (!saved[name]) saved[name] = []
+    saved[name].push(value)
   }
 
-  const controlsFor = (form, name) =&gt; {
-    const controls = form.elements.namedItem(name)
+  function has(values, value) {
+    for (var i = 0; i &lt; values.length; i++) {
+      if (values[i] === value) return true
+    }
+
+    return false
+  }
+
+  function controlsFor(form, name) {
+    var controls = form.elements[name]
     if (!controls) return []
-    if (controls instanceof RadioNodeList) return Array.from(controls)
-    return [controls]
+    if (controls.nodeType) return [controls]
+
+    var list = []
+    for (var i = 0; i &lt; controls.length; i++) list.push(controls[i])
+    return list
   }
 
-  const setControl = (control, values) =&gt; {
+  function setControl(control, values) {
     if (control.type === "radio") {
-      control.checked = values.includes(control.value)
+      control.checked = has(values, control.value)
       return
     }
 
     if (control.type === "checkbox") {
-      control.checked = values.includes(control.value || "on")
+      control.checked = has(values, control.value || "on")
       return
     }
 
     if (control.tagName === "SELECT" &amp;&amp; control.multiple) {
-      for (const option of control.options) option.selected = values.includes(option.value)
+      for (var i = 0; i &lt; control.options.length; i++) {
+        var option = control.options[i]
+        option.selected = has(values, option.value)
+      }
+
       return
     }
 
-    control.value = values.at(-1) ?? ""
+    var last = values[values.length - 1]
+    control.value = last == null ? "" : last
   }
 
-  const apply = () =&gt; {
-    for (const form of document.forms) {
-      for (const [name, values] of saved) {
-        for (const control of controlsFor(form, name)) setControl(control, values)
-      }
-
-      form.dataset.webformLoaded = "true"
-      form.dispatchEvent(new CustomEvent("webformload", {
-        bubbles: true,
-        detail: { entries, formData: new FormData(form) }
-      }))
+  for (var key in saved) {
+    if (!Object.prototype.hasOwnProperty.call(saved, key)) continue
+    var controls = controlsFor(form, key)
+    for (var i = 0; i &lt; controls.length; i++) {
+      setControl(controls[i], saved[key])
     }
-  }
-
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", apply, { once: true })
-  } else {
-    apply()
   }
 })()</code></pre>
       </section>
@@ -454,7 +461,7 @@
       <section aria-labelledby="sequence">
         <h2 id="sequence">Likely Build Sequence</h2>
         <ol>
-          <li>Build the smallest <code>.webform</code> fixture that opens directly as <code>form.html</code>, loads <code>data.jsonp</code>, hydrates regular named controls without author-written JavaScript in the HTML, and prints with saved values visible.</li>
+          <li>Build the smallest <code>.webform</code> fixture that opens directly as <code>form.html</code>, places <code>&lt;script src="./data.jsonp"&gt;</code> after <code>&lt;/form&gt;</code>, hydrates regular named controls without author-written JavaScript in the HTML, and prints with saved values visible.</li>
           <li>Prototype <code>WebFormer.app</code> as an AppifyHost app that registers <code>.webform</code>, opens the bundle, saves data, and exports static HTML or PDF.</li>
           <li>Write down the fixed conventions for entrypoint, data hydration, escaping, and optional exports. Add <code>webform.json5</code> only after a real fixture proves HTML conventions cannot carry a needed declaration.</li>
           <li>Create a toy <code>needle-threading.ok</code> bundle with one thing, one aspect, one balance point, several failure modes, one assessment, one future, one goal, and two work orders.</li>
@@ -468,7 +475,7 @@
         <h2 id="uncertainties">Uncertainties And Decisions</h2>
         <ul>
           <li>Whether <code>data.jsonp</code> is acceptable as executable data, or whether WebFormer should also maintain a non-executable <code>data.json</code> canonical copy for safer tooling.</li>
-          <li>Whether the generated hydrator should be copied into every <code>data.jsonp</code> file, loaded from a pinned CDN, or generated as the smallest possible stable prelude plus payload.</li>
+          <li>Whether the generated hydrator should be copied into every <code>data.jsonp</code> file, loaded from a pinned CDN, or generated as the smallest possible stable prelude plus payload. The v0 bias is copied inline so the script works directly from <code>file://</code>.</li>
           <li>How custom elements participate without form-specific JavaScript. Form-associated custom elements or hidden native input mirrors may be the right boundary.</li>
           <li>How file inputs and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
           <li>How to prevent imported CDN components from turning a portable form into a supply-chain gamble. Pinning to commit SHAs seems mandatory for serious forms.</li>
