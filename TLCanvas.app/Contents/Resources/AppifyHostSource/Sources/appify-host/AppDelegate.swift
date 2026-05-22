@@ -3,7 +3,13 @@ import AppifyHostCore
 import UniformTypeIdentifiers
 import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate {
+protocol AppifyHostWebViewReloading: AnyObject {
+    var canReloadWebView: Bool { get }
+
+    func reloadWebView()
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
     private var helpWindowController: AppifyHostHelpWindowController?
@@ -104,6 +110,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         DispatchQueue.main.async { [weak self] in
             self?.showOpenPanel()
         }
+    }
+
+    @objc private func reloadWebViewFromMenu(_ sender: Any?) {
+        currentWebViewReloadingController()?.reloadWebView()
     }
 
     @objc private func showAboutFromMenu(_ sender: Any?) {
@@ -352,6 +362,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: "View")
         viewMenuItem.submenu = viewMenu
+        let reloadItem = viewMenu.addItem(withTitle: "Reload", action: #selector(reloadWebViewFromMenu(_:)), keyEquivalent: "r")
+        reloadItem.target = self
+        viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
 
@@ -380,6 +393,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         } else {
             helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
         }
+    }
+
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(reloadWebViewFromMenu(_:)) {
+            return currentWebViewReloadingController()?.canReloadWebView == true
+        }
+
+        return true
+    }
+
+    private func currentWebViewReloadingController() -> AppifyHostWebViewReloading? {
+        if let controller = NSApp.keyWindow?.windowController as? AppifyHostWebViewReloading {
+            return controller
+        }
+
+        return NSApp.mainWindow?.windowController as? AppifyHostWebViewReloading
     }
 
     @MainActor
@@ -489,5 +518,15 @@ final class AppifyHostHelpWindowController: NSWindowController {
         window?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         webView.load(URLRequest(url: url))
+    }
+}
+
+extension AppifyHostHelpWindowController: AppifyHostWebViewReloading {
+    var canReloadWebView: Bool {
+        true
+    }
+
+    func reloadWebView() {
+        webView.reload()
     }
 }

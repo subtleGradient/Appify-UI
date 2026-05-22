@@ -498,6 +498,16 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
     }
 }
 
+extension HostWindowController: AppifyHostWebViewReloading {
+    var canReloadWebView: Bool {
+        webView != nil
+    }
+
+    func reloadWebView() {
+        webView?.reload()
+    }
+}
+
 private func currentDescendantPIDs(rootPID: pid_t) -> [pid_t] {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: "/bin/ps")
