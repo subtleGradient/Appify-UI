@@ -43,7 +43,7 @@ assert_file_lists_equal() {
 
 expected_root_apps="$(make_temp)"
 actual_root_apps="$(make_temp)"
-printf 'LazyGit.app\nSQLitePeek.app\nTLCanvas.app\n' > "$expected_root_apps"
+printf 'LazyGit.app\nTLCanvas.app\nlitecli.app\ntw.app\n' > "$expected_root_apps"
 (
   cd "$ROOT"
   find . -maxdepth 1 -type d -name '*.app' -print | sed 's#^\./##' | LC_ALL=C sort
@@ -68,8 +68,15 @@ diff -qr \
   -x '.build' \
   -x '.appify-host-source-hash' \
   "$ROOT/source/AppifyHost" \
-  "$ROOT/SQLitePeek.app/Contents/Resources/AppifyHostSource" >/dev/null \
-  || fail "SQLitePeek.app bundled AppifyHostSource does not match source/AppifyHost"
+  "$ROOT/tw.app/Contents/Resources/AppifyHostSource" >/dev/null \
+  || fail "tw.app bundled AppifyHostSource does not match source/AppifyHost"
+
+diff -qr \
+  -x '.build' \
+  -x '.appify-host-source-hash' \
+  "$ROOT/source/AppifyHost" \
+  "$ROOT/litecli.app/Contents/Resources/AppifyHostSource" >/dev/null \
+  || fail "litecli.app bundled AppifyHostSource does not match source/AppifyHost"
 
 [[ -x "$ROOT/LazyGit.app/Contents/Resources/AppServer/main.sh" ]] \
   || fail "LazyGit.app is missing bundled AppServer/main.sh"
@@ -77,10 +84,16 @@ diff -qr \
 [[ -x "$ROOT/TLCanvas.app/Contents/Resources/AppServer/main.sh" ]] \
   || fail "TLCanvas.app is missing bundled AppServer/main.sh"
 
-[[ -x "$ROOT/SQLitePeek.app/Contents/Resources/AppServer/main.sh" ]] \
-  || fail "SQLitePeek.app is missing bundled AppServer/main.sh"
+[[ -x "$ROOT/tw.app/Contents/Resources/AppServer/main.sh" ]] \
+  || fail "tw.app is missing bundled AppServer/main.sh"
 
-for app in LazyGit.app TLCanvas.app SQLitePeek.app; do
+[[ -x "$ROOT/litecli.app/Contents/Resources/AppServer/main.sh" ]] \
+  || fail "litecli.app is missing bundled AppServer/main.sh"
+
+[[ -f "$ROOT/litecli.app/Contents/Resources/AppServer/liteclirc" ]] \
+  || fail "litecli.app is missing bundled AppServer/liteclirc"
+
+for app in LazyGit.app TLCanvas.app litecli.app tw.app; do
   executable="$(plutil -extract CFBundleExecutable raw "$ROOT/$app/Contents/Info.plist")"
   [[ "$executable" == "appify-host" ]] \
     || fail "$app CFBundleExecutable should be appify-host, got $executable"
@@ -99,11 +112,15 @@ done
 [[ -x "$ROOT/TLCanvas.app/Contents/Developer/Scripts/build-app.sh" ]] \
   || fail "TLCanvas.app is missing developer build script"
 
-[[ -x "$ROOT/SQLitePeek.app/Contents/Developer/Scripts/build-app.sh" ]] \
-  || fail "SQLitePeek.app is missing developer build script"
+[[ -x "$ROOT/tw.app/Contents/Developer/Scripts/build-app.sh" ]] \
+  || fail "tw.app is missing developer build script"
+
+[[ -x "$ROOT/litecli.app/Contents/Developer/Scripts/build-app.sh" ]] \
+  || fail "litecli.app is missing developer build script"
 
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/LazyGit.app/Contents/MacOS/main.sh"
 APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/TLCanvas.app/Contents/MacOS/main.sh"
-APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/SQLitePeek.app/Contents/MacOS/main.sh"
+APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/tw.app/Contents/MacOS/main.sh"
+APPIFY_HOST_BOOTSTRAP_ONLY=1 "$ROOT/litecli.app/Contents/MacOS/main.sh"
 
 echo "root app verification ok"

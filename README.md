@@ -17,8 +17,9 @@ The repo is intentionally object-first:
 ```text
 .
 ├── LazyGit.app
-├── SQLitePeek.app
 ├── TLCanvas.app
+├── litecli.app
+├── tw.app
 ├── source/
 │   └── AppifyHost/
 ├── Scripts/
@@ -40,18 +41,22 @@ The rule is simple:
 inside a repo folder; the app starts `ttyd`, runs `lazygit --path` for that repo,
 and shows it in a native WebKit window.
 
-[`SQLitePeek.app`](SQLitePeek.app/) opens `.db`, `.sqlite`, and `.sqlite3` files.
-It starts a local terminal runner and opens the selected database with `tw` from
-the `tabiew` package.
-
 [`TLCanvas.app`](TLCanvas.app/) opens `.tlcanvas` document packages. Its bundled
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
 tests, schema, and lockfile.
 
+[`tw.app`](tw.app/) opens tabular data files supported by Tabiew, including CSV,
+TSV, Parquet, JSON, JSONL, Arrow, FWF, SQLite, and Excel files. It starts
+`ttyd`, runs `tw`, and shows Tabiew in a native WebKit window.
+
+[`litecli.app`](litecli.app/) opens `.db`, `.sqlite`, and `.sqlite3` files. It
+starts `ttyd`, runs `litecli`, and opens the selected SQLite database through a
+read-only SQLite URI.
+
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
 validate that URL, and show it in a native WebKit window. It does not know about
-LazyGit, SQLite, TLCanvas, Bun, `ttyd`, or tldraw.
+LazyGit, Tabiew, LiteCLI, TLCanvas, Bun, `ttyd`, or tldraw.
 
 ## Build
 
@@ -70,12 +75,20 @@ Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
 
-SQLite Peek:
+tw:
 
 ```sh
-cd SQLitePeek.app/Contents/Developer
+cd tw.app/Contents/Developer
 Scripts/build-root-app.sh
-Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.SQLitePeek "SQLite Peek"
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.tw tw
+```
+
+litecli:
+
+```sh
+cd litecli.app/Contents/Developer
+Scripts/build-root-app.sh
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.litecli litecli
 ```
 
 TLCanvas:

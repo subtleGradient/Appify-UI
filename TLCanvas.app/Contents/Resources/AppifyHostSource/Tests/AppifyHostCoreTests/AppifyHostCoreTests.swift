@@ -24,6 +24,7 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
+        XCTAssertNil(config.firstLaunchHelp)
         XCTAssertEqual(config.serverDirectoryURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer")
         XCTAssertEqual(config.serverExecutableURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer/main.sh")
     }
@@ -50,6 +51,38 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.documentClassName, "AppifyHostDocument")
         XCTAssertEqual(config.documentMode, .fileDocument)
         XCTAssertEqual(config.startupTimeoutSeconds, 600)
+    }
+
+    func testLoadsFirstLaunchHelpConfiguration() throws {
+        var plist = sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["FirstLaunchHelp"] = [
+            "URL": "https://example.com/keybindings",
+            "WindowTitle": "Useful Keybindings",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/tw.app")
+        )
+
+        XCTAssertEqual(config.firstLaunchHelp?.url.absoluteString, "https://example.com/keybindings")
+        XCTAssertEqual(config.firstLaunchHelp?.windowTitle, "Useful Keybindings")
+    }
+
+    func testRejectsInvalidFirstLaunchHelpURL() throws {
+        var plist = sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["FirstLaunchHelp"] = [
+            "URL": "file:///tmp/help.html",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/tw.app")
+        ))
     }
 
     func testBuildsGenericServerCommand() throws {
