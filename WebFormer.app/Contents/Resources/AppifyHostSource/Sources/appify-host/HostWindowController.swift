@@ -470,6 +470,36 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
 
+    private func scheduleWebViewResizeNudge(for webView: WKWebView) {
+        for delay in [0.0, 0.1, 0.3, 0.7] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
+                guard let self,
+                      let webView,
+                      self.webView === webView
+                else {
+                    return
+                }
+
+                self.dispatchWebViewResizeEvent(webView)
+            }
+        }
+    }
+
+    private func dispatchWebViewResizeEvent(_ webView: WKWebView) {
+        webView.evaluateJavaScript(
+            """
+            (() => {
+              window.dispatchEvent(new Event("resize"));
+              window.visualViewport?.dispatchEvent(new Event("resize"));
+            })();
+            """
+        ) { [weak self] _, error in
+            if let error {
+                self?.writeLog("WARN: WebView resize event failed: \(String(describing: error))\n")
+            }
+        }
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -495,6 +525,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         window?.makeFirstResponder(webView)
+        scheduleWebViewResizeNudge(for: webView)
     }
 }
 
