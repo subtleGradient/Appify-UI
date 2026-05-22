@@ -129,8 +129,23 @@ POST client-intake.webform
     input value / checked
     textarea text
     option selected
+  preserve unrelated source bytes and author formatting
   reparse and verify visible state round-trips
   write source or return a blocking diagnostic</code></pre>
+      </section>
+
+      <section aria-labelledby="diffs">
+        <h2 id="diffs">Diff-Friendly Saves</h2>
+        <p>
+          WebFormer should behave like a careful structured editor, not a formatter. When a user or agent edits a value, the save path should modify the smallest source span that represents that value and leave unrelated whitespace, attribute order, quote style, indentation, comments, and surrounding markup untouched. Clean git diffs are part of the format's trust model.
+        </p>
+        <ul>
+          <li>Changing a text input should update only that input's <code>value</code> attribute.</li>
+          <li>Changing a <code>textarea</code> should update only its text content.</li>
+          <li>Changing a checkbox, radio, or option should update only the relevant <code>checked</code> or <code>selected</code> state.</li>
+          <li>Normalization is an explicit repair/export action, not the default save behavior.</li>
+          <li>If a minimal patch cannot be proven safe, WebFormer should block with a diagnostic instead of silently reformatting the document.</li>
+        </ul>
       </section>
 
       <section aria-labelledby="errors">
@@ -165,7 +180,7 @@ POST client-intake.webform
           <li>How stable generated field addresses should remain across edits when authors omit ids and names.</li>
           <li>Whether hidden controls are ever allowed as persistent state. V0 bias: no.</li>
           <li>How file inputs and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
-          <li>Whether WebFormer should preserve author formatting exactly or normalize rewritten HTML.</li>
+          <li>How much source-location metadata WebFormer needs to preserve minimal patches across malformed-but-browser-recoverable HTML.</li>
         </ul>
       </section>
     </main>
