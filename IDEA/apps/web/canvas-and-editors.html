@@ -37,6 +37,7 @@
         <strong>Atlas links:</strong>
         <a href="../method-slices.html">method</a> /
         <a href="top-picks.html">web top picks</a> /
+        <a href="sdk-bundle-hosts/index.html">SDK bundle hosts</a> /
         <a href="data-maps-cad.html">data/maps/CAD</a> /
         <a href="../appifyhost-patterns.html">host patterns</a> /
         <a href="../prototype-backlog.html">prototype backlog</a>
@@ -110,6 +111,13 @@
               <td>Node/edge JSON plus assets and schema.</td>
               <td>Strong base for workflow, agent, dependency, knowledge, and simulation documents.</td>
               <td>Needs a real domain; generic node editors get muddy fast.</td>
+            </tr>
+            <tr>
+              <td>SDK bundle host</td>
+              <td><a href="sdk-bundle-hosts/index.html">Cytoscaper, Reter, React Flow Composer, TLCanvas, Dee Three</a></td>
+              <td><code>.cytoscape</code>, <code>.rete</code>, <code>.xyflow</code>, <code>.tlcanvas</code>, and <code>.d3</code> packages as normal web projects plus a small Appify contract.</td>
+              <td>One generic AppifyHost package runner can preserve ecosystem-normal source while the app owns SDK dependencies.</td>
+              <td>Dependency resolution, custom node serialization, and surprise script execution need strict policy.</td>
             </tr>
           </tbody>
         </table>

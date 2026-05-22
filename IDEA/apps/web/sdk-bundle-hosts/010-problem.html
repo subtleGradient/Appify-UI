@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Problem</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">01 / problem</p>
+        <h1>SDKs Are Not Schemas</h1>
+        <p class="lede">
+          JSON Canvas works because the file format is intentionally small and fixed. These SDKs are closer to programmable surfaces: each can render many possible products, so the document boundary has to include code, data, and runtime policy.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="contrast">
+        <h2 id="contrast">The Contrast</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Format</th>
+              <th>What opens</th>
+              <th>What the app must know</th>
+              <th>Failure mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>JSON Canvas</td>
+              <td>A stable JSON graph with nodes, edges, positions, and attachments.</td>
+              <td>The spec.</td>
+              <td>Editor quality can be weak, but the document boundary is clear.</td>
+            </tr>
+            <tr>
+              <td>Cytoscape.js</td>
+              <td>Graph elements, style, layout, app data, and sometimes custom UI code.</td>
+              <td>Graph JSON plus conventions for assets, layout, and custom panels.</td>
+              <td>A generic graph viewer is useful but not the same as the user's app.</td>
+            </tr>
+            <tr>
+              <td>Rete</td>
+              <td>Nodes and connections that may be plain JSON or JS class instances.</td>
+              <td>A serializer and a node registry.</td>
+              <td>Saving arbitrary editor objects can silently lose behavior.</td>
+            </tr>
+            <tr>
+              <td>React Flow</td>
+              <td>Nodes, edges, viewport, custom node renderers, and app-level semantics.</td>
+              <td>React components and a flow JSON convention.</td>
+              <td>The flow renders, but custom nodes have no meaning.</td>
+            </tr>
+            <tr>
+              <td>tldraw/TLCanvas</td>
+              <td>Store snapshots, assets, migrations, session, and custom shapes.</td>
+              <td>The document/session split and shape migration boundaries.</td>
+              <td>IndexedDB becomes the real document by accident.</td>
+            </tr>
+            <tr>
+              <td>D3</td>
+              <td>A visualization program over data, not a D3-native document file.</td>
+              <td>Normal web package entry, source, data paths, and dependency resolution.</td>
+              <td>Inventing a fake universal <code>.d3</code> JSON format collapses the ceiling.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="wrong">
+        <h2 id="wrong">Tempting Wrong Moves</h2>
+        <ul>
+          <li>Define one new universal graph schema for all five. That lowers the ceiling and loses the ecosystem.</li>
+          <li>Ship every package with <code>node_modules</code>. That makes documents huge, platform-shaped, and noisy in git.</li>
+          <li>Auto-run package scripts on open. That makes double-clicking a document feel like executing untrusted software.</li>
+          <li>Use browser storage as the source of truth. That breaks Finder copy, Time Machine, git, rsync, and inspection.</li>
+          <li>Build five bespoke hosts. That duplicates the same package inspection, dependency cache, and save bridge problems.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="right">
+        <h2 id="right">The Better Shape</h2>
+        <ul>
+          <li>Make the package itself normal enough that web developers recognize it: <code>package.json</code>, <code>index.html</code>, <code>src/</code>, <code>data/</code>, <code>public/</code>, and relative assets.</li>
+          <li>Let AppifyHost provide the document shell, safe local server, path environment, window identity, and navigation restrictions it already knows how to provide.</li>
+          <li>Let each app provide an SDK capsule: pinned SDK packages, host-owned adapters, starter templates, and a save bridge.</li>
+          <li>Add <code>appify.json</code> only when the package needs more specificity than ecosystem-normal conventions provide.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="020-jobs.html">Next: jobs to be done</a>
+        <a href="index.html">Back to index</a>
+      </section>
+    </main>
+  </body>
+</html>

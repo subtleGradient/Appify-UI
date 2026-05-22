@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Probes</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">08 / probes</p>
+        <h1>Prototype Probes</h1>
+        <p class="lede">
+          The next implementation should prove the generic runner before any app becomes a product. The falsifier is simple: if normal packages need too much Appify ceremony, the abstraction is not generic enough.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a>
+      </nav>
+
+      <section aria-labelledby="order">
+        <h2 id="order">Probe Order</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Probe</th>
+              <th>What it proves</th>
+              <th>Stop condition</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>Dee Three.app</code> opens a renamed Vite-like D3 package with no package-local <code>node_modules</code>.</td>
+              <td>Normal package entry and host SDK aliasing work.</td>
+              <td>Common D3 examples need Appify-specific rewrites before they render.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><code>Cytoscaper.app</code> opens and saves <code>graph.cyjs</code> inside <code>.cytoscape</code>.</td>
+              <td>Data-first SDK profile works without custom app code.</td>
+              <td>Saved output loses style, layout, or graph data compared with <code>cy.json()</code>.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><code>React Flow Composer.app</code> opens a <code>flow.xyflow.json</code> and a package with one custom node component.</td>
+              <td>Custom renderer ceiling works without abandoning normal package layout.</td>
+              <td>Custom nodes require a bespoke build path per package.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><code>Reter.app</code> opens JSON-valid nodes first, then a registered class-based node.</td>
+              <td>The profile can distinguish safe JSON from serializer-required objects.</td>
+              <td>The host cannot produce clear errors for missing serializers.</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><code>TLCanvas.app</code> migrates current TLCanvas package files toward the shared contract.</td>
+              <td>The generic contract can absorb an existing app without flattening it.</td>
+              <td>Existing TLCanvas semantics become less clear or less inspectable.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="fixtures">
+        <h2 id="fixtures">Fixture Packages</h2>
+        <ul>
+          <li><code>hello-chart.d3</code>: one <code>index.html</code>, one <code>src/main.js</code>, one CSV file.</li>
+          <li><code>small-network.cytoscape</code>: one <code>graph.cyjs</code>, one stylesheet, one layout config.</li>
+          <li><code>two-node-flow.xyflow</code>: built-in nodes only, then a custom node variant.</li>
+          <li><code>json-rete.rete</code>: plain JSON nodes and connections.</li>
+          <li><code>snapshot.tlcanvas</code>: tldraw document/session split plus assets.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="success">
+        <h2 id="success">Pass Bar</h2>
+        <ul>
+          <li>Open within the existing AppifyHost startup timeout or a profile-specific justified timeout.</li>
+          <li>Render useful content before any dependency install prompt.</li>
+          <li>Save a no-op document without diff churn.</li>
+          <li>Delete the cache and reopen from package files.</li>
+          <li>Copy the package to another folder and reopen with the same result.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="backlog">
+        <h2 id="backlog">Implementation Backlog Seed</h2>
+        <ol>
+          <li>Add a shared <code>WebSdkPackageRunner</code> under AppServer resources.</li>
+          <li>Add profile config files for <code>d3</code> and <code>cytoscape</code>.</li>
+          <li>Implement host SDK import aliases and package-relative asset serving.</li>
+          <li>Implement dependency cache detection without install.</li>
+          <li>Implement save bridges for Cytoscape and React Flow before Rete.</li>
+        </ol>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="index.html">Back to index</a>
+        <a href="070-golf.html">Previous: golf</a>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Generic Web SDK Bundles</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">web SDK package apps / 2026-05-22</p>
+        <h1>Generic Web SDK Bundles</h1>
+        <p class="lede">
+          Cytoscape.js, Rete, React Flow, tldraw, and D3 are not fixed document schemas. The common AppifyHost move is to make each opened package a normal web project plus a small document contract, while the app owns the SDK capsule and local runtime.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <nav aria-label="Atlas links">
+        <strong>Atlas links:</strong>
+        <a href="../canvas-and-editors.html">canvas/editors</a> /
+        <a href="../top-picks.html">web top picks</a> /
+        <a href="../../appifyhost-patterns.html">host patterns</a> /
+        <a href="../../golfing.md">app build golf</a> /
+        <a href="../../index.html">atlas index</a>
+      </nav>
+
+      <section aria-labelledby="thesis">
+        <h2 id="thesis">Thesis</h2>
+        <ul>
+          <li>The low floor is: rename a normal small web package to <code>.d3</code>, <code>.cytoscape</code>, <code>.rete</code>, <code>.xyflow</code>, or <code>.tlcanvas</code>, double-click it, and let the matching AppifyHost app open it.</li>
+          <li>The high ceiling is: custom source code, custom nodes, custom data, custom assets, and optional extra dependencies remain possible without making every document carry the whole SDK runtime.</li>
+          <li>The source of truth should stay in the package: code, data, graph JSON, snapshots, assets, and previews. IndexedDB and build output are caches unless the package explicitly says otherwise.</li>
+          <li>The generic unit is an Appify web SDK capsule: one app-bundled SDK/runtime layer, one package inspection layer, one dependency/cache policy, and one save bridge per SDK.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="apps">
+        <h2 id="apps">Candidate App Family</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>App</th>
+              <th>Extension</th>
+              <th>Lowest useful package</th>
+              <th>SDK-specific save bridge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Cytoscaper.app</code></td>
+              <td><code>.cytoscape</code></td>
+              <td>Cytoscape.js JSON, style, layout, and optional app code.</td>
+              <td><code>cy.json()</code> import/export for graph state.</td>
+            </tr>
+            <tr>
+              <td><code>Reter.app</code></td>
+              <td><code>.rete</code></td>
+              <td>JSON-valid nodes and connections, plus a node registry when custom node classes exist.</td>
+              <td>Explicit serializer because Rete nodes can be arbitrary JS objects.</td>
+            </tr>
+            <tr>
+              <td><code>React Flow Composer.app</code></td>
+              <td><code>.xyflow</code></td>
+              <td>React Flow nodes, edges, viewport, and optional custom node components.</td>
+              <td>React Flow instance <code>toObject()</code> or controlled nodes/edges state.</td>
+            </tr>
+            <tr>
+              <td><code>TLCanvas.app</code></td>
+              <td><code>.tlcanvas</code></td>
+              <td>tldraw document snapshot, assets, session, and current TLCanvas package files.</td>
+              <td>tldraw store snapshots split into document and session state.</td>
+            </tr>
+            <tr>
+              <td><code>Dee Three.app</code></td>
+              <td><code>.d3</code></td>
+              <td>Normal D3 web package: <code>package.json</code>, <code>index.html</code>, source, data, assets.</td>
+              <td>No universal D3 data model; the app code is part of the document.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Primary Sources</h2>
+        <ul>
+          <li>O: <a href="https://nodejs.org/api/packages.html">Node.js packages</a>, <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json">npm package.json</a>, <a href="https://vite.dev/guide/">Vite guide</a>.</li>
+          <li>O: <a href="https://d3js.org/getting-started">D3 getting started</a>, <a href="https://js.cytoscape.org/">Cytoscape.js docs</a>, <a href="https://retejs.org/docs/guides/import-export/">Rete import/export</a>.</li>
+          <li>O: <a href="https://reactflow.dev/learn/getting-started/installation-and-requirements">React Flow install</a>, <a href="https://reactflow.dev/examples/interaction/save-and-restore">React Flow save/restore</a>, <a href="https://tldraw.dev/docs/persistence">tldraw persistence</a>.</li>
+          <li>L: <a href="../../../../source/AppifyHost/Sources/AppifyHostCore/AppifyHostCore.swift">AppifyHostCore.swift</a>, <a href="../../../../source/AppifyHost/Sources/appify-host/AppifyHostDocument.swift">AppifyHostDocument.swift</a>, <a href="../../../../source/AppifyHost/Sources/appify-host/HostWindowController.swift">HostWindowController.swift</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

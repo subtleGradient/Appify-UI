@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Dependencies</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">05 / dependencies</p>
+        <h1>Where <code>node_modules</code> Lives</h1>
+        <p class="lede">
+          The package should not carry the SDK runtime by default. The app owns the SDK capsule, the package owns source and lockfiles, and extra dependencies live in a cache unless the package deliberately seals them.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="answer">
+        <h2 id="answer">Recommended Policy</h2>
+        <ul>
+          <li>The app bundle owns <code>d3</code>, <code>cytoscape</code>, <code>rete</code>, <code>@xyflow/react</code>, <code>tldraw</code>, React, build adapters, and the local runner versions it supports.</li>
+          <li>The package owns <code>package.json</code>, lockfiles, source, data, assets, and any explicit compatibility declarations.</li>
+          <li>A per-user or per-app content-addressed cache owns downloaded extra dependencies and transformed output, keyed by package path plus lockfile hash.</li>
+          <li>The opened package is never mutated by dependency install unless the user explicitly chooses a write action.</li>
+          <li>Lifecycle scripts are off by default. If enabled, they become a visible package capability.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="strategies">
+        <h2 id="strategies">Strategies</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Good</th>
+              <th>Bad</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Always bundle <code>node_modules</code> inside every document</td>
+              <td>Offline and self-contained.</td>
+              <td>Huge, noisy, platform-sensitive, stale, and bad in git.</td>
+              <td>Only for sealed/archive mode.</td>
+            </tr>
+            <tr>
+              <td>Only use app-owned SDK dependencies</td>
+              <td>Fast, safe, small, reproducible.</td>
+              <td>Ceiling is too low for real packages with extra libraries.</td>
+              <td>Good default floor, not enough alone.</td>
+            </tr>
+            <tr>
+              <td>App-owned SDK plus lockfile-keyed cache</td>
+              <td>Small documents, normal dependency declarations, reproducible enough.</td>
+              <td>Needs cache management and clear missing-dependency UX.</td>
+              <td>Default living-document mode.</td>
+            </tr>
+            <tr>
+              <td>Auto-install into package on open</td>
+              <td>Feels magical once.</td>
+              <td>Surprise writes, surprise network, surprise scripts, trust break.</td>
+              <td>Do not do this.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="normal">
+        <h2 id="normal">What Is A Normal D3 Package?</h2>
+        <p>
+          For this purpose, a normal D3 package is a small web project, not a published npm library and not a special D3 file format. It has a <code>package.json</code>, an HTML or declared module entry, ESM source that imports <code>d3</code>, and data/assets addressed by relative paths.
+        </p>
+      </section>
+
+      <section aria-labelledby="resolution">
+        <h2 id="resolution">Resolution Order</h2>
+        <ol>
+          <li>Use package-local sealed dependencies if <code>appify.json</code> asks for sealed mode.</li>
+          <li>Resolve known SDK imports from the app-owned SDK capsule.</li>
+          <li>Resolve declared extra dependencies from the lockfile-keyed cache.</li>
+          <li>If extra dependencies are missing, show a dependency resolution page with exact package names and cache target.</li>
+          <li>Never run package lifecycle scripts unless the package capability and user action both allow it.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Source Anchors</h2>
+        <ul>
+          <li>O: Node defines a package as a folder tree described by <code>package.json</code>: <a href="https://nodejs.org/api/packages.html">Node.js packages</a>.</li>
+          <li>O: npm uses <code>package.json</code> for dependencies, scripts, bin entries, metadata, and lifecycle behavior: <a href="https://docs.npmjs.com/cli/v11/configuring-npm/package-json">npm package.json</a>.</li>
+          <li>O: Vite treats <code>index.html</code> as a front-and-center source entry that references module source: <a href="https://vite.dev/guide/">Vite guide</a>.</li>
+          <li>O: D3 is normally installed or imported as a JavaScript package, not opened as a standalone document format: <a href="https://d3js.org/getting-started">D3 getting started</a>.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="060-sdk-profiles.html">Next: SDK profiles</a>
+        <a href="040-package-contract.html">Previous: package contract</a>
+      </section>
+    </main>
+  </body>
+</html>

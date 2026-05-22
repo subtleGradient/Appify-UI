@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Layers</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">03 / layers</p>
+        <h1>Encapsulation Layers</h1>
+        <p class="lede">
+          The elegant generic move is layer discipline. AppifyHost handles document identity and safe local hosting; each SDK app handles its SDK capsule; each opened package owns its source, data, assets, and canonical state.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="stack">
+        <h2 id="stack">Stack</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Owner</th>
+              <th>Responsibilities</th>
+              <th>Must not own</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>macOS document shell</td>
+              <td><code>AppifyHost</code></td>
+              <td>UTI, package open/save, window title, recent documents, startup menus.</td>
+              <td>SDK-specific document semantics.</td>
+            </tr>
+            <tr>
+              <td>Safe local server</td>
+              <td><code>AppifyHost</code></td>
+              <td>Start AppServer, pass <code>APPIFY_HOST_DOCUMENT_PATH</code>, load <code>APPIFY_HOST_OPEN_URL</code>, restrict navigation.</td>
+              <td>User package dependency policy.</td>
+            </tr>
+            <tr>
+              <td>SDK capsule</td>
+              <td>Each app bundle</td>
+              <td>Pinned SDK packages, adapter shell, starter templates, import aliases, save bridge.</td>
+              <td>Per-document source of truth.</td>
+            </tr>
+            <tr>
+              <td>Document package</td>
+              <td>User</td>
+              <td><code>package.json</code>, <code>appify.json</code>, source, graph JSON, snapshots, data, assets, previews.</td>
+              <td>Host runtime internals and generated cache.</td>
+            </tr>
+            <tr>
+              <td>Dependency cache</td>
+              <td>App or user cache directory</td>
+              <td>Extra dependencies keyed by lockfile, generated bundles, transforms.</td>
+              <td>Canonical document data.</td>
+            </tr>
+            <tr>
+              <td>Browser storage</td>
+              <td>WebView cache</td>
+              <td>Transient UI session, performance cache, optional local recovery.</td>
+              <td>The only durable document copy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="host-contract">
+        <h2 id="host-contract">Current AppifyHost Fit</h2>
+        <ul>
+          <li><code>contentPackage</code> already makes a package folder the document and gives the AppServer the package as its working directory.</li>
+          <li><code>APPIFY_HOST_DOCUMENT_PATH</code> and <code>APPIFY_HOST_WORKING_DIRECTORY</code> already give the web runtime stable package paths.</li>
+          <li><code>APPIFY_HOST_OPEN_URL</code> already lets the AppServer choose a safe loopback URL or package-local file URL.</li>
+          <li>Navigation restriction already keeps WebView browsing inside the ready URL scope, document package, or app bundle.</li>
+          <li>The missing shared layer is an SDK package runner: inspect package, resolve entry, resolve dependencies, expose a save bridge, then serve.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="runner">
+        <h2 id="runner">Generic Runner Shape</h2>
+        <ol>
+          <li>Resolve the opened package and detect SDK kind from extension or <code>appify.json</code>.</li>
+          <li>If the package is empty, scaffold the SDK template.</li>
+          <li>If no manifest exists, infer entry from <code>index.html</code>, <code>src/main.*</code>, or SDK-specific default files.</li>
+          <li>Create an ephemeral runtime overlay with host SDK aliases and package-relative asset mounts.</li>
+          <li>Serve a host shell that imports the package entry and injects an <code>appifyDocument</code> bridge.</li>
+          <li>On save, write SDK-specific canonical files in the package and update preview metadata.</li>
+        </ol>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="040-package-contract.html">Next: package contract</a>
+        <a href="020-jobs.html">Previous: jobs</a>
+      </section>
+    </main>
+  </body>
+</html>
