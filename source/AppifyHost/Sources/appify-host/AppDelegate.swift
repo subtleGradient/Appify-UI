@@ -112,6 +112,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
     }
 
+    @MainActor
     @objc private func reloadWebViewFromMenu(_ sender: Any?) {
         currentWebViewReloadingController()?.reloadWebView()
     }
@@ -395,6 +396,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
     }
 
+    @MainActor
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(reloadWebViewFromMenu(_:)) {
             return currentWebViewReloadingController()?.canReloadWebView == true
@@ -403,6 +405,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         return true
     }
 
+    @MainActor
     private func currentWebViewReloadingController() -> AppifyHostWebViewReloading? {
         if let controller = NSApp.keyWindow?.windowController as? AppifyHostWebViewReloading {
             return controller
