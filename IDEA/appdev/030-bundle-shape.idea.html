@@ -47,7 +47,7 @@
         <h2 id="tree">Proposed First Tree</h2>
         <pre><code>IDEA/appdev/
   appify-ui.appdev/
-    appdev.json
+    appdev.json5
     README.md
     notes/
       intent.md
@@ -77,11 +77,11 @@
             scripts/
             templates/
             fixtures/
-            appify-app.json</code></pre>
+            appify-app.json5</code></pre>
       </section>
 
       <section aria-labelledby="manifest">
-        <h2 id="manifest">Minimal <code>appdev.json</code></h2>
+        <h2 id="manifest">Minimal <code>appdev.json5</code></h2>
         <pre><code>{
   "kind": "appify.appdev",
   "schemaVersion": 1,
@@ -205,7 +205,7 @@
         <h2 id="experiment">First Prototype Experiment</h2>
         <ol>
           <li>Create <code>experiments/0001-host-boots-own-app/</code>.</li>
-          <li>Read <code>Appify UI 26.app/Contents/Resources/Developer/appify-app.json</code>.</li>
+          <li>Read <code>Appify UI 26.app/Contents/Resources/Developer/appify-app.json5</code>.</li>
           <li>Validate only <code>kind</code>, <code>schemaVersion</code>, <code>name</code>, <code>entry</code>, and <code>host.selfHosted</code>.</li>
           <li>Render a host shell showing the current app identity.</li>
           <li>Prove that opening a foreign <code>.appdev</code> inspects manifests and files without running a nested executable.</li>
