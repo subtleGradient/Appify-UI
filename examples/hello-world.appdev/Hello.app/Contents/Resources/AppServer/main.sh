@@ -2,10 +2,10 @@
 set -euo pipefail
 
 DOCUMENT_PATH="${APPIFY_HOST_DOCUMENT_PATH:?APPIFY_HOST_DOCUMENT_PATH is required}"
-INDEX_HTML="$DOCUMENT_PATH/index.html"
+PREVIEW_HTML="$DOCUMENT_PATH/QuickLook/Preview.html"
 
-if [[ ! -f "$INDEX_HTML" ]]; then
-  printf 'Hello.app expected %s\n' "$INDEX_HTML" >&2
+if [[ ! -f "$PREVIEW_HTML" ]]; then
+  printf 'Hello.app expected %s\n' "$PREVIEW_HTML" >&2
   exit 1
 fi
 
@@ -31,7 +31,7 @@ url_encode_path() {
   printf '%s\n' "$output"
 }
 
-printf 'APPIFY_HOST_OPEN_URL=file://%s\n' "$(url_encode_path "$INDEX_HTML")"
+printf 'APPIFY_HOST_OPEN_URL=file://%s\n' "$(url_encode_path "$PREVIEW_HTML")"
 
 while true; do
   sleep 3600 &

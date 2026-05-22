@@ -30,7 +30,7 @@
         <p class="tag">smallest concrete probe / 2026-05-22</p>
         <h1>Hello World Appdev Probe</h1>
         <p class="lede">
-          Before creating <code>appify-ui.appdev/Appify UI 26.app</code>, prove the smallest useful shape: an <code>.appdev</code> bundle that contains a tiny AppifyHost app and a sibling document package that opens one HTML file.
+          Before creating <code>appify-ui.appdev/Appify UI 26.app</code>, prove the smallest useful shape: an <code>.appdev</code> bundle that contains a tiny AppifyHost app and a sibling document package that opens one Quick Look HTML preview file.
         </p>
       </header>
 
@@ -68,9 +68,9 @@
               <td>Handles <code>.hi</code> bundles. No Bun, no local HTTP server, no templates, no extra controls.</td>
             </tr>
             <tr>
-              <td><code>examples/hello-world.hi/index.html</code></td>
+              <td><code>examples/hello-world.hi/QuickLook/Preview.html</code></td>
               <td>Smallest content package document</td>
-              <td>When the <code>.hi</code> bundle is double-clicked, <code>Hello.app</code> opens this HTML file in a document window.</td>
+              <td>When the <code>.hi</code> bundle is double-clicked, <code>Hello.app</code> opens this HTML file in a document window, and Finder Quick Look previews the same file.</td>
             </tr>
             <tr>
               <td><code>examples/hello-world.appdev</code></td>
@@ -86,7 +86,7 @@
         <ol>
           <li><code>Hello.app</code> declares <code>.hi</code> as a package document type.</li>
           <li>AppifyHost opens the <code>.hi</code> package as <code>contentPackage</code>.</li>
-          <li>The app-local script prints <code>APPIFY_HOST_OPEN_URL=file://{documentPath}/index.html</code>.</li>
+          <li>The app-local script prints <code>APPIFY_HOST_OPEN_URL=file://{documentPath}/QuickLook/Preview.html</code>.</li>
           <li>The WebView loads the file because AppifyHost permits local file URLs under the opened document package.</li>
           <li>The script stays alive so the AppifyHost document window does not immediately treat the app-local process as exited.</li>
         </ol>
