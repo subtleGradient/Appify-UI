@@ -59,7 +59,7 @@ source_hash() {
 
   (
     cd "$source_dir"
-    find . -type f \( -name "Package.swift" -o -name "*.swift" \) -print \
+    find . -path "./.build" -prune -o -type f \( -name "Package.swift" -o -name "*.swift" \) -print \
       | LC_ALL=C sort \
       | while IFS= read -r source_file; do
           printf '%s\n' "$source_file"

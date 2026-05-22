@@ -174,6 +174,35 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertThrowsError(try PackageDocument.workingDirectory(forPackage: symlink, configuration: config))
     }
 
+    func testFileDocumentAliasResolvesToTarget() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),
+            bundleURL: URL(fileURLWithPath: "/Applications/SQLite Peek.app")
+        )
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        let targetFolder = rootURL.appendingPathComponent("iCloud Target", isDirectory: true)
+        let aliasFolder = rootURL.appendingPathComponent("Alias Folder", isDirectory: true)
+        try FileManager.default.createDirectory(at: targetFolder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: aliasFolder, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        let databaseFile = targetFolder.appendingPathComponent("magpdf.sqlite")
+        FileManager.default.createFile(atPath: databaseFile.path, contents: Data())
+        let aliasFile = aliasFolder.appendingPathComponent("magpdf.sqlite")
+        let bookmarkData = try databaseFile.bookmarkData(
+            options: .suitableForBookmarkFile,
+            includingResourceValuesForKeys: nil,
+            relativeTo: nil
+        )
+        try URL.writeBookmarkData(bookmarkData, to: aliasFile)
+
+        XCTAssertEqual(try PackageDocument.documentURL(forPackage: aliasFile, configuration: config).path, databaseFile.path)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: aliasFile, configuration: config).path, targetFolder.path)
+    }
+
     func testExtractsAndValidatesReadyURLs() throws {
         let extracted = try XCTUnwrap(AppifyHostOpenURL.extract(from: "APPIFY_HOST_OPEN_URL=http://127.0.0.1:8787/app/"))
         let documentURL = URL(fileURLWithPath: "/tmp/Canvas.sketchdoc")

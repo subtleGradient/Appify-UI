@@ -2,7 +2,7 @@
 set -euo pipefail
 
 APP_NAME="SQLite Peek"
-EXECUTABLE_NAME="main.sh"
+EXECUTABLE_NAME="appify-host"
 BUNDLE_IDENTIFIER="com.subtlegradient.SQLitePeek"
 VERSION="0.1.0"
 
@@ -37,7 +37,7 @@ source_hash() {
   local source_dir="$1"
   (
     cd "$source_dir"
-    find . -type f \( -name "Package.swift" -o -name "*.swift" \) -print \
+    find . -path "./.build" -prune -o -type f \( -name "Package.swift" -o -name "*.swift" \) -print \
       | LC_ALL=C sort \
       | while IFS= read -r source_file; do
           printf '%s\n' "$source_file"

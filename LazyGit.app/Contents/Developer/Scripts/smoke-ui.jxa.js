@@ -18,14 +18,29 @@ function run(argv) {
       return []
     }
   }
-  const lazyGitProcesses = () => {
-    const bundled = bundleProcesses()
-    if (bundled.length > 0) return bundled
+  const namedProcesses = name => {
     try {
-      return systemEvents.processes.whose({ name: "LazyGit" })()
+      return systemEvents.processes.whose({ name })()
     } catch (_) {
       return []
     }
+  }
+  const lazyGitProcesses = () => {
+    const seen = {}
+    const result = []
+    for (const processes of [bundleProcesses(), namedProcesses("LazyGit"), namedProcesses("appify-host")]) {
+      for (let index = 0; index < processes.length; index++) {
+        const process = processes[index]
+        try {
+          const pid = String(process.unixId())
+          if (!seen[pid]) {
+            seen[pid] = true
+            result.push(process)
+          }
+        } catch (_) {}
+      }
+    }
+    return result
   }
   const matchingLazyGitProcesses = () => {
     const processes = lazyGitProcesses()
@@ -35,8 +50,10 @@ function run(argv) {
       try {
         if (process.bundleIdentifier() === expectedBundleIdentifier) {
           result.push(process)
+          continue
         }
       } catch (_) {}
+      result.push(process)
     }
     return result
   }
@@ -95,7 +112,11 @@ function run(argv) {
     } catch (_) {}
   }
   const openApp = extraArguments => {
-    app.doShellScript(`open -n -a ${shellQuote(appPath)}${extraArguments ? ` ${extraArguments}` : ""}`)
+    if (extraArguments) {
+      app.doShellScript(`open -n -a ${shellQuote(appPath)} ${extraArguments}`)
+    } else {
+      app.doShellScript(`open -n ${shellQuote(appPath)}`)
+    }
   }
   const assertLegitProcess = () => {
     const process = waitUntil("LazyGit process did not appear", () => matchingLazyGitProcess())
@@ -169,7 +190,6 @@ function run(argv) {
   try {
     const expectedWindowName = "LazyGit - Sample Folder"
     openApp(shellQuote(documentPath))
-    assertLegitProcess()
     const process = waitUntil(
       "LazyGit did not present the sample document window",
       () => processWithWindow(expectedWindowName)

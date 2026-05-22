@@ -60,7 +60,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
     }
 
     func showAndStart(documentURL: URL) {
-        activeDocumentURL = documentURL.standardizedFileURL
+        activeDocumentURL = resolvedDocumentURL(documentURL)
         updateWindowDocumentIdentity()
         showWindow(nil)
         window?.center()
@@ -77,10 +77,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
     func documentURLDidChange() {
         updateWindowDocumentIdentity()
 
-        guard let nextURL = hostDocument?.activeDocumentURL?.standardizedFileURL,
-              activeDocumentURL != nil,
-              activeDocumentURL != nextURL
+        guard let nextDocumentURL = hostDocument?.activeDocumentURL,
+              activeDocumentURL != nil
         else {
+            return
+        }
+
+        let nextURL = resolvedDocumentURL(nextDocumentURL)
+        guard activeDocumentURL != nextURL else {
             return
         }
 
@@ -148,10 +152,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
 
     private func startServer() {
         do {
-            guard let documentURL = activeDocumentURL else {
+            guard let requestedDocumentURL = activeDocumentURL else {
                 throw AppifyHostError.invalidInfoPlist("The document does not have a file URL.")
             }
 
+            let documentURL = try PackageDocument.documentURL(forPackage: requestedDocumentURL, configuration: configuration)
             let workingDirectory = try PackageDocument.workingDirectory(forPackage: documentURL, configuration: configuration)
             let templateValues = TemplateValues(
                 bundleURL: configuration.bundleURL,
@@ -217,6 +222,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
             showError(title: "Could Not Open \(configuration.appName)", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
         }
+    }
+
+    private func resolvedDocumentURL(_ documentURL: URL) -> URL {
+        (try? PackageDocument.resolvedURL(forPackage: documentURL)) ?? documentURL.standardizedFileURL
     }
 
     private func serverEnvironment(templateValues: TemplateValues) -> [String: String] {

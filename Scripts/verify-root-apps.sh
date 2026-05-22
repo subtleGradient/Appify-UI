@@ -80,6 +80,16 @@ diff -qr \
 [[ -x "$ROOT/SQLitePeek.app/Contents/Resources/AppServer/main.sh" ]] \
   || fail "SQLitePeek.app is missing bundled AppServer/main.sh"
 
+for app in LazyGit.app TLCanvas.app SQLitePeek.app; do
+  executable="$(plutil -extract CFBundleExecutable raw "$ROOT/$app/Contents/Info.plist")"
+  [[ "$executable" == "appify-host" ]] \
+    || fail "$app CFBundleExecutable should be appify-host, got $executable"
+  [[ -x "$ROOT/$app/Contents/MacOS/appify-host" ]] \
+    || fail "$app is missing executable Contents/MacOS/appify-host"
+  [[ -x "$ROOT/$app/Contents/MacOS/main.sh" ]] \
+    || fail "$app is missing bootstrap Contents/MacOS/main.sh"
+done
+
 [[ -f "$ROOT/TLCanvas.app/Contents/Resources/Runner/package.json" ]] \
   || fail "TLCanvas.app is missing bundled Runner/package.json"
 

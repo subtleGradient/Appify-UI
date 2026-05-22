@@ -16,8 +16,32 @@ function run(argv) {
       return []
     }
   }
+  const namedProcesses = name => {
+    try {
+      return systemEvents.processes.whose({ name })()
+    } catch (_) {
+      return []
+    }
+  }
+  const candidateProcesses = () => {
+    const seen = {}
+    const result = []
+    for (const processes of [bundleProcesses(), namedProcesses("TLCanvas"), namedProcesses("appify-host")]) {
+      for (let index = 0; index < processes.length; index++) {
+        const process = processes[index]
+        try {
+          const pid = String(process.unixId())
+          if (!seen[pid]) {
+            seen[pid] = true
+            result.push(process)
+          }
+        } catch (_) {}
+      }
+    }
+    return result
+  }
   const matchingProcess = () => {
-    const processes = bundleProcesses()
+    const processes = candidateProcesses()
     for (let index = 0; index < processes.length; index++) {
       const process = processes[index]
       try {
@@ -69,7 +93,7 @@ function run(argv) {
   quitApp()
 
   try {
-    app.doShellScript(`open -n -a ${shellQuote(appPath)}`)
+    app.doShellScript(`open -n ${shellQuote(appPath)}`)
     waitUntil("TLCanvas process did not appear", () => matchingProcess())
     try {
       matchingProcess().frontmost = true

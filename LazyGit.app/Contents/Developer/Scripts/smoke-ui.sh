@@ -51,34 +51,22 @@ fi
 status=0
 "$ROOT/Scripts/smoke-ui.jxa.js" "$APP" "$EXPECTED_BUNDLE_IDENTIFIER" "$DOCUMENT" || status=$?
 
-declare -a new_logs=()
 if [[ -d "$LOG_DIR" ]]; then
   while IFS= read -r log_path; do
-    new_logs+=("$log_path")
+    echo "== LazyGit.app log: $log_path =="
+    sed -n "1,220p" "$log_path"
+    if grep -Eq "process exited with code [1-9][0-9]*|not a valid git repository" "$log_path"; then
+      status=1
+    fi
   done < <(find "$LOG_DIR" -type f -name "*.log" -newer "$STAMP_FILE" -print | sort)
 fi
 
-for log_path in "${new_logs[@]}"; do
-  echo "== LazyGit.app log: $log_path =="
-  sed -n "1,220p" "$log_path"
-  if grep -Eq "process exited with code [1-9][0-9]*|not a valid git repository" "$log_path"; then
-    status=1
-  fi
-done
-
-declare -a new_crash_reports=()
 if [[ -d "$DIAGNOSTIC_REPORT_DIR" ]]; then
   while IFS= read -r report_path; do
-    new_crash_reports+=("$report_path")
-  done < <(find "$DIAGNOSTIC_REPORT_DIR" -type f -name "LazyGit-*.ips" -newer "$STAMP_FILE" -print | sort)
-fi
-
-if [[ ${#new_crash_reports[@]} -gt 0 ]]; then
-  status=1
-  for report_path in "${new_crash_reports[@]}"; do
+    status=1
     echo "== LazyGit.app crash report: $report_path =="
     sed -n "1,180p" "$report_path"
-  done
+  done < <(find "$DIAGNOSTIC_REPORT_DIR" -type f -name "LazyGit-*.ips" -newer "$STAMP_FILE" -print | sort)
 fi
 
 exit "$status"
