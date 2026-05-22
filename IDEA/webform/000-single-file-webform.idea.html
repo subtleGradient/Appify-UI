@@ -64,7 +64,7 @@
             </tr>
             <tr>
               <td>Durable state</td>
-              <td>Saved answers live in native HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, and <code>textarea</code> text.</td>
+              <td>Saved answers live in native HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, <code>textarea</code> text, and vetted <code>contenteditable</code> HTML.</td>
             </tr>
             <tr>
               <td>Names and ids</td>
@@ -107,6 +107,11 @@
           Scope
           &lt;textarea&gt;Create a printable intake that survives plain file opening.&lt;/textarea&gt;
         &lt;/label&gt;
+
+        &lt;section contenteditable="true"&gt;
+          &lt;h2&gt;Rich Notes&lt;/h2&gt;
+          &lt;p&gt;This editable area can hold structured WYSIWYG notes.&lt;/p&gt;
+        &lt;/section&gt;
       &lt;/fieldset&gt;
     &lt;/form&gt;
   &lt;/body&gt;
@@ -128,10 +133,50 @@ POST client-intake.webform
   rewrite source control state:
     input value / checked
     textarea text
+    contenteditable inner HTML
     option selected
+    drop results as visible HTML, native control state, or explicit attachments
   preserve unrelated source bytes and author formatting
   reparse and verify visible state round-trips
   write source or return a blocking diagnostic</code></pre>
+      </section>
+
+      <section aria-labelledby="native-editing">
+        <h2 id="native-editing">Web-Native Editing</h2>
+        <p>
+          WebFormer should support native browser editing affordances when they keep the source file inspectable. The important rule is not "no rich UI"; the rule is that the rich UI must resolve back to visible HTML that another human or agent can read without WebFormer.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Affordance</th>
+              <th>Native Surface</th>
+              <th>Save Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Rich text</td>
+              <td><code>contenteditable</code>, selection, Input Events</td>
+              <td>Save a sanitized, allowed subset of HTML inside the editable element. Never hide a parallel rich-text document model.</td>
+            </tr>
+            <tr>
+              <td>Paste</td>
+              <td>Clipboard/DataTransfer payloads surfaced through input and paste events</td>
+              <td>Prefer semantic HTML. If pasted data cannot be represented visibly and safely, block or ask instead of dropping data.</td>
+            </tr>
+            <tr>
+              <td>Drag reorder</td>
+              <td>HTML Drag and Drop events plus <code>DataTransfer</code></td>
+              <td>Persist the reordered DOM source with minimal patches and round-trip verification.</td>
+            </tr>
+            <tr>
+              <td>File drop</td>
+              <td>HTML Drag and Drop file items, file inputs</td>
+              <td>Copy files to an explicit attachment/export location or embed an explicit visible link/figure. Never create invisible attachment state.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
       <section aria-labelledby="diffs">
@@ -142,7 +187,9 @@ POST client-intake.webform
         <ul>
           <li>Changing a text input should update only that input's <code>value</code> attribute.</li>
           <li>Changing a <code>textarea</code> should update only its text content.</li>
+          <li>Changing a <code>contenteditable</code> region should update only that region's vetted inner HTML.</li>
           <li>Changing a checkbox, radio, or option should update only the relevant <code>checked</code> or <code>selected</code> state.</li>
+          <li>Drag-and-drop reorder operations should move the smallest stable element range rather than reserializing the whole document.</li>
           <li>Normalization is an explicit repair/export action, not the default save behavior.</li>
           <li>If a minimal patch cannot be proven safe, WebFormer should block with a diagnostic instead of silently reformatting the document.</li>
         </ul>
@@ -159,6 +206,8 @@ POST client-intake.webform
           <li>Multiple forms: allowed, but WebFormer treats each as a separate decision surface.</li>
           <li>Native <code>form</code> attribute associations: supported only when unambiguous.</li>
           <li>Custom elements: supported when they mirror to native controls or are form-associated custom elements with inspectable values.</li>
+          <li>Rich text paste/drop includes disallowed markup or hidden payloads: hard diagnostic with a visible cleanup choice.</li>
+          <li>Dropped file cannot be copied, linked, embedded, or exported visibly: hard diagnostic.</li>
           <li>Round-trip mismatch after rewrite: hard error with before/after diagnostics.</li>
         </ul>
       </section>
@@ -171,6 +220,7 @@ POST client-intake.webform
           <li>Mandatory manifests: premature configuration surface.</li>
           <li>Embedded app code in every form: turns a document into a tiny app project.</li>
           <li>Required field names: burdens authors before the name is useful.</li>
+          <li>Opaque rich-text blobs: useful editing UI, bad agent artifact.</li>
         </ul>
       </section>
 
@@ -179,7 +229,8 @@ POST client-intake.webform
         <ul>
           <li>How stable generated field addresses should remain across edits when authors omit ids and names.</li>
           <li>Whether hidden controls are ever allowed as persistent state. V0 bias: no.</li>
-          <li>How file inputs and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
+          <li>What exact HTML subset is allowed for <code>contenteditable</code> saves.</li>
+          <li>How file inputs, dropped files, and attachments round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
           <li>How much source-location metadata WebFormer needs to preserve minimal patches across malformed-but-browser-recoverable HTML.</li>
         </ul>
       </section>
