@@ -1,0 +1,50 @@
+{
+  "nodes": [
+    {
+      "id": "json-canvas",
+      "type": "text",
+      "text": "# JSON Canvas\n\nA local .canvas file opened by JSONCanvas.app",
+      "x": -90,
+      "y": -53,
+      "width": 360,
+      "height": 180,
+      "color": "5"
+    },
+    {
+      "id": "format",
+      "type": "link",
+      "url": "https://jsoncanvas.org/spec/1.0",
+      "x": 460,
+      "y": 0,
+      "width": 320,
+      "height": 140,
+      "color": "4"
+    },
+    {
+      "id": "notes",
+      "type": "text",
+      "text": "Edit nodes, move them around, and save the file as plain JSON.",
+      "x": 463,
+      "y": 245,
+      "width": 320,
+      "height": 140,
+      "color": "3"
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-json-canvas-format",
+      "fromNode": "json-canvas",
+      "toNode": "format",
+      "fromEnd": "none",
+      "toEnd": "arrow"
+    },
+    {
+      "id": "edge-json-canvas-notes",
+      "fromNode": "json-canvas",
+      "toNode": "notes",
+      "fromEnd": "none",
+      "toEnd": "arrow"
+    }
+  ]
+}
