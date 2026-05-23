@@ -319,13 +319,40 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
     @MainActor
     private func openDocument(at url: URL) {
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { [weak self] document, _, error in
-            if let error {
-                self?.showAlert(title: "Could Not Open Document", message: String(describing: error))
+        guard let configuration else {
+            showAlert(title: "Could Not Open Document", message: "The app configuration is not loaded.")
+            return
+        }
+
+        do {
+            let documentURL = try PackageDocument.documentURL(forPackage: url, configuration: configuration)
+            if let existingDocument = existingOpenDocument(at: documentURL) {
+                existingDocument.showWindows()
+                existingDocument.windowControllers.forEach { $0.window?.makeKeyAndOrderFront(nil) }
                 return
             }
 
-            document?.showWindows()
+            let document = AppifyHostDocument()
+            try document.read(from: documentURL, ofType: configuration.documentKindEnvironmentValue)
+            document.fileType = configuration.documentKindEnvironmentValue
+            document.fileURL = documentURL
+            if let modificationDate = try? documentURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate {
+                document.fileModificationDate = modificationDate
+            }
+
+            NSDocumentController.shared.addDocument(document)
+            document.makeWindowControllers()
+            document.showWindows()
+        } catch {
+            showAlert(title: "Could Not Open Document", message: String(describing: error))
+        }
+    }
+
+    @MainActor
+    private func existingOpenDocument(at documentURL: URL) -> AppifyHostDocument? {
+        let standardizedURL = documentURL.standardizedFileURL
+        return NSDocumentController.shared.documents.compactMap { $0 as? AppifyHostDocument }.first { document in
+            document.activeDocumentURL == standardizedURL
         }
     }
 
