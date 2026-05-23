@@ -37,6 +37,7 @@
         <strong>Atlas links:</strong>
         <a href="method-slices.html">method</a> /
         <a href="appifyhost-patterns.html">host patterns</a> /
+        <a href="chat-and-memory.html">chat and memory</a> /
         <a href="tui/top-picks.html">TUI top picks</a> /
         <a href="web/top-picks.html">web top picks</a> /
         <a href="index.html">index</a>
@@ -155,6 +156,47 @@
         <p>
           Build <code>LogScope.app</code> first if the goal is to prove "non-obvious TUI document app" value with minimal risk. It should be a <code>fileDocument</code> for <code>.log</code> plus a <code>contentPackage</code> design sketch for <code>.logbundle</code>, using lnav in read-only mode through the same ttyd pattern as <code>tw.app</code> and <code>litecli.app</code>.
         </p>
+      </section>
+
+      <section aria-labelledby="chat-memory">
+        <h2 id="chat-memory">AI Chat and Memory Lane</h2>
+        <p class="lede">
+          Separate from the generic app-wrapper backlog, the strongest local AI workflow starts with <code>ChatDock.app</code> for file-based <code>.chat</code> folders, then <code>ChatArchive.app</code> for the sharded SQLite archive, then a project/topic package such as <code>.chatpack</code> or <code>.memory</code>.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Prototype</th>
+              <th>Document shape</th>
+              <th>First behavior</th>
+              <th>Stop condition</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>ChatDock.app</code></td>
+              <td><code>.chat</code> folder package</td>
+              <td>Render, search, collapse thoughts, inspect usage/parts, and save Markdown turn edits.</td>
+              <td>Do not add archive writes or LLM calls in the first pass.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><code>ChatArchive.app</code></td>
+              <td><code>.chat/db</code> archive root</td>
+              <td>Read-only catalog search, shard/source filters, conversation detail, and export to file-based <code>.chat</code>.</td>
+              <td>Keep SQLite read-only until backup/export behavior is explicit.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><code>ProjectMemory.app</code></td>
+              <td><code>.chatpack</code> or <code>.memory</code> content package</td>
+              <td>Group selected chats, notes, prompts, assets, decisions, and generated context by project/topic.</td>
+              <td>Do not invent a complex schema before the first package can round-trip through plain files.</td>
+            </tr>
+          </tbody>
+        </table>
       </section>
     </main>
   </body>

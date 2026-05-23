@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>AI Chat and Memory Apps</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      pre { overflow: auto; margin: 0.75rem 0; padding: 0.75rem; border-radius: 0.5rem; background: color-mix(in oklch, CanvasText 7%, transparent); }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">captured 2026-05-23 / chat bundles / local AI memory</p>
+        <h1>AI Chat and Memory Apps</h1>
+        <p class="lede">
+          Appify UI is already good at turning local artifacts into small native document apps. The next interesting lane is AI work memory: file-based <code>.chat</code> bundles, sharded SQLite conversation archives, and project/topic packages that keep chats, notes, prompts, assets, and generated context together.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="index.html">index</a> /
+        <a href="method-slices.html">method</a> /
+        <a href="appifyhost-patterns.html">host patterns</a> /
+        <a href="prototype-backlog.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="observed">
+        <h2 id="observed">Observed Local Shapes</h2>
+        <div class="grid">
+          <section aria-labelledby="file-chat">
+            <h3 id="file-chat">Readable <code>.chat</code> Folders</h3>
+            <p>
+              The current file-based chats are plain directory packages with numbered Markdown turns such as <code>001-user.md</code>, <code>002-model.md</code>, optional <code>*-thought.md</code>, model parts, and usage sidecars. They are excellent project artifacts because Git, editors, grep, and Codex can all understand them.
+            </p>
+          </section>
+          <section aria-labelledby="db-chat">
+            <h3 id="db-chat">Queryable <code>.chat/db</code> Archives</h3>
+            <p>
+              The SQLite archive shape has a <code>catalog.db</code>, yearly conversation shards, actors, events, parts, assets, import batches, and source metadata. It is the right home for thousands of imported conversations, but it wants a focused browser instead of a terminal query loop.
+            </p>
+          </section>
+          <section aria-labelledby="project-memory">
+            <h3 id="project-memory">Project Memory Packages</h3>
+            <p>
+              The useful human object is often bigger than one conversation: a project or topic bundle containing selected chats, notes, prompts, generated outputs, assets, maps, and indexes. That object should remain a normal Finder package.
+            </p>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="slices">
+        <h2 id="slices">Hyperslice Map</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Razor</th>
+              <th>Half A</th>
+              <th>Half B</th>
+              <th>Design consequence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Artifact vs archive</td>
+              <td>Readable project package</td>
+              <td>Queryable long-term store</td>
+              <td>Do not force one format to win. Build bridges: archive search can export curated <code>.chat</code> or project packages.</td>
+            </tr>
+            <tr>
+              <td>Viewer vs workbench</td>
+              <td>Open and inspect safely</td>
+              <td>Reshape, annotate, export, rerun</td>
+              <td>First app should be viewer-first with explicit save/export operations. Later apps can own heavier mutation.</td>
+            </tr>
+            <tr>
+              <td>Conversation vs memory</td>
+              <td>One transcript</td>
+              <td>Project/topic context object</td>
+              <td>Individual chat viewing is necessary, but the higher-leverage app is a bundle that organizes many chats plus notes.</td>
+            </tr>
+            <tr>
+              <td>Human reading vs agent fuel</td>
+              <td>Pleasant transcript UI</td>
+              <td>Context-pack generation</td>
+              <td>Render cleanly for humans, then provide export modes for LLM handoff, project resume, decision extraction, and prompt packs.</td>
+            </tr>
+            <tr>
+              <td>Timeline vs topology</td>
+              <td>Chronological conversation list</td>
+              <td>Topic, decision, task, and reference graph</td>
+              <td>Start with timeline/search. Add graph/canvas views once links and tags have a durable package shape.</td>
+            </tr>
+            <tr>
+              <td>Private by default vs shareable slice</td>
+              <td>Local full-fidelity memory</td>
+              <td>Redacted export package</td>
+              <td>Any sharing flow needs an explicit redaction/export boundary, not silent mutation of the source archive.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="apps">
+        <h2 id="apps">App Ideas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>App</th>
+              <th>Opens</th>
+              <th>First behavior</th>
+              <th>Why it fits Appify UI</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>ChatDock.app</code></td>
+              <td><code>.chat</code> folders</td>
+              <td>Render numbered Markdown turns as a transcript; collapse thoughts; show model parts and usage; edit/save Markdown turns.</td>
+              <td>Closest match to existing document package apps. It makes a real local artifact double-clickable without inventing a new archive.</td>
+            </tr>
+            <tr>
+              <td><code>ChatArchive.app</code></td>
+              <td><code>.chat</code> archive roots or <code>.chat/db</code></td>
+              <td>Browse/search catalog conversations; filter by source, shard, date, actor, and asset count; open one conversation detail view.</td>
+              <td>Turns the sharded SQLite archive into a native-feeling archive browser while keeping SQLite as the canonical store.</td>
+            </tr>
+            <tr>
+              <td><code>ProjectMemory.app</code></td>
+              <td><code>.memory</code> or <code>.chatpack</code> packages</td>
+              <td>Organize selected chats, notes, prompts, assets, decisions, and open questions by project or topic.</td>
+              <td>Promotes the object that actually matters in daily work: a bounded local memory bundle for one project.</td>
+            </tr>
+            <tr>
+              <td><code>ContextForge.app</code></td>
+              <td>Repo folders, <code>.chatpack</code>, or <code>.memory</code></td>
+              <td>Select chats, notes, repo files, canvases, and transcripts; emit LLM-ready context packs and handoff briefs.</td>
+              <td>Bridges human curation and agent fuel without making the chat viewer responsible for every workflow.</td>
+            </tr>
+            <tr>
+              <td><code>ConversationMap.app</code></td>
+              <td><code>.chat</code>, <code>.chat/db</code>, or <code>.memory</code></td>
+              <td>Show chats, topics, decisions, tasks, prompts, and artifacts as a graph/canvas with typed links.</td>
+              <td>Natural sibling to JSONCanvas/TLCanvas once there is enough metadata to justify a topology view.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="package">
+        <h2 id="package">Minimal Package Sketch</h2>
+        <p class="lede">
+          Keep the first package boring and inspectable. It should feel like a Finder folder first and a database second.
+        </p>
+        <pre><code>my-topic.chatpack/
+  index.json
+  chats/
+  notes/
+  prompts/
+  assets/
+  exports/
+</code></pre>
+        <ul>
+          <li><code>index.json</code> names the package, project/topic, source roots, pinned chats, and generated exports.</li>
+          <li><code>chats/</code> contains file-based <code>.chat</code> folders, copied or linked from archive exports.</li>
+          <li><code>notes/</code> and <code>prompts/</code> stay plain Markdown so Codex, grep, and regular editors remain first-class.</li>
+          <li><code>exports/</code> holds generated context packs, briefs, redacted bundles, and one-off handoffs.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sequence">
+        <h2 id="sequence">Recommended Build Sequence</h2>
+        <ol>
+          <li>Build <code>ChatDock.app</code> as a viewer/editor for one file-based <code>.chat</code> directory.</li>
+          <li>Add read-only open support for a <code>.chatpack</code> containing many <code>.chat</code> folders and Markdown notes.</li>
+          <li>Build <code>ChatArchive.app</code> against the existing conversation-store service and let it export selected archive conversations into <code>.chatpack</code>.</li>
+          <li>Promote <code>ProjectMemory.app</code> once the package conventions are stable enough to carry decisions, prompts, and generated context.</li>
+          <li>Split off <code>ContextForge.app</code> and <code>ConversationMap.app</code> only after the underlying metadata exists outside the UI.</li>
+        </ol>
+      </section>
+    </main>
+  </body>
+</html>
