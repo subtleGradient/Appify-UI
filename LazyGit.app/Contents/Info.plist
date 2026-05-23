@@ -6,6 +6,8 @@
 	<dict>
 		<key>DocumentMode</key>
 		<string>folderMarker</string>
+		<key>DocumentKindEnvironmentValue</key>
+		<string>com.subtlegradient.lazygit</string>
 		<key>EnvironmentVariables</key>
 		<dict>
 			<key>LAZYGIT_APP_PACKAGE</key>
@@ -33,6 +35,10 @@
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>lazygit</string>
+			</array>
 			<key>CFBundleTypeName</key>
 			<string>LazyGit Folder</string>
 			<key>CFBundleTypeRole</key>

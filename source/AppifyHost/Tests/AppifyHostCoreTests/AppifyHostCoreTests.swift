@@ -36,6 +36,7 @@ final class AppifyHostCoreTests: XCTestCase {
         )
 
         XCTAssertEqual(config.documentMode, .folderMarker)
+        XCTAssertEqual(config.documentClassName, "AppifyHostDocument")
         XCTAssertEqual(config.webViewDataStore, .nonPersistent)
     }
 

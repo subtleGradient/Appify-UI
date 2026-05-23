@@ -58,6 +58,11 @@ final class AppifyHostDocument: NSDocument {
         try PackageDocument.validatePackageURL(url, configuration: configuration)
     }
 
+    override func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {
+        let configuration = try AppifyHostRuntime.requireConfiguration()
+        try validateFileWrapper(fileWrapper, configuration: configuration)
+    }
+
     override func write(to url: URL, ofType typeName: String) throws {
         let configuration = try AppifyHostRuntime.requireConfiguration()
         switch configuration.documentMode {
@@ -67,6 +72,26 @@ final class AppifyHostDocument: NSDocument {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         case .fileDocument:
             try writeFileDocument(to: url)
+        }
+    }
+
+    override func fileWrapper(ofType typeName: String) throws -> FileWrapper {
+        let configuration = try AppifyHostRuntime.requireConfiguration()
+        switch configuration.documentMode {
+        case .contentPackage:
+            guard let activeDocumentURL else {
+                return FileWrapper(directoryWithFileWrappers: [:])
+            }
+            return try FileWrapper(url: activeDocumentURL, options: [])
+
+        case .folderMarker:
+            return FileWrapper(directoryWithFileWrappers: [:])
+
+        case .fileDocument:
+            guard let activeDocumentURL else {
+                return FileWrapper(regularFileWithContents: Data())
+            }
+            return FileWrapper(regularFileWithContents: try Data(contentsOf: activeDocumentURL))
         }
     }
 
@@ -150,6 +175,32 @@ final class AppifyHostDocument: NSDocument {
                     NSLocalizedDescriptionKey: "Expected a document package.",
                 ]
             )
+        }
+    }
+
+    private func validateFileWrapper(_ fileWrapper: FileWrapper, configuration: AppifyHostConfiguration) throws {
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            guard fileWrapper.isDirectory else {
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: CocoaError.Code.fileReadCorruptFile.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Expected a document package.",
+                    ]
+                )
+            }
+
+        case .fileDocument:
+            guard fileWrapper.isRegularFile else {
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: CocoaError.Code.fileReadCorruptFile.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Expected a document file.",
+                    ]
+                )
+            }
         }
     }
 
