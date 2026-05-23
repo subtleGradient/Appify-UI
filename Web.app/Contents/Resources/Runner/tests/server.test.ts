@@ -72,6 +72,7 @@ describe("web package resolution", () => {
 
     const server = Bun.serve({
       port: 0,
+      idleTimeout: 0,
       routes,
       fetch() {
         return new Response("fallback");

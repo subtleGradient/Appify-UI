@@ -40,6 +40,7 @@ if (hmrEnabled) {
 const server = Bun.serve({
   hostname: "127.0.0.1",
   port: Number(process.env.PORT || 0),
+  idleTimeout: 0,
   routes,
   development: hmrEnabled && {
     hmr: true,
