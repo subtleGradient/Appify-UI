@@ -23,6 +23,8 @@
 		<string>main.sh</string>
 		<key>ServerInstallDirectory</key>
 		<string>Contents/Resources/AppServer</string>
+		<key>StartupTimeoutSeconds</key>
+		<integer>900</integer>
 		<key>WebViewDataStore</key>
 		<string>nonPersistent</string>
 		<key>WindowTitlePrefix</key>

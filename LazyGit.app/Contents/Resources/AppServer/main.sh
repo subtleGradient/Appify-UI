@@ -4,6 +4,12 @@ set -euo pipefail
 APP_NAME="${APPIFY_HOST_APP_NAME:-LazyGit}"
 PACKAGE_PATH="${APPIFY_HOST_DOCUMENT_PATH:?APPIFY_HOST_DOCUMENT_PATH is required}"
 WORKING_DIRECTORY="${APPIFY_HOST_WORKING_DIRECTORY:?APPIFY_HOST_WORKING_DIRECTORY is required}"
+SERVER_TIMEOUT_SECONDS="${LAZYGIT_APP_SERVER_TIMEOUT_SECONDS:-900}"
+
+if ! [[ "$SERVER_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || [[ "$SERVER_TIMEOUT_SECONDS" -lt 1 ]]; then
+  printf 'LAZYGIT_APP_SERVER_TIMEOUT_SECONDS must be a positive integer.\n' >&2
+  exit 1
+fi
 
 find_tool() {
   local name="$1"
@@ -48,13 +54,15 @@ random_base_path() {
 
 wait_for_port() {
   local port="$1"
-  /usr/bin/python3 - "$port" <<'PY'
+  local timeout_seconds="$2"
+  /usr/bin/python3 - "$port" "$timeout_seconds" <<'PY'
 import socket
 import sys
 import time
 
 port = int(sys.argv[1])
-deadline = time.time() + 10
+timeout_seconds = int(sys.argv[2])
+deadline = time.time() + timeout_seconds
 while time.time() < deadline:
     sock = socket.socket()
     sock.settimeout(0.2)
@@ -126,8 +134,8 @@ else
   CHILD_PID="$!"
 fi
 
-if ! wait_for_port "$PORT"; then
-  printf '%s terminal server did not become reachable on 127.0.0.1:%s for %s.\n' "$APP_NAME" "$PORT" "$PACKAGE_PATH" >&2
+if ! wait_for_port "$PORT" "$SERVER_TIMEOUT_SECONDS"; then
+  printf '%s terminal server did not become reachable on 127.0.0.1:%s within %s seconds for %s.\n' "$APP_NAME" "$PORT" "$SERVER_TIMEOUT_SECONDS" "$PACKAGE_PATH" >&2
   exit 1
 fi
 
