@@ -1,6 +1,6 @@
 import { appendFileSync, existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
-import { basename, extname, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 
 export type CommandPhase = "install" | "dev";
 export type OutputStreamName = "stdout" | "stderr";
@@ -40,23 +40,38 @@ const HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
 
 export async function resolveWebappDocumentPath(documentPath: string | undefined): Promise<string> {
   if (!documentPath) {
-    throw new Error("Expected a .webapp package path as the last argument.");
+    throw new Error("Expected a .webapp document path as the last argument.");
   }
 
   const resolved = resolve(documentPath);
   if (extname(resolved).toLowerCase() !== ".webapp") {
-    throw new Error(`Expected a .webapp package, got ${resolved}.`);
+    throw new Error(`Expected a .webapp document, got ${resolved}.`);
   }
 
   const stats = await stat(resolved).catch(() => null);
   if (stats === null) {
     throw new Error(`${resolved} does not exist.`);
   }
-  if (!stats.isDirectory()) {
-    throw new Error(`Expected a .webapp directory package, got ${resolved}.`);
+  if (!stats.isDirectory() && !stats.isFile()) {
+    throw new Error(`Expected a .webapp file or directory package, got ${resolved}.`);
   }
 
   return resolved;
+}
+
+export async function resolveWebappRunRoot(documentPath: string): Promise<string> {
+  const stats = await stat(documentPath);
+  if (stats.isFile()) {
+    return dirname(documentPath);
+  }
+  if (stats.isDirectory()) {
+    if (await isEmptyDirectory(documentPath)) {
+      return dirname(documentPath);
+    }
+    return documentPath;
+  }
+
+  throw new Error(`${documentPath} must be a .webapp file or directory.`);
 }
 
 export async function ensureWebappPackage(documentPath: string): Promise<EnsureWebappPackageResult> {
@@ -417,6 +432,11 @@ await new Promise(() => {});
 
 function devLogPath(documentPath: string): string {
   return join(documentPath, ".local", "dev.log");
+}
+
+async function isEmptyDirectory(path: string): Promise<boolean> {
+  const entries = await readdir(path);
+  return entries.every((entry) => entry === ".DS_Store");
 }
 
 function childEnvironment(documentPath: string, logPath: string): Record<string, string> {

@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   type CommandExecutor,
   ensureWebappPackage,
   firstLoopbackHTTPURL,
   resolveBunExecutable,
+  resolveWebappDocumentPath,
+  resolveWebappRunRoot,
   runWebappLifecycle,
 } from "../src/webappPackage";
 
@@ -21,6 +23,25 @@ afterEach(async () => {
 });
 
 describe("webapp package scaffold", () => {
+  test("resolves .webapp files and empty packages to their parent directory", async () => {
+    await rm(root, { recursive: true, force: true });
+    await writeFile(root, "");
+    expect(await resolveWebappDocumentPath(root)).toBe(root);
+    expect(await resolveWebappRunRoot(root)).toBe(dirname(root));
+
+    await rm(root, { force: true });
+    await mkdir(root, { recursive: true });
+    expect(await resolveWebappRunRoot(root)).toBe(dirname(root));
+
+    await writeFile(join(root, ".DS_Store"), "");
+    expect(await resolveWebappRunRoot(root)).toBe(dirname(root));
+  });
+
+  test("resolves non-empty .webapp packages to their own contents", async () => {
+    await writeFile(join(root, "package.json"), "{}");
+    expect(await resolveWebappRunRoot(root)).toBe(root);
+  });
+
   test("creates package.json and a static dev script when package metadata is missing", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
 

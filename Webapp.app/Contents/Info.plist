@@ -7,12 +7,12 @@
     <key>AboutNotice</key>
     <dict>
       <key>Message</key>
-      <string>Webapp runs local .webapp Bun package folders.</string>
+      <string>Webapp runs local .webapp Bun package folders and marker files.</string>
     </dict>
     <key>DocumentKindEnvironmentValue</key>
     <string>com.subtlegradient.webapp</string>
     <key>DocumentMode</key>
-    <string>contentPackage</string>
+    <string>contentPackageOrFile</string>
     <key>LogName</key>
     <string>Webapp</string>
     <key>RestrictNavigationToReadyURLScope</key>
@@ -56,6 +56,24 @@
       <key>NSDocumentClass</key>
       <string>AppifyHostDocument</string>
     </dict>
+    <dict>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>webapp</string>
+      </array>
+      <key>CFBundleTypeName</key>
+      <string>Webapp File</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.subtlegradient.webapp.file</string>
+      </array>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
+    </dict>
   </array>
   <key>CFBundleExecutable</key>
   <string>main.sh</string>
@@ -93,6 +111,23 @@
       <string>Webapp Package</string>
       <key>UTTypeIdentifier</key>
       <string>com.subtlegradient.webapp</string>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>webapp</string>
+        </array>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
+      </array>
+      <key>UTTypeDescription</key>
+      <string>Webapp File</string>
+      <key>UTTypeIdentifier</key>
+      <string>com.subtlegradient.webapp.file</string>
       <key>UTTypeTagSpecification</key>
       <dict>
         <key>public.filename-extension</key>
