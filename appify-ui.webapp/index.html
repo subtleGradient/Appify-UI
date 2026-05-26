@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Appify UI</title>
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="topbar">
+        <div>
+          <h1>Appify UI</h1>
+          <p id="repo-root">Loading</p>
+        </div>
+        <div class="status-pill" id="connection-status">Connecting</div>
+      </header>
+
+      <section class="workspace" aria-label="Appify UI scripts">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <h2>Scripts</h2>
+            <button type="button" class="icon-button" id="refresh-button" title="Refresh">Refresh</button>
+          </div>
+          <nav class="script-list" id="script-list" aria-label="Root scripts"></nav>
+        </aside>
+
+        <section class="detail">
+          <div class="detail-header">
+            <div>
+              <h2 id="script-title">Select a script</h2>
+              <p id="script-path"></p>
+            </div>
+            <span class="badge" id="script-state">Idle</span>
+          </div>
+
+          <form class="run-form" id="run-form">
+            <div class="form-grid" id="form-fields"></div>
+            <div class="actions">
+              <button type="submit" class="primary-button" id="run-button">Run</button>
+              <button type="button" class="secondary-button" id="stop-button" disabled>Stop</button>
+            </div>
+          </form>
+
+          <section class="run-summary" aria-label="Selected run">
+            <div>
+              <span class="label">Run</span>
+              <strong id="run-id">None</strong>
+            </div>
+            <div>
+              <span class="label">Status</span>
+              <strong id="run-status">Idle</strong>
+            </div>
+            <div>
+              <span class="label">Exit</span>
+              <strong id="run-exit">-</strong>
+            </div>
+          </section>
+
+          <section class="log-panel" aria-label="Run log">
+            <div class="log-header">
+              <h2>Log</h2>
+              <button type="button" class="secondary-button compact" id="copy-log-button">Copy</button>
+            </div>
+            <pre id="run-log"></pre>
+          </section>
+        </section>
+
+        <aside class="history">
+          <h2>Runs</h2>
+          <div class="run-list" id="run-list"></div>
+        </aside>
+      </section>
+    </main>
+
+    <script type="module" src="/assets/frontend.js"></script>
+  </body>
+</html>
