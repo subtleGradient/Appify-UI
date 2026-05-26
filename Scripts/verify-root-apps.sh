@@ -54,6 +54,7 @@ root_apps=(
   JSONCanvas.app
   LazyGit.app
   LogScope.app
+  Scripts.app
   TLCanvas.app
   Web.app
   Webapp.app
@@ -138,6 +139,9 @@ done
 
 [[ -f "$ROOT/Webapp.app/Contents/Resources/Runner/package.json" ]] \
   || fail "Webapp.app is missing bundled Runner/package.json"
+
+[[ -f "$ROOT/Scripts.app/Contents/Resources/Runner/package.json" ]] \
+  || fail "Scripts.app is missing bundled Runner/package.json"
 
 [[ -f "$ROOT/WebFormer.app/Contents/Resources/Runner/package.json" ]] \
   || fail "WebFormer.app is missing bundled Runner/package.json"

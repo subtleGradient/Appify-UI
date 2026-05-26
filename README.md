@@ -19,6 +19,7 @@ The repo is intentionally object-first:
 ├── LazyGit.app
 ├── JSONCanvas.app
 ├── LogScope.app
+├── Scripts.app
 ├── TLCanvas.app
 ├── Web.app
 ├── Webapp.app
@@ -62,6 +63,11 @@ back as plain JSON.
 `.err`, `.trace`, `.jsonl`, and `.ndjson`. It starts `ttyd`, runs `lnav`, and
 shows the indexed log timeline in a native WebKit window.
 
+[`Scripts.app`](Scripts.app/) opens `.scripts` marker packages. The marker lives
+inside a scripts folder; the app lists direct executable peer files and package
+files, then runs selected commands through `ttyd` terminal sessions. It is a
+local code-execution affordance, not a sandbox.
+
 [`TLCanvas.app`](TLCanvas.app/) opens `.tlcanvas` document packages. Its bundled
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
 tests, schema, and lockfile.
@@ -100,7 +106,8 @@ read-only SQLite URI.
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
 validate that URL, and show it in a native WebKit window. It does not know about
-LazyGit, Tabiew, LiteCLI, TLCanvas, Web, WebFormer, Bun, `ttyd`, or tldraw.
+LazyGit, Scripts, Tabiew, LiteCLI, TLCanvas, Web, WebFormer, Bun, `ttyd`, or
+tldraw.
 
 ## Build
 

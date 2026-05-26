@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AppifyHost</key>
+	<dict>
+		<key>AboutNotice</key>
+		<dict>
+			<key>Message</key>
+			<string>Scripts opens .scripts marker packages and exposes executable peer scripts through local terminal sessions.</string>
+		</dict>
+		<key>DocumentKindEnvironmentValue</key>
+		<string>com.subtlegradient.scripts</string>
+		<key>DocumentMode</key>
+		<string>folderMarker</string>
+		<key>LogName</key>
+		<string>Scripts</string>
+		<key>ServerArguments</key>
+		<array/>
+		<key>ServerExecutable</key>
+		<string>main.sh</string>
+		<key>ServerInstallDirectory</key>
+		<string>Contents/Resources/AppServer</string>
+		<key>StartupTimeoutSeconds</key>
+		<integer>45</integer>
+		<key>WebViewDataStore</key>
+		<string>portable</string>
+		<key>WindowTitlePrefix</key>
+		<string>Scripts</string>
+	</dict>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>Scripts</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>scripts</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Scripts Folder</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>LSHandlerRank</key>
+			<string>Owner</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.subtlegradient.scripts</string>
+			</array>
+			<key>LSTypeIsPackage</key>
+			<true/>
+			<key>NSDocumentClass</key>
+			<string>AppifyHostDocument</string>
+		</dict>
+	</array>
+	<key>CFBundleExecutable</key>
+	<string>main.sh</string>
+	<key>CFBundleIdentifier</key>
+	<string>com.subtlegradient.Scripts</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleName</key>
+	<string>Scripts</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleSupportedPlatforms</key>
+	<array>
+		<string>MacOSX</string>
+	</array>
+	<key>CFBundleVersion</key>
+	<string>0.1.0</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>26.0</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>Copyright (c) 2026 subtleGradient</string>
+	<key>UTExportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.apple.package</string>
+				<string>public.directory</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Scripts Folder</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.subtlegradient.scripts</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>scripts</string>
+				</array>
+			</dict>
+		</dict>
+	</array>
+</dict>
+</plist>
