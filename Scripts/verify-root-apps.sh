@@ -142,6 +142,8 @@ done
 
 [[ -f "$ROOT/Scripts.app/Contents/Resources/Runner/package.json" ]] \
   || fail "Scripts.app is missing bundled Runner/package.json"
+codesign -vvv --strict "$ROOT/Scripts.app" >/dev/null 2>&1 \
+  || fail "Scripts.app root bundle signature is invalid; run codesign --force --deep --sign - Scripts.app after editing it"
 
 [[ -f "$ROOT/WebFormer.app/Contents/Resources/Runner/package.json" ]] \
   || fail "WebFormer.app is missing bundled Runner/package.json"
