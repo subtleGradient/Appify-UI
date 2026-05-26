@@ -9,6 +9,7 @@ import {
   createLocalStoragePersistenceRoutes,
   createReloadBroadcaster,
   findRootEntry,
+  isIgnoredReloadPath,
   readFileResponse,
   readLocalStorageSnapshot,
   renderMarkdownDocument,
@@ -90,6 +91,13 @@ describe("web package resolution", () => {
     const port = await resolveServerPort("0");
     expect(port).toBeGreaterThan(0);
     expect(port).toBeLessThanOrEqual(65535);
+  });
+
+  test("ignores .local changes for live reload", () => {
+    expect(isIgnoredReloadPath(root, ".local/Web/localStorage.json")).toBe(true);
+    expect(isIgnoredReloadPath(root, Buffer.from(".local/Web/localStorage.json"))).toBe(true);
+    expect(isIgnoredReloadPath(root, "index.html")).toBe(false);
+    expect(isIgnoredReloadPath(root, null)).toBe(false);
   });
 
   test("finds normal and named root indexes", async () => {
@@ -288,6 +296,80 @@ const x = 1;
 
     expect(html).toContain("__WEB_APP_LOCAL_STORAGE__");
     expect(html.indexOf("__WEB_APP_LOCAL_STORAGE__")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+  });
+
+  test("injected localStorage proxy keeps native Storage methods bound", async () => {
+    const page = join(root, "stateful.html");
+    await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
+    const response = await readFileResponse(page, { localStoragePersistence: true });
+    const html = await response.text();
+    const script = html.match(/<script>\n([\s\S]*?__WEB_APP_LOCAL_STORAGE__[\s\S]*?)\n<\/script>/)?.[1];
+    expect(script).toBeDefined();
+
+    class FakeStorage {
+      #items = new Map<string, string>();
+
+      get length() {
+        return this.#items.size;
+      }
+
+      getItem(key: string) {
+        return this.#items.get(String(key)) ?? null;
+      }
+
+      key(index: number) {
+        return Array.from(this.#items.keys())[index] ?? null;
+      }
+
+      setItem(key: string, value: string) {
+        this.#items.set(String(key), String(value));
+      }
+
+      removeItem(key: string) {
+        this.#items.delete(String(key));
+      }
+
+      clear() {
+        this.#items.clear();
+      }
+    }
+
+    const fakeWindow: Record<string, unknown> = {
+      localStorage: new FakeStorage(),
+      clearTimeout() {},
+      setTimeout(callback: () => void) {
+        callback();
+        return 1;
+      },
+      addEventListener() {},
+    };
+    const requests: string[] = [];
+    const fakeXHR = class {
+      status = 200;
+      responseText = JSON.stringify({ schema: 1, entries: [["existing", "yes"]] });
+      open() {}
+      setRequestHeader() {}
+      send() {}
+    };
+
+    new Function("window", "Storage", "XMLHttpRequest", "Blob", "navigator", "fetch", "console", script!)(
+      fakeWindow,
+      FakeStorage,
+      fakeXHR,
+      Blob,
+      { sendBeacon: undefined },
+      (_url: string, init: RequestInit) => {
+        requests.push(String(init.body));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+      console,
+    );
+
+    const storage = fakeWindow.localStorage as Storage;
+    expect(storage.getItem("existing")).toBe("yes");
+    storage.setItem("next", "ok");
+    expect(storage.getItem("next")).toBe("ok");
+    expect(requests.at(-1)).toContain('"next"');
   });
 
   test("exposes live reload versions for polling clients", async () => {

@@ -7,6 +7,7 @@ import {
   createReloadBroadcaster,
   findRootEntry,
   isHtmlFile,
+  isIgnoredReloadPath,
   isMarkdownFile,
   readFileResponse,
   renderMarkdownResponse,
@@ -34,7 +35,10 @@ const routes = {
 
 if (hmrEnabled) {
   try {
-    const watcher = watch(serveRoot, { recursive: true }, () => {
+    const watcher = watch(serveRoot, { recursive: true }, (_eventType, fileName) => {
+      if (isIgnoredReloadPath(serveRoot, fileName)) {
+        return;
+      }
       reloader.broadcast();
     });
     for (const signal of ["SIGTERM", "SIGINT"] as const) {

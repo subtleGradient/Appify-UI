@@ -136,6 +136,15 @@ export async function resolveLocalStorageFilePath(documentPath: string): Promise
   throw new Error(`${documentPath} must be a .web file or directory.`);
 }
 
+export function isIgnoredReloadPath(rootPath: string, fileName: string | Buffer | null): boolean {
+  if (fileName === null) {
+    return false;
+  }
+
+  const normalized = relative(rootPath, resolve(rootPath, fileName.toString()));
+  return normalized.split(sep).includes(LOCAL_DIRECTORY);
+}
+
 export function contentTypeFor(filePath: string): string {
   const extension = extname(filePath).toLowerCase();
   return TEXT_TYPES.get(extension) ?? BINARY_TYPES.get(extension) ?? "application/octet-stream";
@@ -739,6 +748,10 @@ function localStoragePersistenceClientScript(): string {
 
   try {
     const proxy = new Proxy(storage, {
+      get(target, property) {
+        const value = Reflect.get(target, property, target);
+        return typeof value === "function" ? value.bind(target) : value;
+      },
       set(target, property, value) {
         const result = Reflect.set(target, property, value);
         if (typeof property === "string" && !storageMethods.has(property)) {

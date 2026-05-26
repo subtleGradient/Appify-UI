@@ -39,7 +39,7 @@ async function init() {
 
   wireEvents();
   render();
-  persist("Opened");
+  setStatus("Opened");
 }
 
 function wireEvents() {
