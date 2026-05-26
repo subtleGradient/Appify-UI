@@ -3,6 +3,7 @@ import { basename, resolve } from "node:path";
 import {
   buildHtmlRoutes,
   createDirectoryListingResponse,
+  createLocalStoragePersistenceRoutes,
   createReloadBroadcaster,
   findRootEntry,
   isHtmlFile,
@@ -10,7 +11,9 @@ import {
   readFileResponse,
   renderMarkdownResponse,
   resolveDocumentPath,
+  resolveLocalStorageFilePath,
   resolveRequestPath,
+  resolveServerPort,
   resolveServeRoot,
   scanHtmlPages,
 } from "./webPackage";
@@ -19,9 +22,15 @@ const documentPath = resolveDocumentPath(process.argv[2] || process.env.APPIFY_H
 const serveRoot = await resolveServeRoot(documentPath);
 const hmrEnabled = process.env.WEB_APP_HMR !== "0";
 const reloader = createReloadBroadcaster();
+const localStorageFilePath = await resolveLocalStorageFilePath(documentPath);
 const htmlPages = await scanHtmlPages(serveRoot);
 const rootEntry = await findRootEntry(serveRoot, htmlPages);
-const routes = await buildHtmlRoutes(serveRoot, htmlPages, rootEntry, hmrEnabled);
+const routes = {
+  ...createLocalStoragePersistenceRoutes(localStorageFilePath),
+  ...(await buildHtmlRoutes(serveRoot, htmlPages, rootEntry, hmrEnabled, {
+    localStoragePersistence: true,
+  })),
+};
 
 if (hmrEnabled) {
   try {
@@ -41,7 +50,7 @@ if (hmrEnabled) {
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
-  port: Number(process.env.PORT || 0),
+  port: await resolveServerPort(),
   idleTimeout: 0,
   routes,
   development: hmrEnabled && {
@@ -73,18 +82,21 @@ const server = Bun.serve({
       }
       return await createDirectoryListingResponse(serveRoot, resolvedPath.path, url.pathname, {
         liveReload: hmrEnabled,
+        localStoragePersistence: true,
       });
     }
 
     if (isMarkdownFile(resolvedPath.path)) {
       return await renderMarkdownResponse(resolvedPath.path, {
         liveReload: hmrEnabled,
+        localStoragePersistence: true,
         title: basename(resolvedPath.path),
       });
     }
 
     return await readFileResponse(resolvedPath.path, {
       liveReload: hmrEnabled && isHtmlFile(resolvedPath.path),
+      localStoragePersistence: true,
     });
   },
 });

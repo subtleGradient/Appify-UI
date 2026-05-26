@@ -1,3 +1,4 @@
 *.tmproj
 .DS_Store
 *.app.log
+.local/

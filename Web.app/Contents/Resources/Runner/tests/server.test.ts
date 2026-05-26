@@ -1,19 +1,25 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { dirname, join } from "node:path";
+import { existsSync } from "node:fs";
+import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { basename, dirname, join } from "node:path";
 import {
   buildHtmlRoutes,
   contentTypeFor,
   createDirectoryListingResponse,
+  createLocalStoragePersistenceRoutes,
   createReloadBroadcaster,
   findRootEntry,
   readFileResponse,
+  readLocalStorageSnapshot,
   renderMarkdownDocument,
   renderMarkdownResponse,
   resolveDocumentPath,
+  resolveLocalStorageFilePath,
   resolveRequestPath,
+  resolveServerPort,
   resolveServeRoot,
   scanHtmlPages,
+  writeLocalStorageSnapshot,
 } from "../src/webPackage";
 
 let root: string;
@@ -40,6 +46,10 @@ describe("web package resolution", () => {
 
     await writeFile(join(root, ".DS_Store"), "");
     expect(await resolveServeRoot(root)).toBe(dirname(root));
+
+    await mkdir(join(root, ".local", "Web"), { recursive: true });
+    await writeFile(join(root, ".local", "Web", "localStorage.json"), "{}");
+    expect(await resolveServeRoot(root)).toBe(dirname(root));
   });
 
   test("resolves non-empty .web packages to their own contents", async () => {
@@ -55,6 +65,14 @@ describe("web package resolution", () => {
     await writeFile(join(root, "target.txt"), "target");
     await symlink(join(root, "target.txt"), join(root, "linked.txt"));
     expect(await resolveRequestPath(root, "/linked.txt")).toBeNull();
+
+    await mkdir(join(root, ".local"), { recursive: true });
+    await writeFile(join(root, ".local", "secret.txt"), "secret");
+    expect(await resolveRequestPath(root, "/.local/secret.txt")).toBeNull();
+
+    await mkdir(join(root, "_web", "persistence"), { recursive: true });
+    await writeFile(join(root, "_web", "persistence", "local-storage"), "not the route");
+    expect(await resolveRequestPath(root, "/_web/persistence/local-storage")).toBeNull();
   });
 
   test("maps common static content types", () => {
@@ -63,6 +81,15 @@ describe("web package resolution", () => {
     expect(contentTypeFor("data.csv")).toBe("text/csv; charset=utf-8");
     expect(contentTypeFor("manual.pdf")).toBe("application/pdf");
     expect(contentTypeFor("unknown.bin")).toBe("application/octet-stream");
+  });
+
+  test("resolves configured and ephemeral server ports", async () => {
+    expect(await resolveServerPort("4321")).toBe(4321);
+    await expect(resolveServerPort("invalid")).rejects.toThrow("PORT must be an integer");
+
+    const port = await resolveServerPort("0");
+    expect(port).toBeGreaterThan(0);
+    expect(port).toBeLessThanOrEqual(65535);
   });
 
   test("finds normal and named root indexes", async () => {
@@ -92,7 +119,7 @@ describe("web package resolution", () => {
     expect(routes["/section/"]).not.toBe(routes["/section/index.alt.html"]);
 
     const server = Bun.serve({
-      port: 0,
+      port: await resolveServerPort(),
       idleTimeout: 0,
       routes,
       fetch() {
@@ -108,6 +135,85 @@ describe("web package resolution", () => {
 
     const routesWithoutHmr = await buildHtmlRoutes(root, pages, await findRootEntry(root, pages), false);
     expect(routesWithoutHmr["/_web/live-reload"]).toBeUndefined();
+
+    const routesWithPersistence = await buildHtmlRoutes(root, pages, await findRootEntry(root, pages), false, {
+      localStoragePersistence: true,
+    });
+    const persistenceServer = Bun.serve({
+      port: await resolveServerPort(),
+      idleTimeout: 0,
+      routes: routesWithPersistence,
+      fetch() {
+        return new Response("fallback");
+      },
+    });
+    try {
+      const legacy = await fetch(new URL("/legacy.htm", persistenceServer.url));
+      expect(await legacy.text()).toContain("__WEB_APP_LOCAL_STORAGE__");
+    } finally {
+      persistenceServer.stop(true);
+    }
+  });
+});
+
+describe("localStorage persistence", () => {
+  test("uses package-local storage for directory documents", async () => {
+    expect(await resolveLocalStorageFilePath(root)).toBe(join(root, ".local", "Web", "localStorage.json"));
+  });
+
+  test("uses adjacent sidecar storage for file documents", async () => {
+    await rm(root, { recursive: true, force: true });
+    await writeFile(root, "");
+
+    expect(await resolveLocalStorageFilePath(root)).toBe(
+      join(dirname(root), ".local", basename(root), "Web", "localStorage.json"),
+    );
+  });
+
+  test("reads missing storage without creating a sidecar", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const routes = createLocalStoragePersistenceRoutes(storageFilePath);
+    const route = routes["/_web/persistence/local-storage"] as { GET: () => Promise<Response> };
+    const response = await route.GET();
+
+    expect(await response.json()).toEqual({ schema: 1, entries: [] });
+    expect(existsSync(join(root, ".local"))).toBe(false);
+  });
+
+  test("writes non-empty snapshots and removes empty snapshots", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const snapshot = { schema: 1 as const, entries: [["theme", "dark"] as [string, string]] };
+
+    await writeLocalStorageSnapshot(storageFilePath, snapshot);
+    expect(JSON.parse(await readFile(storageFilePath, "utf8"))).toEqual(snapshot);
+    expect(await readLocalStorageSnapshot(storageFilePath)).toEqual(snapshot);
+
+    await writeLocalStorageSnapshot(storageFilePath, { schema: 1, entries: [] });
+    expect(existsSync(storageFilePath)).toBe(false);
+  });
+
+  test("persistence route validates and persists snapshots", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const routes = createLocalStoragePersistenceRoutes(storageFilePath);
+    const route = routes["/_web/persistence/local-storage"] as {
+      GET: () => Promise<Response>;
+      POST: (request: Request) => Promise<Response>;
+    };
+
+    const postResponse = await route.POST(new Request("http://127.0.0.1/_web/persistence/local-storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schema: 1, entries: [["name", "Web"]] }),
+    }));
+    expect(postResponse.status).toBe(204);
+    expect(await (await route.GET()).json()).toEqual({ schema: 1, entries: [["name", "Web"]] });
+
+    const invalidResponse = await route.POST(new Request("http://127.0.0.1/_web/persistence/local-storage", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ schema: 1, entries: [["ok", 1]] }),
+    }));
+    expect(invalidResponse.status).toBe(400);
   });
 });
 
@@ -154,6 +260,16 @@ const x = 1;
     expect(html).toContain("/_web/live-reload-version");
   });
 
+  test("injects localStorage persistence before page scripts", async () => {
+    const page = join(root, "stateful.html");
+    await writeFile(page, "<!doctype html><html><head><script>window.pageScriptRan = true;</script></head><body></body></html>");
+    const response = await readFileResponse(page, { localStoragePersistence: true });
+    const html = await response.text();
+
+    expect(html).toContain("__WEB_APP_LOCAL_STORAGE__");
+    expect(html.indexOf("__WEB_APP_LOCAL_STORAGE__")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+  });
+
   test("exposes live reload versions for polling clients", async () => {
     const reloader = createReloadBroadcaster();
     expect(await reloader.versionResponse().json()).toEqual({ version: 0 });
@@ -163,9 +279,11 @@ const x = 1;
 
   test("generates directory listings", async () => {
     await writeFile(join(root, "README.md"), "# Read Me\n");
+    await mkdir(join(root, ".local"), { recursive: true });
     const response = await createDirectoryListingResponse(root, root, "/", { liveReload: true });
     const html = await response.text();
     expect(html).toContain("README.md");
+    expect(html).not.toContain(".local");
     expect(html).toContain("/_web/live-reload");
   });
 });
