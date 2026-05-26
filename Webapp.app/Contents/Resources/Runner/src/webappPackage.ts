@@ -139,10 +139,11 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
 
 export function createBunCommandExecutor(baseEnvironment: Record<string, string | undefined> = process.env): CommandExecutor {
   const children = new Set<ReturnType<typeof Bun.spawn>>();
+  const bunExecutable = resolveBunExecutable(baseEnvironment);
 
   const execute: CommandExecutor = async (spec, onOutput) => {
     const child = Bun.spawn({
-      cmd: [spec.command, ...spec.args],
+      cmd: [spec.command === "bun" ? bunExecutable : spec.command, ...spec.args],
       cwd: spec.cwd,
       env: { ...baseEnvironment, ...spec.env },
       stdout: "pipe",
@@ -171,6 +172,10 @@ export function createBunCommandExecutor(baseEnvironment: Record<string, string 
   };
 
   return execute;
+}
+
+export function resolveBunExecutable(environment: Record<string, string | undefined> = process.env): string {
+  return environment.APPIFY_WEBAPP_BUN_PATH || process.execPath || "bun";
 }
 
 export async function findBestRootHtmlEntry(documentPath: string): Promise<string | null> {
@@ -234,9 +239,10 @@ async function scaffoldDevScript(documentPath: string): Promise<{ devScript: str
     return { devScript: `bun ${runnerToken}${entryToken}` };
   }
 
+  const staticServerEntry = entry ?? await writeStarterIndex(documentPath);
   return {
     devScript: `bun ${STATIC_DEV_SERVER_PATH}`,
-    staticServerEntry: entry,
+    staticServerEntry,
   };
 }
 
@@ -257,15 +263,72 @@ async function writeStaticDevServer(documentPath: string, entry: string | null):
   await writeFile(serverPath, staticDevServerSource(entry));
 }
 
+async function writeStarterIndex(documentPath: string): Promise<string> {
+  const indexName = "index.html";
+  await writeFile(join(documentPath, indexName), starterIndexSource(basename(documentPath, ".webapp")));
+  return indexName;
+}
+
+function starterIndexSource(title: string): string {
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>${escapeHTML(title || "Webapp")}</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        background: Canvas;
+        color: CanvasText;
+      }
+      main {
+        width: min(680px, calc(100vw - 48px));
+      }
+      h1 {
+        margin: 0 0 12px;
+        font-size: 32px;
+        font-weight: 650;
+      }
+      p {
+        margin: 0;
+        color: color-mix(in srgb, CanvasText 72%, transparent);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>${escapeHTML(title || "Untitled")}</h1>
+      <p>Edit this .webapp package to build your Bun-powered local web app.</p>
+    </main>
+  </body>
+</html>
+`;
+}
+
 function staticDevServerSource(entry: string | null): string {
   const defaultPath = entry === null ? "/" : `/${entry}`;
   return `#!/usr/bin/env bun
+import { createReadStream } from "node:fs";
+import { stat } from "node:fs/promises";
+import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(fileURLToPath(new URL("../..", import.meta.url)));
 const defaultPath = ${JSON.stringify(defaultPath)};
-const port = Number(process.env.PORT ?? process.env.WEBAPP_PORT ?? 0);
+const explicitPort = process.env.WEBAPP_PORT;
+const startPort = explicitPort === undefined ? 4175 : Number(explicitPort);
 
 const MIME_TYPES = new Map([
   [".css", "text/css; charset=utf-8"],
@@ -278,35 +341,76 @@ const MIME_TYPES = new Map([
   [".txt", "text/plain; charset=utf-8"],
 ]);
 
-const server = Bun.serve({
-  hostname: "127.0.0.1",
-  port,
-  async fetch(request) {
-    const url = new URL(request.url);
-    let pathname = url.pathname;
-    try {
-      pathname = decodeURIComponent(pathname);
-    } catch {
-      return new Response("Bad request", { status: 400 });
-    }
-    if (pathname === "/") pathname = defaultPath;
-    if (pathname.endsWith("/")) pathname += "index.html";
-    const filePath = path.resolve(root, \`.\${pathname}\`);
-    if (filePath !== root && !filePath.startsWith(\`\${root}\${path.sep}\`)) {
-      return new Response("Not found", { status: 404 });
-    }
-    const file = Bun.file(filePath);
-    if (!(await file.exists())) return new Response("Not found", { status: 404 });
-    return new Response(file, {
-      headers: {
-        "cache-control": "no-store",
-        "content-type": MIME_TYPES.get(path.extname(filePath).toLowerCase()) ?? "application/octet-stream",
-      },
-    });
-  },
-});
+async function handleRequest(request, response) {
+  const url = new URL(request.url ?? "/", "http://127.0.0.1");
+  let pathname = url.pathname;
+  try {
+    pathname = decodeURIComponent(pathname);
+  } catch {
+    response.writeHead(400, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Bad request");
+    return;
+  }
+  if (pathname === "/") pathname = defaultPath;
+  if (pathname.endsWith("/")) pathname += "index.html";
+  const filePath = path.resolve(root, \`.\${pathname}\`);
+  if (filePath !== root && !filePath.startsWith(\`\${root}\${path.sep}\`)) {
+    response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+    return;
+  }
+  const fileStat = await stat(filePath).catch(() => null);
+  if (fileStat === null || !fileStat.isFile()) {
+    response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Not found");
+    return;
+  }
+  response.writeHead(200, {
+      "cache-control": "no-store",
+      "content-type": MIME_TYPES.get(path.extname(filePath).toLowerCase()) ?? "application/octet-stream",
+  });
+  createReadStream(filePath).pipe(response);
+}
 
-console.log(\`Webapp: http://\${server.hostname}:\${server.port}\${defaultPath}\`);
+function listen(port) {
+  return new Promise((resolve, reject) => {
+    const server = createServer((request, response) => {
+      handleRequest(request, response).catch((error) => {
+        response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
+        response.end(error instanceof Error ? error.message : String(error));
+      });
+    });
+    server.once("error", reject);
+    server.listen(port, "127.0.0.1", () => {
+      server.off("error", reject);
+      resolve(server);
+    });
+  });
+}
+
+let server;
+for (let offset = 0; offset < 100; offset += 1) {
+  const port = startPort + offset;
+  try {
+    server = await listen(port);
+    break;
+  } catch (error) {
+    if (explicitPort !== undefined || offset === 99) {
+      throw error;
+    }
+  }
+}
+
+if (server === undefined) {
+  throw new Error("Could not start Webapp dev server.");
+}
+
+const address = server.address();
+if (address === null || typeof address === "string") {
+  throw new Error("Could not read Webapp dev server address.");
+}
+
+console.log(\`Webapp: http://127.0.0.1:\${address.port}\${defaultPath}\`);
 await new Promise(() => {});
 `;
 }
@@ -376,6 +480,14 @@ function packageNameFor(documentPath: string): string {
     .replaceAll(/[^a-z0-9._-]+/g, "-")
     .replaceAll(/^-+|-+$/g, "")
     || "webapp";
+}
+
+function escapeHTML(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 function stripTrailingURLPunctuation(value: string): string {

@@ -5,6 +5,7 @@ import {
   type CommandExecutor,
   ensureWebappPackage,
   firstLoopbackHTTPURL,
+  resolveBunExecutable,
   runWebappLifecycle,
 } from "../src/webappPackage";
 
@@ -35,6 +36,17 @@ describe("webapp package scaffold", () => {
       },
     });
     expect(await readFile(join(root, ".local", "webapp", "dev-server.ts"), "utf8")).toContain('const defaultPath = "/index.html"');
+  });
+
+  test("creates a starter index for an empty package", async () => {
+    await ensureWebappPackage(root);
+
+    const index = await readFile(join(root, "index.html"), "utf8");
+    const devServer = await readFile(join(root, ".local", "webapp", "dev-server.ts"), "utf8");
+
+    expect(index).toContain("<!doctype html>");
+    expect(index).toContain("Edit this .webapp package");
+    expect(devServer).toContain('const defaultPath = "/index.html"');
   });
 
   test("adds dev to existing package.json without dropping existing fields", async () => {
@@ -159,6 +171,12 @@ describe("URL parsing", () => {
     expect(firstLoopbackHTTPURL("open http://localhost:3000/path")).toBe("http://localhost:3000/path");
     expect(firstLoopbackHTTPURL("open http://127.0.0.1:3000/path")).toBe("http://127.0.0.1:3000/path");
     expect(firstLoopbackHTTPURL("open https://example.com")).toBeNull();
+  });
+});
+
+describe("bun executable resolution", () => {
+  test("uses the app server resolved Bun path when present", () => {
+    expect(resolveBunExecutable({ APPIFY_WEBAPP_BUN_PATH: "/custom/bun" })).toBe("/custom/bun");
   });
 });
 

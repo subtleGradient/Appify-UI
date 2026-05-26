@@ -76,7 +76,8 @@ the `.web` contract.
 package is a normal Bun package folder with a `.webapp` extension. The app
 scaffolds package metadata only when needed, runs `bun install`, then runs
 `bun dev`, teeing stdio to the package's `.local/dev.log` file and loading the
-first loopback URL printed by the dev process.
+first loopback URL printed by the dev process. Launching Webapp directly creates
+an untitled package with a starter `index.html`.
 
 [`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
 serves the document through an app-local Bun runner, injects runtime save

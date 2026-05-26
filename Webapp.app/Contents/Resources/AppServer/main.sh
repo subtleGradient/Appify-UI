@@ -90,4 +90,5 @@ if ! BUN_PATH="$(resolve_bun)"; then
 fi
 
 cd "$RUNNER_DIR"
+export APPIFY_WEBAPP_BUN_PATH="$BUN_PATH"
 exec "$BUN_PATH" src/index.ts "$DOCUMENT_PATH" "$@"
