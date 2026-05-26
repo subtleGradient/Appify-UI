@@ -56,6 +56,7 @@ root_apps=(
   LogScope.app
   TLCanvas.app
   Web.app
+  Webapp.app
   WebFormer.app
   WikiDock.app
   litecli.app
@@ -134,6 +135,9 @@ done
 
 [[ -f "$ROOT/Web.app/Contents/Resources/Runner/package.json" ]] \
   || fail "Web.app is missing bundled Runner/package.json"
+
+[[ -f "$ROOT/Webapp.app/Contents/Resources/Runner/package.json" ]] \
+  || fail "Webapp.app is missing bundled Runner/package.json"
 
 [[ -f "$ROOT/WebFormer.app/Contents/Resources/Runner/package.json" ]] \
   || fail "WebFormer.app is missing bundled Runner/package.json"

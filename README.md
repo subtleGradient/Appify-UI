@@ -21,6 +21,7 @@ The repo is intentionally object-first:
 ├── LogScope.app
 ├── TLCanvas.app
 ├── Web.app
+├── Webapp.app
 ├── WebFormer.app
 ├── WikiDock.app
 ├── litecli.app
@@ -70,6 +71,12 @@ static browser-native folder: HTML, CSS, JavaScript, assets, data, and relative
 links. It uses Bun's HTML routes for live reload when possible, renders
 Markdown files as a convenience, and does not make npm or build tooling part of
 the `.web` contract.
+
+[`Webapp.app`](Webapp.app/) opens `.webapp` document packages. A `.webapp`
+package is a normal Bun package folder with a `.webapp` extension. The app
+scaffolds package metadata only when needed, runs `bun install`, then runs
+`bun dev`, logging stdio under the package's `.local/.log/` directory and
+loading the first loopback URL printed by the dev process.
 
 [`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
 serves the document through an app-local Bun runner, injects runtime save
@@ -170,6 +177,13 @@ Web:
 
 ```sh
 cd Web.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+```
+
+Webapp:
+
+```sh
+cd Webapp.app/Contents/Resources/Runner
 bun test tests/*.test.ts
 ```
 
