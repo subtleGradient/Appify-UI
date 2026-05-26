@@ -653,12 +653,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
 
     private func loadWebView(url: URL) {
         let webViewConfiguration = WKWebViewConfiguration()
+        PrivateWebKitInspector.enableDeveloperExtras(for: webViewConfiguration.preferences)
         if configuration.webViewDataStore == .nonPersistent {
             webViewConfiguration.websiteDataStore = .nonPersistent()
         }
         webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
 
         let webView = WKWebView(frame: window?.contentView?.bounds ?? .zero, configuration: webViewConfiguration)
+        webView.isInspectable = true
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
         self.webView = webView
@@ -734,6 +736,80 @@ extension HostWindowController: AppifyHostWebViewReloading {
 
     func reloadWebView() {
         webView?.reload()
+    }
+}
+
+extension HostWindowController: AppifyHostWebViewInspecting {
+    var canOpenWebInspector: Bool {
+        webView != nil
+    }
+
+    func openWebInspectorFromMenu() {
+        guard let webView else {
+            return
+        }
+
+        guard PrivateWebKitInspector.openWebInspector(for: webView) else {
+            writeLog("WARN: private Web Inspector direct-open hook was unavailable.\n")
+            showWebInspectorFallback()
+            return
+        }
+    }
+}
+
+private enum PrivateWebKitInspector {
+    static func enableDeveloperExtras(for preferences: WKPreferences) {
+        let selector = NSSelectorFromString("_setDeveloperExtrasEnabled:")
+        guard preferences.responds(to: selector) else {
+            return
+        }
+
+        preferences.setValue(true, forKey: "developerExtrasEnabled")
+    }
+
+    static func openWebInspector(for webView: WKWebView) -> Bool {
+        let inspectorSelector = NSSelectorFromString("_inspector")
+        guard webView.responds(to: inspectorSelector),
+              let inspector = webView.value(forKey: "_inspector") as? NSObject
+        else {
+            return false
+        }
+
+        let showSelector = NSSelectorFromString("show")
+        guard inspector.responds(to: showSelector) else {
+            return false
+        }
+
+        _ = inspector.perform(showSelector)
+
+        let detachSelector = NSSelectorFromString("detach")
+        if inspector.responds(to: detachSelector) {
+            _ = inspector.perform(detachSelector)
+        }
+
+        return true
+    }
+}
+
+private extension HostWindowController {
+    func showWebInspectorFallback() {
+        let pageDescription = webView?.url?.absoluteString ?? activeReadyURL?.absoluteString ?? "the current page"
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Open Safari Web Inspector"
+        alert.informativeText = """
+        This WebKit build did not expose the private direct inspector hook.
+
+        In Safari, enable Settings > Advanced > Show features for web developers, then choose Develop > This Mac > \(configuration.appName) > \(pageDescription).
+        """
+        alert.addButton(withTitle: "OK")
+
+        guard let window else {
+            alert.runModal()
+            return
+        }
+
+        alert.beginSheetModal(for: window)
     }
 }
 

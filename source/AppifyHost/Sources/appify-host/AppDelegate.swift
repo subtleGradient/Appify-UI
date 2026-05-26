@@ -9,6 +9,12 @@ protocol AppifyHostWebViewReloading: AnyObject {
     func reloadWebView()
 }
 
+protocol AppifyHostWebViewInspecting: AnyObject {
+    var canOpenWebInspector: Bool { get }
+
+    func openWebInspectorFromMenu()
+}
+
 final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
@@ -133,6 +139,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     @MainActor
     @objc private func reloadWebViewFromMenu(_ sender: Any?) {
         currentWebViewReloadingController()?.reloadWebView()
+    }
+
+    @MainActor
+    @objc private func openWebInspectorFromMenu(_ sender: Any?) {
+        currentWebViewInspectingController()?.openWebInspectorFromMenu()
     }
 
     @objc private func showAboutFromMenu(_ sender: Any?) {
@@ -433,6 +444,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         let reloadItem = viewMenu.addItem(withTitle: "Reload", action: #selector(reloadWebViewFromMenu(_:)), keyEquivalent: "r")
         reloadItem.target = self
         viewMenu.addItem(.separator())
+        let developerItem = viewMenu.addItem(withTitle: "Developer", action: nil, keyEquivalent: "")
+        let developerMenu = NSMenu(title: "Developer")
+        developerItem.submenu = developerMenu
+        let inspectorItem = developerMenu.addItem(
+            withTitle: "Open Web Inspector",
+            action: #selector(openWebInspectorFromMenu(_:)),
+            keyEquivalent: "i"
+        )
+        inspectorItem.keyEquivalentModifierMask = [.command, .option]
+        inspectorItem.target = self
+        viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
 
@@ -469,6 +491,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             return currentWebViewReloadingController()?.canReloadWebView == true
         }
 
+        if menuItem.action == #selector(openWebInspectorFromMenu(_:)) {
+            return currentWebViewInspectingController()?.canOpenWebInspector == true
+        }
+
         return true
     }
 
@@ -479,6 +505,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         return NSApp.mainWindow?.windowController as? AppifyHostWebViewReloading
+    }
+
+    @MainActor
+    private func currentWebViewInspectingController() -> AppifyHostWebViewInspecting? {
+        if let controller = NSApp.keyWindow?.windowController as? AppifyHostWebViewInspecting {
+            return controller
+        }
+
+        return NSApp.mainWindow?.windowController as? AppifyHostWebViewInspecting
     }
 
     @MainActor
