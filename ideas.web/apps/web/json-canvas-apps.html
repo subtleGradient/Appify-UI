@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>JSON Canvas App Ecosystem</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 88rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.88rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">JSON Canvas app ecosystem / checked 2026-05-26</p>
+        <h1>JSON Canvas App Ecosystem</h1>
+        <p class="lede">
+          The JSON Canvas apps list is useful only if it separates durable storage targets from import/export bridges. AppifyHost should lean into apps whose source of truth is a local <code>.canvas</code> file and treat cloud or proprietary canvases as converters.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="../method-slices.html">method</a> /
+        <a href="top-picks.html">web top picks</a> /
+        <a href="canvas-and-editors.html">canvas/editors</a> /
+        <a href="sdk-bundle-hosts/index.html">SDK bundle hosts</a> /
+        <a href="../appifyhost-patterns.html">host patterns</a> /
+        <a href="../golfing.md">app build golf</a>
+      </nav>
+
+      <section aria-labelledby="inventory">
+        <h2 id="inventory">Apps Listed by JSON Canvas</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>App</th>
+              <th>JSON Canvas support</th>
+              <th>Current source of truth</th>
+              <th>AppifyHost move</th>
+              <th>Difficulty</th>
+              <th>Golf read</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="https://obsidian.md/">Obsidian</a></td>
+              <td>Storage, import, export.</td>
+              <td>Vault-local <code>.canvas</code> files that reference Markdown, media, URLs, and other vault files.</td>
+              <td>Keep building <code>JSONCanvas.app</code> as an Obsidian-compatible file editor. Add optional <code>.canvasbundle</code> import/export only when referenced assets need to travel.</td>
+              <td>2/5 for compatible <code>.canvas</code>; 5/5 for an Obsidian Canvas clone.</td>
+              <td>Strong candidate. Low storage risk, high interoperability leverage, but do not imply Obsidian feature parity.</td>
+            </tr>
+            <tr>
+              <td><a href="https://kinopio.club/">Kinopio</a></td>
+              <td>Import, export.</td>
+              <td>Kinopio space state, account/browser/cloud mediated; JSON Canvas is a lossy interchange path, not listed as storage.</td>
+              <td>Build a converter or import/export helper, not <code>Kinopio.app</code>. A faithful local app would need its own <code>.kinopio</code> package and permission to bundle or patch the noncommercial client source.</td>
+              <td>4/5 for faithful persistence; 2/5 for one-way conversion.</td>
+              <td>Mutate first. Good spatial UX evidence, but IndexedDB/cloud sync, lossy mapping, and licensing weaken document ownership.</td>
+            </tr>
+            <tr>
+              <td><a href="https://flowchart.fun/">Flowchart Fun</a></td>
+              <td>Import, export.</td>
+              <td>Text-to-flowchart source plus app/cloud state; project is open-source React and Cytoscape.</td>
+              <td>Prototype a local text-first <code>.flowchart</code> or <code>.flowchartfun</code> document that exports JSON Canvas. Do not force every flowchart into raw <code>.canvas</code> storage.</td>
+              <td>3/5.</td>
+              <td>Interesting, but mutate. Open source lowers build risk; the native object is the flowchart text, not JSON Canvas.</td>
+            </tr>
+            <tr>
+              <td><a href="https://hi-canvas.marknoteapp.com/">hi-canvas</a></td>
+              <td>Import, export.</td>
+              <td>Hosted web canvas/viewer state; public source and durable storage contract were not obvious from the live site.</td>
+              <td>Treat as a compatibility probe for <code>JSONCanvas.app</code>. Avoid a dedicated wrapper unless source, offline mode, and file ownership are verified.</td>
+              <td>4/5.</td>
+              <td>Defer. The app proves the format can be viewed online, but not that AppifyHost should wrap this product.</td>
+            </tr>
+            <tr>
+              <td><a href="https://orgpad.info/">OrgPad</a></td>
+              <td>Import, export.</td>
+              <td>OrgPad cloud document; internal EDN <code>.orgpage</code> export can include uploaded files, while JSON Canvas is intentionally lossy.</td>
+              <td>Build an OrgPad export importer only if EDN packages become common. JSON Canvas import should be best-effort and clearly lossy.</td>
+              <td>5/5 for faithful local persistence; 2/5 for explicit import/export conversion.</td>
+              <td>Defer or converter-only. Cloud storage, undocumented EDN drift, rich cells, generated sizing, and uploaded assets make full persistence expensive.</td>
+            </tr>
+            <tr>
+              <td><a href="https://charkoal.dev/">Charkoal</a></td>
+              <td>Storage, import, export.</td>
+              <td><code>.canvas</code> files in a codebase; Charkoal documents its format as a superset of JSON Canvas.</td>
+              <td>Add independent Charkoal-compatible rendering and unknown-field preservation to <code>JSONCanvas.app</code>. Do not bundle the actual Charkoal UI without permission and a stable host contract.</td>
+              <td>2-3/5 for compatible files; 4/5 for the actual Charkoal UI.</td>
+              <td>Strong candidate after JSONCanvas polish. Local files and Git sharing fit AppifyHost; proprietary packaging, VS Code/LSP coupling, and schema drift are the main burdens.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="persistence">
+        <h2 id="persistence">Persistence Pattern</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th>Apps</th>
+              <th>Native document stance</th>
+              <th>First proof</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Canonical local <code>.canvas</code></td>
+              <td>Obsidian, Charkoal</td>
+              <td>The opened file can be the source of truth. Preserve unknown fields, write atomically, and detect stale saves.</td>
+              <td>Open, edit, save, and round-trip real Obsidian and Charkoal samples without deleting app-specific data.</td>
+            </tr>
+            <tr>
+              <td>Portable asset package</td>
+              <td>Obsidian-adjacent canvases, Charkoal code canvases</td>
+              <td><code>.canvasbundle</code> is justified only when local file nodes, images, or code snippets must travel together.</td>
+              <td>Import a folder-backed canvas into a bundle, rewrite references, then export back to raw <code>.canvas</code> plus files.</td>
+            </tr>
+            <tr>
+              <td>Interchange bridge</td>
+              <td>Kinopio, Flowchart Fun, hi-canvas, OrgPad</td>
+              <td>JSON Canvas is an import/export format. AppifyHost should not pretend to control upstream persistence.</td>
+              <td>Import/export fixtures and show exactly which fields are preserved, dropped, or approximated.</td>
+            </tr>
+            <tr>
+              <td>Native upstream package</td>
+              <td>Flowchart Fun text, OrgPad EDN</td>
+              <td>If a dedicated wrapper exists, it should own the upstream format first and export JSON Canvas second.</td>
+              <td>Open the upstream file/package locally, save without cloud login, and produce a valid JSON Canvas export.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="ranking">
+        <h2 id="ranking">Build Ranking</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Build</th>
+              <th>Why</th>
+              <th>Thing Golf risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><code>JSONCanvas.app</code> compatibility pass</td>
+              <td>Covers Obsidian and Charkoal-compatible files with one local file editor. This is the lowest-burden path because the durable object is already <code>.canvas</code>.</td>
+              <td>Safety low; burden moderate from unknown-field preservation and fixture coverage; betrayal risk is overclaiming app parity or bundling proprietary UI.</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><code>.canvasbundle</code> import/export probe</td>
+              <td>Solves the attachment portability gap without replacing raw <code>.canvas</code>.</td>
+              <td>Safety moderate from path rewriting; burden contained if bundle rules stay narrow.</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td>Flowchart Fun local text-document probe</td>
+              <td>Open source and text-first. Good AppifyHost shape, but it is a flowchart app that exports JSON Canvas, not primarily a JSON Canvas editor.</td>
+              <td>Chaos risk is inventing a second document model; keep source text canonical.</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td>Kinopio and OrgPad importers</td>
+              <td>Useful if users have exports. Bad fit for live persistence because the upstream products own cloud/account state.</td>
+              <td>Betrayal risk is data loss through lossy conversion; make preservation reports explicit.</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td>hi-canvas wrapper</td>
+              <td>Not enough verified local-storage or source-code leverage to justify a dedicated wrapper.</td>
+              <td>Burden and trust risk are high until source and offline persistence are clear.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O: <a href="https://jsoncanvas.org/docs/apps/">JSON Canvas apps list</a>, <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://github.com/obsidianmd/jsoncanvas">JSON Canvas GitHub</a>.</li>
+          <li>O: <a href="https://obsidian.md/blog/json-canvas/">Obsidian JSON Canvas announcement</a>, <a href="https://obsidian.md/help/plugins/canvas">Obsidian Canvas help</a>, <a href="https://obsidian.md/help/file-formats">Obsidian accepted file formats</a>.</li>
+          <li>O/S: <a href="https://kinopio.club/blog/posts/json-canvas/">Kinopio JSON Canvas note</a>, <a href="https://kinopio.club/help/posts/importing/">Kinopio importing</a>, <a href="https://kinopio.club/help/posts/exporting/">Kinopio exporting</a>, <a href="https://github.com/kinopio-club/kinopio-client">Kinopio client source</a>.</li>
+          <li>O: <a href="https://github.com/tone-row/flowchart-fun">Flowchart Fun GitHub</a>, <a href="https://flowchart.fun/">Flowchart Fun app</a>.</li>
+          <li>O: <a href="https://hi-canvas.marknoteapp.com/">hi-canvas</a>, <a href="https://orgpad.info/blog/export-and-import">OrgPad export/import</a>, <a href="https://orgpad.info/s/guide">OrgPad guide</a>.</li>
+          <li>O: <a href="https://charkoal.dev/">Charkoal</a>, <a href="https://github.com/charkoal-ai/docs">Charkoal docs repository</a>, <a href="https://marketplace.visualstudio.com/items?itemName=Charkoal.charkoal">Charkoal VS Code Marketplace</a>.</li>
+          <li>I: Local wrapper comparison from <code>JSONCanvas.app</code> and <code>TLCanvas.app</code>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

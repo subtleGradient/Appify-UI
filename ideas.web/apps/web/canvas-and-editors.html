@@ -37,6 +37,7 @@
         <strong>Atlas links:</strong>
         <a href="../method-slices.html">method</a> /
         <a href="top-picks.html">web top picks</a> /
+        <a href="json-canvas-apps.html">JSON Canvas apps</a> /
         <a href="sdk-bundle-hosts/index.html">SDK bundle hosts</a> /
         <a href="data-maps-cad.html">data/maps/CAD</a> /
         <a href="../appifyhost-patterns.html">host patterns</a> /
@@ -62,6 +63,13 @@
               <td><code>.canvas</code> JSON with nodes and edges; package for attachments.</td>
               <td>Best "TLCanvas sibling" because the format is open and local-first.</td>
               <td>Editor UX must exceed a simple viewer.</td>
+            </tr>
+            <tr>
+              <td>JSON Canvas ecosystem</td>
+              <td><a href="json-canvas-apps.html">Obsidian, Kinopio, Flowchart Fun, hi-canvas, OrgPad, Charkoal</a></td>
+              <td>Two storage-first <code>.canvas</code> apps; four import/export-first compatibility bridges.</td>
+              <td>Use <code>JSONCanvas.app</code> for the canonical file path; add converters or packages only where upstream persistence warrants it.</td>
+              <td>Cloud/import-export apps are lossy unless fixtures prove otherwise.</td>
             </tr>
             <tr>
               <td>Drawing canvas</td>
@@ -145,6 +153,7 @@
         <h2 id="sources">Sources</h2>
         <ul>
           <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://obsidian.md/blog/json-canvas/">Obsidian JSON Canvas announcement</a>.</li>
+          <li>O/I: <a href="json-canvas-apps.html">JSON Canvas app ecosystem research</a> covering Obsidian, Kinopio, Flowchart Fun, hi-canvas, OrgPad, and Charkoal.</li>
           <li>O: <a href="https://github.com/excalidraw/excalidraw">Excalidraw GitHub</a>, <a href="https://github.com/jgraph/drawio">diagrams.net GitHub</a>, <a href="https://github.com/TiddlyWiki/TiddlyWiki5">TiddlyWiki GitHub</a>.</li>
           <li>O: <a href="https://blocksuite.io/">BlockSuite</a>, <a href="https://milkdown.dev/">Milkdown</a>, <a href="https://lexical.dev/">Lexical</a>.</li>
           <li>O: <a href="https://microsoft.github.io/monaco-editor/">Monaco</a>, <a href="https://codemirror.com/">CodeMirror</a>, <a href="https://sandpack.codesandbox.io/">Sandpack</a>, <a href="https://webcontainers.io/">WebContainers</a>.</li>

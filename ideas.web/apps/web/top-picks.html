@@ -38,6 +38,7 @@
         <a href="../method-slices.html">method</a> /
         <a href="../appifyhost-patterns.html">host patterns</a> /
         <a href="canvas-and-editors.html">canvas/editors</a> /
+        <a href="json-canvas-apps.html">JSON Canvas apps</a> /
         <a href="sdk-bundle-hosts/index.html">SDK bundle hosts</a> /
         <a href="sdk-bundle-hosts/015-webapp-vs-website.html">webapp vs website</a> /
         <a href="data-maps-cad.html">data/maps/CAD</a> /
@@ -62,11 +63,11 @@
           <tbody>
             <tr>
               <td>1</td>
-              <td><a href="https://jsoncanvas.org/spec/1.0">JSON Canvas</a></td>
+              <td><a href="https://jsoncanvas.org/spec/1.0">JSON Canvas</a> + <a href="json-canvas-apps.html">app ecosystem</a></td>
               <td><code>.canvas</code>, <code>.canvasbundle</code></td>
-              <td>Open file format for infinite canvas data. It is text, local, and made for interoperability.</td>
-              <td><code>JSONCanvas.app</code>: render/edit <code>.canvas</code> with package attachments.</td>
-              <td>Spec is conservative; product value comes from the editor layer.</td>
+              <td>Open file format for infinite canvas data. Obsidian and Charkoal store it directly; Kinopio, Flowchart Fun, hi-canvas, and OrgPad prove import/export pressure.</td>
+              <td><code>JSONCanvas.app</code>: render/edit <code>.canvas</code>, preserve unknown fields, and add optional package attachments.</td>
+              <td>Spec is conservative; product value comes from editor UX and compatibility fixtures.</td>
               <td>O, I</td>
             </tr>
             <tr>
@@ -167,7 +168,7 @@
       <section aria-labelledby="sources">
         <h2 id="sources">Sources</h2>
         <ul>
-          <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://github.com/obsidianmd/jsoncanvas">JSON Canvas GitHub</a>, <a href="https://github.com/excalidraw/excalidraw">Excalidraw GitHub</a>.</li>
+          <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://github.com/obsidianmd/jsoncanvas">JSON Canvas GitHub</a>, <a href="json-canvas-apps.html">JSON Canvas app ecosystem</a>, <a href="https://github.com/excalidraw/excalidraw">Excalidraw GitHub</a>.</li>
           <li>O: <a href="https://docs.marimo.io/">marimo docs</a>, <a href="https://marimo.io/blog/python-not-json">marimo Python format</a>, <a href="https://jupyterlite.readthedocs.io/">JupyterLite docs</a>.</li>
           <li>O: <a href="https://maplibre.org/projects/gl-js/">MapLibre GL JS</a>, <a href="https://duckdb.org/docs/current/clients/wasm/overview.html">DuckDB-Wasm</a>, <a href="https://perspective.finos.org/guide/perspective.html">Perspective</a>.</li>
           <li>O: <a href="https://reactflow.dev/">React Flow</a>, <a href="https://retejs.org/">Rete.js</a>, <a href="https://ocjs.org/">OpenCascade.js</a>, <a href="https://jscad.app/">JSCAD</a>.</li>
