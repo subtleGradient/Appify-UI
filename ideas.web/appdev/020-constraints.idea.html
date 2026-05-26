@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>020 - Appify UI 26 Constraints</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">constraints / quads-prep stress test / Apple docs + local code</p>
+        <h1>Appify UI 26 Constraints</h1>
+        <p class="lede">
+          The idea survives if <code>.appdev</code> is the canonical workshop and <code>.app</code> is the reproducible runtime artifact. It gets fragile if the signed app is also the mutable source of truth.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="010-hyperslices.idea.html">010 hyperslices</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a>
+      </nav>
+
+      <section aria-labelledby="known">
+        <h2 id="known">Known Facts</h2>
+        <ul>
+          <li>Apple documents package documents as directories that Finder and Launch Services treat as single documents when the type is registered with <code>LSTypeIsPackage</code>.</li>
+          <li>Apple also defines application bundles as application bundles. <code>.app</code> is already the system's strong application shape, so using <code>.app</code> as a document extension would fight Finder expectations and Launch Services identity.</li>
+          <li>AppifyHost already has three document modes: <code>contentPackage</code>, <code>folderMarker</code>, and <code>fileDocument</code>.</li>
+          <li>AppifyHost validates the package extension, rejects symlinks, derives a working directory, runs an app-local server, and accepts only loopback HTTP(S) or file URLs under the document or app bundle.</li>
+          <li>The current local examples already cover the needed pattern space: <code>tw.app</code> and <code>litecli.app</code> for file documents, <code>LazyGit.app</code> for folder markers, and <code>TLCanvas.app</code> for content packages.</li>
+          <li>A self-contained nested app cannot be the only opener for <code>.appdev</code> before Launch Services knows about the document type. Some installed Appify UI build has to own <code>.appdev</code>.</li>
+          <li>Opening an arbitrary <code>.appdev</code> is not the same as opening inert data. It may contain executable code, so the default action should inspect and validate; running nested code should be explicit.</li>
+          <li>Current AppifyHost Save As behavior copies whole content packages, so caches, build artifacts, <code>node_modules</code>, DerivedData, and logs need cleanup or exclusion policy before <code>.appdev</code> gets large.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="extension">
+        <h2 id="extension">Why <code>.appdev</code> Beats <code>.app</code> As Document Type</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Golf score</th>
+              <th>Reason</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Native document extension is <code>.app</code></td>
+              <td>High badness</td>
+              <td>It collides with a launchable application bundle, creates user confusion, and risks handler-ranking fights with the system application-bundle type.</td>
+              <td>Keep as a fantasy target, not a first build.</td>
+            </tr>
+            <tr>
+              <td>Native document extension is <code>.appdev</code></td>
+              <td>Low badness</td>
+              <td>It is a custom document package with a clear semantic boundary: the development workshop around an app.</td>
+              <td>Use this.</td>
+            </tr>
+            <tr>
+              <td>Use <code>.appdev</code> as extension and "App Development Bundle" as kind</td>
+              <td>Lowest naming badness</td>
+              <td>Short filename, accurate Finder/document label, and one internal concept instead of split <code>.appdesign</code>/<code>.appdev</code> taxonomy.</td>
+              <td>Canonical naming decision.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="failure">
+        <h2 id="failure">Failure Modes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Failure</th>
+              <th>Why it matters</th>
+              <th>Rescue move</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Signed app vs hackable app conflict</td>
+              <td>Mutating a signed/notarized bundle can break trust, quarantine behavior, update assumptions, or reproducibility.</td>
+              <td>Make hacking flow through <code>.appdev</code> source and regeneration. The <code>.app</code> can be inspectable, but post-sign mutation is not the normal path.</td>
+            </tr>
+            <tr>
+              <td>Unclear source of truth</td>
+              <td>If both <code>.appdev</code> and the nested <code>.app</code> contain canonical state, the system drifts.</td>
+              <td>One rule: <code>.appdev/appdev.json5</code> points to the target app and declares what is generated, copied, private, and shippable.</td>
+            </tr>
+            <tr>
+              <td>Private process leak</td>
+              <td>A shipped app must not accidentally include prompts, notes, tasks, internal logs, credentials, or rough experiments.</td>
+              <td>Use an allowlist packager and a leak test before every zip.</td>
+            </tr>
+            <tr>
+              <td>Generic host abstraction gets too big</td>
+              <td>A meta-platform can become heavier than the apps it creates.</td>
+              <td>Ship one path first: wrap an existing AppifyHost pattern, validate, launch, and zip.</td>
+            </tr>
+            <tr>
+              <td>Finder elegance becomes tool pain</td>
+              <td>Bundles are directories, but many tools treat them as opaque or special.</td>
+              <td>Keep plain manifests, README files, scripts, and predictable paths inside the package. Make "Show Package Contents" a feature, not a secret.</td>
+            </tr>
+            <tr>
+              <td>Reproducibility theater</td>
+              <td>"Everything needed" can hide OS version, Xcode, Bun, signing identity, caches, secrets, fonts, or system frameworks.</td>
+              <td>Define a clean-machine test and a manifest field for external prerequisites.</td>
+            </tr>
+            <tr>
+              <td>Document opens executable code</td>
+              <td>A shared <code>.appdev</code> can smuggle an app, scripts, local servers, or build hooks behind a friendly package icon.</td>
+              <td>Opening means inspect. Running, building, signing, and packaging are separate trust-gated actions.</td>
+            </tr>
+            <tr>
+              <td>Inner app update mutates trust state</td>
+              <td>Replacing pieces inside a signed app can break the signature seal or create partial update states.</td>
+              <td>Build <code>Appify UI 26.app.next</code>, verify it, then atomically swap the whole app bundle.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="tests">
+        <h2 id="tests">Tests That Should Exist Early</h2>
+        <ul>
+          <li><strong>Clean machine test:</strong> copy only <code>appify-ui.appdev</code> to a fresh Mac user account and prove the nested app can run and be rebuilt with documented prerequisites.</li>
+          <li><strong>Codesign mutation test:</strong> sign the inner app, run the intended hack workflow, and verify trust is not silently broken.</li>
+          <li><strong>Source-of-truth test:</strong> ask where one UI change belongs; the answer should be obvious from the manifest and UI.</li>
+          <li><strong>Leak test:</strong> package only <code>Appify UI 26.app</code> and search for private notes, prompts, tasks, logs, credentials, and experiments.</li>
+          <li><strong>Round-trip test:</strong> regenerate the app twice from the same inputs and compare outputs.</li>
+          <li><strong>Open-is-inspect test:</strong> double-click a foreign <code>.appdev</code> and verify no nested executable runs until the user chooses a trust-gated action.</li>
+          <li><strong>Tool compatibility test:</strong> use Git, Finder, Spotlight, Zed, <code>rg</code>, file watchers, build scripts, and CI against the package layout.</li>
+          <li><strong>Minimum app test:</strong> if the scaffolding is larger or harder to explain than the smallest generated app, the abstraction is premature.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>L: <a href="../../source/AppifyHost/Sources/AppifyHostCore/AppifyHostCore.swift">AppifyHostCore.swift</a> and <a href="../../source/AppifyHost/Sources/appify-host/AppifyHostDocument.swift">AppifyHostDocument.swift</a>.</li>
+          <li>L: <a href="../../TLCanvas.app/Contents/Info.plist">TLCanvas Info.plist</a> as the local package-document registration pattern.</li>
+          <li>L: <a href="../../source/AppifyHost/Sources/appify-host/AppDelegate.swift">AppDelegate.swift</a> for current content-package creation behavior.</li>
+          <li>A: <a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/DocumentPackages/DocumentPackages.html">Apple Bundle Programming Guide: Document Packages</a>.</li>
+          <li>A: <a href="https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html">Apple Information Property List Key Reference: CFBundleDocumentTypes</a>.</li>
+          <li>A: <a href="https://developer.apple.com/documentation/uniformtypeidentifiers/uttype-swift.struct/applicationbundle">Apple UTType.applicationBundle</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

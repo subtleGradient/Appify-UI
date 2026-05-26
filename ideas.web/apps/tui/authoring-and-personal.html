@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>TUI Authoring and Personal Tools</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">TUI authoring terrain</p>
+        <h1>TUI Authoring and Personal Tools</h1>
+        <p class="lede">
+          These are not all obvious first builds, but they show where AppifyHost can make terminal-native tools feel like document apps for writers, calendar users, researchers, and file-heavy workflows.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="../method-slices.html">method</a> /
+        <a href="top-picks.html">TUI top picks</a> /
+        <a href="data-and-databases.html">data</a> /
+        <a href="devops-and-network.html">devops</a> /
+        <a href="../prototype-backlog.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="shortlist">
+        <h2 id="shortlist">Candidate Table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Document object</th>
+              <th>Why it matters</th>
+              <th>Wrapper idea</th>
+              <th>Score</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="https://github.com/bgreenwell/doxx">doxx</a></td>
+              <td><code>.docx</code>, <code>.dotx</code></td>
+              <td>Word docs are Finder-native, but terminal-native inspection/search/export is still weirdly underrepresented.</td>
+              <td><code>WordPeek.app</code>, viewer-first.</td>
+              <td>5</td>
+              <td>Terminal image/proportional rendering validation.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/anufrievroman/calcure">calcure</a></td>
+              <td><code>.ics</code>, calendar/task folder, agenda package</td>
+              <td>Calendar plus tasks as a small local document is a good personal-ops shape.</td>
+              <td><code>Agenda.app</code> package around a local calendar DB and import/export.</td>
+              <td>5</td>
+              <td>Python deps, sync/cloud/weather options.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/mfontanini/presenterm">presenterm</a></td>
+              <td><code>.md</code>, <code>.slides.md</code>, deck folder</td>
+              <td>Markdown decks are already files; opening straight into presentation mode is a native-app move.</td>
+              <td><code>TerminalDeck.app</code>.</td>
+              <td>4</td>
+              <td>Image/diagram rendering through ttyd.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/PPRAMANIK62/mdt">mdt</a> or <a href="https://github.com/charmbracelet/glow">Glow</a></td>
+              <td><code>.md</code>, note folder</td>
+              <td>Markdown viewing/editing in a TUI is a good "native shell" for technical notes.</td>
+              <td><code>MarkdownPeek.app</code> or note-folder package.</td>
+              <td>3-4</td>
+              <td>Maturity and differentiation from browser markdown editors.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/Han8931/gorae">Gorae</a></td>
+              <td><code>.pdf</code>, <code>.epub</code>, library package</td>
+              <td>A terminal librarian for PDFs/EPUBs gives a Zotero-lite angle without a giant app.</td>
+              <td><code>Library.app</code> with metadata index package.</td>
+              <td>4</td>
+              <td>Metadata fetching and file moves need clear behavior.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/mrossinek/cobib">coBib</a></td>
+              <td><code>.bib</code>, YAML bibliography, paper library package</td>
+              <td>Plain-text bibliography plus TUI is a strong academic document model.</td>
+              <td><code>Bibliography.app</code>.</td>
+              <td>4</td>
+              <td>Python/Textual packaging and citation workflow choices.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/esimov/diagram">Diagram</a></td>
+              <td><code>.txt</code>, <code>.ascii</code>, diagram package</td>
+              <td>ASCII drawing with rendered PNG output is a quirky but clean document workflow.</td>
+              <td><code>ASCIIDiagram.app</code>.</td>
+              <td>4</td>
+              <td>External preview/export tooling.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/sxyazi/yazi">Yazi</a> / <a href="https://superfile.dev/">superfile</a></td>
+              <td>Folder package, project folder, media folder</td>
+              <td>Modern terminal file managers can be scoped to one Finder-opened folder.</td>
+              <td><code>FolderScope.app</code> or package-aware explorer.</td>
+              <td>3-4</td>
+              <td>Image previews and OS open/reveal behavior through ttyd.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/kdheepak/taskwarrior-tui">taskwarrior-tui</a></td>
+              <td><code>.taskrc</code>, task database folder</td>
+              <td>Taskwarrior is a file-backed power-user system; a marker package can open a focused task DB.</td>
+              <td><code>TaskScope.app</code>.</td>
+              <td>4</td>
+              <td>Taskwarrior version/config drift.</td>
+            </tr>
+            <tr>
+              <td><a href="https://aerc-mail.org/">aerc</a></td>
+              <td>Maildir, <code>.mbox</code>, patch mailbox</td>
+              <td>Mail and patch review are deeply document/folder-shaped.</td>
+              <td><code>Maildir.app</code> or patch-review profile.</td>
+              <td>3</td>
+              <td>Accounts, auth, send-side safety.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="attractors">
+        <h2 id="attractors">Attractors</h2>
+        <ul>
+          <li><strong>Peek apps:</strong> doxx, xleak, Glow, jless. Low write risk, high native-document clarity.</li>
+          <li><strong>Library packages:</strong> Gorae, coBib, calcure. Need manifest and import/export conventions.</li>
+          <li><strong>Presentation mode:</strong> presenterm. The app exists mostly to open directly into use, not edit.</li>
+          <li><strong>Folder scopes:</strong> Yazi/superfile/taskwarrior-tui. Good if the Finder-opened object is a deliberate folder/package, not the whole home directory.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O/P: <a href="https://github.com/bgreenwell/doxx">doxx</a>, <a href="https://manpages.debian.org/experimental/doxx/doxx.1.en.html">doxx manpage</a>, <a href="https://github.com/bgreenwell/xleak">xleak</a>.</li>
+          <li>O: <a href="https://github.com/mfontanini/presenterm">presenterm</a>, <a href="https://github.com/charmbracelet/glow">Glow</a>, <a href="https://github.com/PPRAMANIK62/mdt">mdt</a>.</li>
+          <li>O/P: <a href="https://github.com/Han8931/gorae">Gorae</a>, <a href="https://www.linuxlinks.com/gorae-tui-librarian-pdfs-epubs/">Gorae LinuxLinks</a>, <a href="https://github.com/mrossinek/cobib">coBib</a>.</li>
+          <li>O: <a href="https://github.com/sxyazi/yazi">Yazi</a>, <a href="https://superfile.dev/">superfile</a>, <a href="https://aerc-mail.org/">aerc</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

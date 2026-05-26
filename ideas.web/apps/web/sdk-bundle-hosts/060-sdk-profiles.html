@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Profiles</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">06 / SDK profiles</p>
+        <h1>Per-SDK Profiles</h1>
+        <p class="lede">
+          <code>Webapp.app</code> can share the runner, but each SDK example still needs a small profile for entry inference, canonical files, import aliases, save bridge, and default template. Profiles graduate into dedicated apps only when they prove enough repeated product surface.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="profiles">
+        <h2 id="profiles">Profiles</h2>
+        <p>
+          These profiles are <code>.webapp</code> profiles. They do not apply to static <code>.web</code> or <code>.website</code> bundles unless the package has already been exported to browser-native files that need no npm or build step.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Profile</th>
+              <th>Example package</th>
+              <th>Default canonical file</th>
+              <th>Entry inference</th>
+              <th>Save risk</th>
+              <th>Source anchor</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>cytoscape</code></td>
+              <td><code>small-network.webapp</code></td>
+              <td><code>graph.cyjs</code> or <code>cytoscape.json</code></td>
+              <td>Graph JSON first; otherwise <code>index.html</code> or <code>src/main.*</code>.</td>
+              <td>Medium: graph state is clear, but app-specific panels and algorithms are not.</td>
+              <td><a href="https://js.cytoscape.org/">Cytoscape.js docs</a></td>
+            </tr>
+            <tr>
+              <td><code>rete</code></td>
+              <td><code>json-rete.webapp</code></td>
+              <td><code>graph.rete.json</code></td>
+              <td><code>nodes/registry.*</code> plus graph JSON, then normal web entry.</td>
+              <td>High: Rete explicitly leaves import/export to the app when objects are not plain JSON.</td>
+              <td><a href="https://retejs.org/docs/guides/import-export/">Rete import/export</a></td>
+            </tr>
+            <tr>
+              <td><code>xyflow</code></td>
+              <td><code>two-node-flow.webapp</code></td>
+              <td><code>flow.xyflow.json</code></td>
+              <td>Flow JSON with built-in nodes; custom nodes require <code>src/nodes.*</code>.</td>
+              <td>Medium: <code>toObject()</code> gets nodes, edges, viewport, but not arbitrary component code.</td>
+              <td><a href="https://reactflow.dev/examples/interaction/save-and-restore">React Flow save/restore</a></td>
+            </tr>
+            <tr>
+              <td><code>tlcanvas</code></td>
+              <td><code>snapshot-canvas.webapp</code></td>
+              <td><code>document.tldraw.json</code> or existing TLCanvas package files</td>
+              <td>Snapshot files first; otherwise TLCanvas current package layout.</td>
+              <td>Medium: snapshots have migrations, but assets and custom shapes need policy.</td>
+              <td><a href="https://tldraw.dev/docs/persistence">tldraw persistence</a></td>
+            </tr>
+            <tr>
+              <td><code>d3</code></td>
+              <td><code>d3-bar-chart.webapp</code></td>
+              <td>No universal graph file; source plus data are canonical.</td>
+              <td><code>index.html</code>, <code>src/main.*</code>, or <code>appify.json</code> entry.</td>
+              <td>High: D3 is a visualization library, so the package code is the document behavior.</td>
+              <td><a href="https://d3js.org/getting-started">D3 getting started</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="bridges">
+        <h2 id="bridges">Bridge API Shape</h2>
+        <pre><code>window.appifyDocument = {
+  kind: "xyflow",
+  packageURL: "/doc/",
+  readText(path),
+  writeText(path, text),
+  readAsset(path),
+  writeAsset(path, blob),
+  markDirty(reason),
+  save(snapshot),
+  updatePreview(blob)
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="bridges-rules">
+        <h2 id="bridges-rules">Bridge Rules</h2>
+        <ul>
+          <li>Built-in templates use the bridge directly.</li>
+          <li>Normal packages can ignore the bridge and still render.</li>
+          <li>Packages that want native Save semantics implement or call the bridge adapter.</li>
+          <li>The bridge writes package-relative paths only.</li>
+          <li>Every SDK profile defines which files count as canonical, session, cache, and preview.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="failures">
+        <h2 id="failures"><code>.webapp</code> Profile Failure Messages</h2>
+        <ul>
+          <li><code>small-network.webapp</code>: graph JSON loaded, but no style/layout found; using profile defaults.</li>
+          <li><code>json-rete.webapp</code>: graph contains non-JSON node type without a registered serializer.</li>
+          <li><code>two-node-flow.webapp</code>: custom node type declared in JSON but no renderer found.</li>
+          <li><code>snapshot-canvas.webapp</code>: snapshot schema migrated; package preview needs regeneration.</li>
+          <li><code>d3-bar-chart.webapp</code>: no entry found; add <code>index.html</code>, <code>src/main.js</code>, or <code>appify.json</code>.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="070-golf.html">Next: golf scoring</a>
+        <a href="050-node-modules.html">Previous: dependencies</a>
+      </section>
+    </main>
+  </body>
+</html>

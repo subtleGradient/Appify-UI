@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>050 - Appify UI 26 Map Reduce</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">subagent map/reduce synthesis</p>
+        <h1>Appify UI 26 Map Reduce</h1>
+        <p class="lede">
+          Six sidecar passes attacked the idea from product, technical, adversarial, bundle-schema, behavioral, and hyperslice angles. This is the reduced signal.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="010-hyperslices.idea.html">010 hyperslices</a> /
+        <a href="020-constraints.idea.html">020 constraints</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a>
+      </nav>
+
+      <section aria-labelledby="votes">
+        <h2 id="votes">Converged Signals</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Signal</th>
+              <th>Reduce</th>
+              <th>Consequence</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Vibe</td>
+              <td>Hackable native toybox, app garage, creative instrument.</td>
+              <td>Do not make a dead settings editor. The product has to make working apps appear quickly and visibly.</td>
+            </tr>
+            <tr>
+              <td>Boundary</td>
+              <td><code>.appdev</code> is the private workshop; <code>.app</code> is shippable, inspectable, and reproducible.</td>
+              <td>The source-of-truth rule must be explicit from day one.</td>
+            </tr>
+            <tr>
+              <td>First proof</td>
+              <td>Self-hosting is emotionally important but should be a proof, not the entire architecture.</td>
+              <td>Make Appify UI open its own <code>.appdev</code>, inspect its own target app, and run a tiny child app fixture.</td>
+            </tr>
+            <tr>
+              <td>Safety</td>
+              <td>Signed runtime mutation is the sharp edge.</td>
+              <td>Prefer edit-regenerate-run over mutate-signed-app-in-place.</td>
+            </tr>
+            <tr>
+              <td>Trust</td>
+              <td>A document package can contain executable code.</td>
+              <td>Opening a foreign <code>.appdev</code> should inspect only; run/build/sign/package actions should be explicit.</td>
+            </tr>
+            <tr>
+              <td>Delight</td>
+              <td>The magic is inspectable causality: choice, generated file, visible preview, hackable result.</td>
+              <td>Every magical action should reveal the file it touched.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="first-loop">
+        <h2 id="first-loop">Best Next Loop</h2>
+        <ol>
+          <li>Declare a tiny <code>appify-ui.appdev/appdev.json5</code>.</li>
+          <li>Create a skeletal nested <code>Appify UI 26.app</code> that can be inspected but not yet polished.</li>
+          <li>Make one static workbench page that reads the app manifest and displays identity, document mode, runner, and fixture status.</li>
+          <li>Make the default open path inspect-only, then wire one explicit smoke action that launches or simulates launch for a fixture.</li>
+          <li>Add a packager check that lists what would ship and what would be excluded.</li>
+          <li>Run the leak/source-of-truth tests before adding any broad generator abstraction.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="golf">
+        <h2 id="golf">Decision Golf</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Decision</th>
+              <th>NaivePoints</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Use <code>.appdev</code> as custom document package</td>
+              <td>1</td>
+              <td>Calibrated to macOS package mechanics and keeps options open.</td>
+            </tr>
+            <tr>
+              <td>Try to claim <code>.app</code> as the native document type</td>
+              <td>9</td>
+              <td>Exposed to Finder/Launch Services conflict and user confusion for little upside.</td>
+            </tr>
+            <tr>
+              <td>Make <code>.appdev</code> canonical and <code>.app</code> reproducible</td>
+              <td>0</td>
+              <td>Clean boundary, low leak risk, compatible with signing and updates.</td>
+            </tr>
+            <tr>
+              <td>Make the signed <code>.app</code> the mutable source of truth</td>
+              <td>8</td>
+              <td>Code-signing, update, leak, and reproducibility hazards stack up fast.</td>
+            </tr>
+            <tr>
+              <td>Start with real existing AppifyHost probes</td>
+              <td>-2</td>
+              <td>Cheap information gain before designing a broad platform.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

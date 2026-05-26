@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Jobs</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">02 / jobs</p>
+        <h1>Jobs To Be Done</h1>
+        <p class="lede">
+          The product is not a generic node editor. The product is a native-feeling way to own, open, edit, inspect, copy, and evolve SDK-based web documents as local packages.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="jobs">
+        <h2 id="jobs">User Jobs</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Job</th>
+              <th>Success condition</th>
+              <th>Design pressure</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Open a normal package</td>
+              <td>Rename <code>chart</code> to <code>chart.webapp</code> and double-click it.</td>
+              <td>Accept <code>package.json</code>, <code>index.html</code>, ESM source, relative assets, and Vite-like layout.</td>
+            </tr>
+            <tr>
+              <td>Protect static website bundles</td>
+              <td>Open <code>.web</code> and <code>.website</code> as static web-native packages only.</td>
+              <td>No npm, build-step, or dependency-cache expectation leaks across from <code>.webapp</code>.</td>
+            </tr>
+            <tr>
+              <td>Create a blank document</td>
+              <td>New document starts with a small working package, not an empty mystery folder.</td>
+              <td>Each app needs one minimal template with canonical source and data paths.</td>
+            </tr>
+            <tr>
+              <td>Keep the package inspectable</td>
+              <td><code>rg</code>, git, Finder, backup, and manual copy remain useful.</td>
+              <td>Readable JSON/source files beat opaque databases and generated-only state.</td>
+            </tr>
+            <tr>
+              <td>Use the SDK normally</td>
+              <td>Imports and concepts feel like the upstream ecosystem.</td>
+              <td>The app should alias host-owned SDK packages rather than invent new wrappers first.</td>
+            </tr>
+            <tr>
+              <td>Ship assets with the document</td>
+              <td>Copying the package preserves images, data, fonts, and previews.</td>
+              <td>Use package-relative paths and a clear <code>assets/</code> or <code>public/</code> convention.</td>
+            </tr>
+            <tr>
+              <td>Preserve advanced ceilings</td>
+              <td>Custom nodes, renderers, transforms, and loaders can exist when the package declares them.</td>
+              <td>Do not force all documents into lowest-common-denominator JSON.</td>
+            </tr>
+            <tr>
+              <td>Avoid surprise execution</td>
+              <td>Opening a package does not silently install packages or run lifecycle scripts.</td>
+              <td>Dependency resolution and script execution need explicit modes and logs.</td>
+            </tr>
+            <tr>
+              <td>Decide whether to specialize</td>
+              <td>Build SDK examples as <code>.webapp</code> packages before minting new app extensions.</td>
+              <td>Dedicated apps should be evidence-backed, not naming-first.</td>
+            </tr>
+            <tr>
+              <td>Upgrade over time</td>
+              <td>SDK and document migrations are visible and reversible where possible.</td>
+              <td>Persist format versions, host versions, and migration notes inside the package.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="non-jobs">
+        <h2 id="non-jobs">Non-Jobs</h2>
+        <ul>
+          <li>Do not become npm, pnpm, Vite, VS Code, Observable, Cytoscape Desktop, or a universal workflow platform.</li>
+          <li>Do not guarantee arbitrary web apps work. Guarantee a clear local package contract and good failure messages.</li>
+          <li>Do not make the SDK app the only way to read the package. The durable files should be ordinary enough to inspect without the app.</li>
+          <li>Do not privilege blank-slate generic editors over specific document workflows. Generic is the hosting layer, not the user's domain.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="done">
+        <h2 id="done">Definition Of Done For The Generic Layer</h2>
+        <ul>
+          <li>An empty package scaffolds and opens.</li>
+          <li>A normal package with a root <code>index.html</code> opens.</li>
+          <li>A normal package with a declared <code>appify.json</code> entry opens.</li>
+          <li>Host-owned SDK imports work without package-local <code>node_modules</code>.</li>
+          <li>Missing extra dependencies fail with a clear install/cache path, not a blank WebView.</li>
+          <li>Save writes canonical package files, not only browser storage.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="030-layers.html">Next: encapsulation layers</a>
+        <a href="010-problem.html">Previous: problem</a>
+      </section>
+    </main>
+  </body>
+</html>

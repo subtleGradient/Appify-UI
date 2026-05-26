@@ -39,7 +39,7 @@ if [[ "$SMOKE_SKIP_BUILD" != "1" ]]; then
   "$ROOT/Scripts/build-app.sh" >/dev/null
 fi
 
-if [[ ! -x "$APP/Contents/MacOS/main.sh" || ! -x "$APP/Contents/MacOS/appify-host" ]]; then
+if [[ ! -x "$APP/Contents/MacOS/appify-host" && ! -x "$APP/Contents/MacOS/main.sh" ]]; then
   echo "Missing executable app bundle at $APP" >&2
   exit 1
 fi

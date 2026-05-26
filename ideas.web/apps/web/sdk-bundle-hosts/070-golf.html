@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Bundle Golf</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">07 / golf</p>
+        <h1>Golf Read</h1>
+        <p class="lede">
+          The strategic liability is lowest when the design mirrors web package norms and AppifyHost boundaries. The technical liability spikes when packages silently execute, hide state, or carry unmanaged dependency trees.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision Golf</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Move</th>
+              <th>Calibration</th>
+              <th>Exposure</th>
+              <th>Reactivity</th>
+              <th>Ruin</th>
+              <th>Rigidity</th>
+              <th>Total</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Webapp.app</code> first, then SDK examples, then reassess dedicated apps.</td>
+              <td>-2</td>
+              <td>0</td>
+              <td>-2</td>
+              <td>-1</td>
+              <td>-2</td>
+              <td>-7</td>
+              <td>Best move: small generic bet before naming five products.</td>
+            </tr>
+            <tr>
+              <td>One generic SDK bundle contract with dedicated SDK apps immediately.</td>
+              <td>-2</td>
+              <td>0</td>
+              <td>-1</td>
+              <td>0</td>
+              <td>-1</td>
+              <td>-4</td>
+              <td>Good but premature: still risks productizing names before evidence.</td>
+            </tr>
+            <tr>
+              <td>Preserve <code>.web</code> / <code>.website</code> as static-only bundles.</td>
+              <td>-1</td>
+              <td>0</td>
+              <td>-1</td>
+              <td>-1</td>
+              <td>-1</td>
+              <td>-4</td>
+              <td>Good constraint: prevents dependency policy from leaking into static documents.</td>
+            </tr>
+            <tr>
+              <td>Invent fixed schemas for all five.</td>
+              <td>+3</td>
+              <td>0</td>
+              <td>+1</td>
+              <td>+1</td>
+              <td>+3</td>
+              <td>8</td>
+              <td>Bad: elegant locally, brittle strategically.</td>
+            </tr>
+            <tr>
+              <td>Auto-install and run package scripts on open.</td>
+              <td>+1</td>
+              <td>+3</td>
+              <td>+2</td>
+              <td>+4</td>
+              <td>+1</td>
+              <td>11</td>
+              <td>Stop: too much trust and security exposure for a document app.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="thing">
+        <h2 id="thing">Thing Golf: Dependency Strategy</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Strategy</th>
+              <th>Safety</th>
+              <th>Burden</th>
+              <th>Chaos</th>
+              <th>Betrayal</th>
+              <th>Control</th>
+              <th>Read</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Webapp.app</code> with examples.</td>
+              <td>1</td>
+              <td>1</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0</td>
+              <td>Accept first: the smallest shared layer that can falsify the dedicated-app idea.</td>
+            </tr>
+            <tr>
+              <td>Host SDK + cache extra deps by lockfile.</td>
+              <td>1</td>
+              <td>1</td>
+              <td>1</td>
+              <td>0</td>
+              <td>1</td>
+              <td>Accept: one real new layer, but it keeps documents small and honest.</td>
+            </tr>
+            <tr>
+              <td>Put <code>node_modules</code> in every bundle by default.</td>
+              <td>1</td>
+              <td>4</td>
+              <td>3</td>
+              <td>1</td>
+              <td>2</td>
+              <td>Reject as default: too heavy and noisy.</td>
+            </tr>
+            <tr>
+              <td>Use IndexedDB as canonical persistence.</td>
+              <td>1</td>
+              <td>2</td>
+              <td>3</td>
+              <td>4</td>
+              <td>2</td>
+              <td>Reject: it betrays the Finder document promise.</td>
+            </tr>
+            <tr>
+              <td>SDK-specific save bridges.</td>
+              <td>1</td>
+              <td>2</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0</td>
+              <td>Accept: local complexity that prevents generic data loss.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="risk">
+        <h2 id="risk">Risk Controls</h2>
+        <ul>
+          <li>Default to host-owned SDK imports and no lifecycle scripts.</li>
+          <li>Make every cache reproducible from package files or visibly disposable.</li>
+          <li>Fail loudly when custom node/render code is missing instead of rendering misleading partial documents.</li>
+          <li>Keep the manifest small enough that a user can read it during a bug report.</li>
+          <li>Prototype <code>Webapp.app</code> with one data-oriented SDK example and one code-oriented SDK example before generalizing.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="080-probes.html">Next: probes</a>
+        <a href="060-sdk-profiles.html">Previous: SDK profiles</a>
+      </section>
+    </main>
+  </body>
+</html>

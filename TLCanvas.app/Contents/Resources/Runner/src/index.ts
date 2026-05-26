@@ -1,6 +1,6 @@
 import { serve } from "bun";
 import { createTLStore, toRichText } from "tldraw";
-import { mkdir, rename, symlink } from "node:fs/promises";
+import { mkdir, rename, rm, symlink } from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { basename, dirname, extname, join, relative, resolve } from "node:path";
@@ -23,7 +23,6 @@ const README_FILE_NAME = "README.md";
 const QUICK_LOOK_DIRECTORY_NAME = "QuickLook";
 const QUICK_LOOK_THUMBNAIL_FILE_NAME = "Thumbnail.png";
 const QUICK_LOOK_PREVIEW_FILE_NAME = "Preview.png";
-const SNAPSHOT_FILE_NAME = "snapshot.png";
 const SNAPSHOT_API_PATH = "/api/snapshot";
 const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const canvasReadErrorTracker = createCanvasReadErrorTracker();
@@ -259,7 +258,7 @@ function createPortableReadme(documentPath: string): string {
 
   return `# ${documentName}
 
-![TLCanvas snapshot](snapshot.png)
+![TLCanvas preview](QuickLook/Preview.png)
 
 This is a TLCanvas document package. It is a folder that macOS shows as a single document.
 
@@ -271,8 +270,8 @@ Double-click this package with TLCanvas.app installed.
 
 - The canvas data is in \`canvas.json5\`.
 - Large assets and editable text sidecars live under \`records/\`.
-- \`snapshot.png\` is the generated preview image from the last saved TLCanvas session.
-- \`QuickLook/Thumbnail.png\` and \`QuickLook/Preview.png\` are Finder compatibility links to \`snapshot.png\`.
+- \`QuickLook/Preview.png\` is the generated preview image from the last saved TLCanvas session.
+- \`QuickLook/Thumbnail.png\` is the Finder thumbnail link to \`QuickLook/Preview.png\`.
 
 TLCanvas is built with the tldraw SDK and stores its document data as local files for portability.
 `;
@@ -461,31 +460,35 @@ async function writeSnapshotImage(documentPath: string, request: Request): Promi
   }
 
   await ensurePortableDocumentFiles(documentPath);
-  const snapshotFilePath = join(documentPath, SNAPSHOT_FILE_NAME);
+  const snapshotFilePath = quickLookPreviewFilePath(documentPath);
   const tempFilePath = `${snapshotFilePath}.${randomUUID()}.tmp`;
+  await mkdir(dirname(snapshotFilePath), { recursive: true });
   await Bun.write(tempFilePath, bytes);
   await rename(tempFilePath, snapshotFilePath);
 
-  await writeQuickLookSnapshotLinks(documentPath);
+  await writeQuickLookThumbnailLink(documentPath);
+  await rm(join(documentPath, "snapshot.png"), { force: true });
 
   return new Response(null, { status: 204 });
 }
 
-async function writeQuickLookSnapshotLinks(documentPath: string): Promise<void> {
+function quickLookPreviewFilePath(documentPath: string): string {
+  return join(documentPath, QUICK_LOOK_DIRECTORY_NAME, QUICK_LOOK_PREVIEW_FILE_NAME);
+}
+
+async function writeQuickLookThumbnailLink(documentPath: string): Promise<void> {
   const quickLookDirectoryPath = join(documentPath, QUICK_LOOK_DIRECTORY_NAME);
   await mkdir(quickLookDirectoryPath, { recursive: true });
 
-  for (const fileName of [QUICK_LOOK_THUMBNAIL_FILE_NAME, QUICK_LOOK_PREVIEW_FILE_NAME]) {
-    const linkFilePath = join(quickLookDirectoryPath, fileName);
-    const tempFilePath = `${linkFilePath}.${randomUUID()}.tmp`;
-    await symlink(`../${SNAPSHOT_FILE_NAME}`, tempFilePath);
-    await rename(tempFilePath, linkFilePath);
-  }
+  const thumbnailFilePath = join(quickLookDirectoryPath, QUICK_LOOK_THUMBNAIL_FILE_NAME);
+  const tempFilePath = `${thumbnailFilePath}.${randomUUID()}.tmp`;
+  await symlink(QUICK_LOOK_PREVIEW_FILE_NAME, tempFilePath);
+  await rename(tempFilePath, thumbnailFilePath);
 }
 
 function snapshotExistsResponse(documentPath: string): Response {
   return new Response(null, {
-    status: existsSync(join(documentPath, SNAPSHOT_FILE_NAME)) ? 204 : 404,
+    status: existsSync(quickLookPreviewFilePath(documentPath)) ? 204 : 404,
   });
 }
 
@@ -583,7 +586,7 @@ const server = serve({
         return snapshotExistsResponse(documentPath);
       },
       GET() {
-        const snapshotFilePath = join(documentPath, SNAPSHOT_FILE_NAME);
+        const snapshotFilePath = quickLookPreviewFilePath(documentPath);
         if (!existsSync(snapshotFilePath)) {
           return createJsonResponse({ error: "Snapshot image does not exist." }, { status: 404 });
         }

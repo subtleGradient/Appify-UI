@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>000 - Single File WebForm Standard</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      pre { overflow: auto; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; padding: 1rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/webform / standalone primitive / 2026-05-22</p>
+        <h1>Single File WebForm Standard</h1>
+        <p class="lede">
+          A <code>.webform</code> should be a single HTML file whose visible form controls are the saved state. WebFormer can add runtime affordances while serving it, but the durable artifact stays plain, inspectable, printable HTML.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea notes">
+        <strong>Builds into:</strong>
+        <a href="../nouns/000-composable-document-nouns.idea.html">composable document nouns</a> /
+        <a href="../DotOK/000-dotok-fractal-stack.idea.html">DotOK stack</a>
+      </nav>
+
+      <section aria-labelledby="job">
+        <h2 id="job">Primary Job</h2>
+        <p>
+          The main job is agent-to-agent decision making, where an agent may be human or AI. A useful webform is a semantic artifact: headings, labels, fieldsets, choices, current values, and tradeoffs are visible in the file itself. No hidden sidecar state is required to understand what the form currently says.
+        </p>
+      </section>
+
+      <section aria-labelledby="contract">
+        <h2 id="contract">V0 Contract</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>*.webform</code></td>
+              <td>One HTML file. No required bundle, manifest, sidecar JSON, embedded app script, embedded CSS, or build step.</td>
+            </tr>
+            <tr>
+              <td>Durable state</td>
+              <td>Saved answers live in native HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, <code>textarea</code> text, and vetted <code>contenteditable</code> HTML.</td>
+            </tr>
+            <tr>
+              <td>Source style</td>
+              <td>Lean into HTML5's forgiving syntax. Omit optional <code>html</code>, <code>head</code>, and <code>body</code> tags when they add noise. Use unquoted attribute values when valid and readable. Prefer flat, low-indent source.</td>
+            </tr>
+            <tr>
+              <td>Names and ids</td>
+              <td>Optional. Add <code>id</code> or <code>name</code> only when useful for a human or agent reference. WebFormer can inject temporary names while serving.</td>
+            </tr>
+            <tr>
+              <td>Runtime affordances</td>
+              <td>Injected by WebFormer into the served response with Bun <code>HTMLRewriter</code>. They are not part of the source file unless explicitly saved as source. WebFormer should expose <code>window.AppifyHost.save()</code> and <code>window.AppifyHost.isDirty()</code> for native macOS save/close affordances and autosave form edits without a visible web Save button.</td>
+            </tr>
+            <tr>
+              <td>Default appearance</td>
+              <td>WebFormer should inject served-only light/dark appearance support: <code>meta name=color-scheme</code>, <code>color-scheme: light dark</code>, system-font typography, readable spacing, and native form control styling. A plain <code>.webform</code> should not open as Times New Roman unless the author explicitly wants that.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="source">
+        <h2 id="source">Smallest Useful Source</h2>
+        <pre><code>&lt;!doctype html&gt;
+&lt;meta charset=utf-8&gt;
+&lt;title&gt;Client Intake&lt;/title&gt;
+
+&lt;h1&gt;Client Intake&lt;/h1&gt;
+
+&lt;form&gt;
+&lt;fieldset&gt;
+&lt;legend&gt;Decision Context&lt;/legend&gt;
+
+&lt;label&gt;Client name
+&lt;input value="Acme Studio" autocomplete=organization&gt;
+&lt;/label&gt;
+
+&lt;label&gt;Scope
+&lt;textarea&gt;Create a printable intake that survives plain file opening.&lt;/textarea&gt;
+&lt;/label&gt;
+
+&lt;section contenteditable=true&gt;
+&lt;h2&gt;Rich Notes&lt;/h2&gt;
+&lt;p&gt;This editable area can hold structured WYSIWYG notes.&lt;/p&gt;
+&lt;/section&gt;
+
+&lt;/fieldset&gt;
+&lt;/form&gt;</code></pre>
+      </section>
+
+      <section aria-labelledby="webformer">
+        <h2 id="webformer">WebFormer Runtime</h2>
+        <pre><code>GET client-intake.webform
+  read source HTML
+  rewrite served response with HTMLRewriter
+  inject color-scheme meta, default stylesheet, autosave runtime, diagnostics, generated field addresses, source hash
+  expose window.AppifyHost.save()/isDirty() so Command-S and close checks can flush through AppifyHost
+  optionally upgrade controls with web-native components
+
+POST client-intake.webform
+  verify source hash
+  reject unknown submitted fields
+  reject missing expected fields unless intentionally disabled
+  rewrite source control state:
+    input value / checked
+    textarea text
+    contenteditable inner HTML
+    option selected
+    drop results as visible HTML or native control state
+  preserve unrelated source bytes and author formatting
+  reparse and verify visible state round-trips
+  write source or return a blocking diagnostic</code></pre>
+      </section>
+
+      <section aria-labelledby="native-editing">
+        <h2 id="native-editing">Web-Native Editing</h2>
+        <p>
+          WebFormer should support native browser editing affordances when they keep the source file inspectable. The important rule is not "no rich UI"; the rule is that the rich UI must resolve back to visible HTML that another human or agent can read without WebFormer.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Affordance</th>
+              <th>Native Surface</th>
+              <th>Save Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Rich text</td>
+              <td><code>contenteditable</code>, selection, Input Events</td>
+              <td>Save a sanitized, allowed subset of HTML inside the editable element. Never hide a parallel rich-text document model.</td>
+            </tr>
+            <tr>
+              <td>Paste</td>
+              <td>Clipboard/DataTransfer payloads surfaced through input and paste events</td>
+              <td>Prefer semantic HTML. If pasted data cannot be represented visibly and safely, block or ask instead of dropping data.</td>
+            </tr>
+            <tr>
+              <td>Drag reorder</td>
+              <td>HTML Drag and Drop events plus <code>DataTransfer</code></td>
+              <td>Persist the reordered DOM source with minimal patches and round-trip verification.</td>
+            </tr>
+            <tr>
+              <td>File drop</td>
+              <td>HTML Drag and Drop file items, file inputs</td>
+              <td>Embed a visible link, figure, or native control state in the HTML. Never create invisible sidecar state.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="diffs">
+        <h2 id="diffs">Diff-Friendly Saves</h2>
+        <p>
+          WebFormer should behave like a careful structured editor, not a formatter. When a user or agent edits a value, the save path should modify the smallest source span that represents that value and leave unrelated whitespace, optional tag choices, attribute order, quote style, indentation, comments, and surrounding markup untouched. Clean git diffs are part of the format's trust model.
+        </p>
+        <ul>
+          <li>Changing a text input should update only that input's <code>value</code> attribute.</li>
+          <li>Changing a <code>textarea</code> should update only its text content.</li>
+          <li>Changing a <code>contenteditable</code> region should update only that region's vetted inner HTML.</li>
+          <li>Changing a checkbox, radio, or option should update only the relevant <code>checked</code> or <code>selected</code> state.</li>
+          <li>Drag-and-drop reorder operations should move the smallest stable element range rather than reserializing the whole document.</li>
+          <li>Do not add optional <code>html</code>, <code>head</code>, or <code>body</code> tags just because the parser exposes them in the DOM.</li>
+          <li>Do not quote or unquote existing attributes unless the edited value requires it.</li>
+          <li>Normalization is an explicit repair action, not the default save behavior.</li>
+          <li>If a minimal patch cannot be proven safe, WebFormer should block with a diagnostic instead of silently reformatting the document.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="errors">
+        <h2 id="errors">Zero Silent Errors</h2>
+        <ul>
+          <li>Unknown submitted field: hard error.</li>
+          <li>Stale source hash: hard conflict.</li>
+          <li>Generated field address resolves to zero or multiple source controls: hard error.</li>
+          <li>Duplicate explicit ids used as stable handles: hard error.</li>
+          <li>Persistent hidden state: hard warning or hard error.</li>
+          <li>Multiple forms: allowed, but WebFormer treats each as a separate decision surface.</li>
+          <li>Native <code>form</code> attribute associations: supported only when unambiguous.</li>
+          <li>Custom elements: supported when they mirror to native controls or are form-associated custom elements with inspectable values.</li>
+          <li>Rich text paste/drop includes disallowed markup or hidden payloads: hard diagnostic with a visible cleanup choice.</li>
+          <li>Dropped file cannot be represented as visible HTML or native control state: hard diagnostic.</li>
+          <li>Round-trip mismatch after rewrite: hard error with before/after diagnostics.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rejections">
+        <h2 id="rejections">Rejected V0 Shapes</h2>
+        <ul>
+          <li><code>data.jsonp</code>: executable data and a historic cross-domain security hole.</li>
+          <li><code>data.json</code> sidecar: safer than JSONP, but still creates invisible split state and synchronization risk.</li>
+          <li>Mandatory manifests: premature configuration surface.</li>
+          <li>Embedded app code in every form: turns a document into a tiny app project.</li>
+          <li>Required field names: burdens authors before the name is useful.</li>
+          <li>Opaque rich-text blobs: useful editing UI, bad agent artifact.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="open">
+        <h2 id="open">Open Decisions</h2>
+        <ul>
+          <li>How stable generated field addresses should remain across edits when authors omit ids and names.</li>
+          <li>Whether hidden controls are ever allowed as persistent state. V0 bias: no.</li>
+          <li>What exact HTML subset is allowed for <code>contenteditable</code> saves.</li>
+          <li>How file inputs and dropped files round-trip, since browsers intentionally do not let scripts repopulate <code>&lt;input type="file"&gt;</code>.</li>
+          <li>How much source-location metadata WebFormer needs to preserve minimal patches across malformed-but-browser-recoverable HTML.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

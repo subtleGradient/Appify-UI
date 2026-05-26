@@ -1,0 +1,12 @@
+[main]
+multi_line = False
+destructive_warning = True
+table_format = ascii
+syntax_style = default
+key_bindings = emacs
+wider_completion_menu = False
+prompt = 'litecli> '
+prompt_continuation = '      -> '
+less_chatty = False
+auto_vertical_output = False
+enable_pager = True

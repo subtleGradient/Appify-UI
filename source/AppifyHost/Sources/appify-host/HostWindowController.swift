@@ -3,9 +3,9 @@ import AppifyHostCore
 import Darwin
 import WebKit
 
-final class HostWindowController: NSWindowController, WKNavigationDelegate {
+final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWindowDelegate {
     private let configuration: AppifyHostConfiguration
-    private weak var hostDocument: AppifyHostDocument?
+    private var hostDocument: AppifyHostDocument?
     private var webView: WKWebView?
     private var serverProcess: Process?
     private var stdoutPipe: Pipe?
@@ -16,6 +16,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
     private var activeReadyURL: URL?
     private var didLoadServerURL = false
     private var isClosing = false
+    private var allowNextWindowClose = false
+    private var closeValidationInProgress = false
     private var logHandle: FileHandle?
     private var closeObserver: NSObjectProtocol?
 
@@ -30,9 +32,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
             defer: false
         )
         window.minSize = NSSize(width: 640, height: 420)
+        window.isReleasedWhenClosed = false
         window.isRestorable = false
 
         super.init(window: window)
+        window.delegate = self
         self.document = document
         updateWindowDocumentIdentity()
         closeObserver = NotificationCenter.default.addObserver(
@@ -97,10 +101,204 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
         closeLog()
     }
 
+    func flushWebDocumentSave(completion: @escaping (Result<Void, Error>) -> Void) {
+        guard let webView, didLoadServerURL else {
+            completion(.success(()))
+            return
+        }
+
+        webView.callAsyncJavaScript(
+            """
+            const hook = window.AppifyHost && window.AppifyHost.save;
+            if (typeof hook !== "function") {
+              return { handled: false, ok: true };
+            }
+
+            const result = await hook();
+            if (result === false) {
+              return { handled: true, ok: false, message: "The web document refused to save." };
+            }
+            if (result && typeof result === "object" && result.ok === false) {
+              return { handled: true, ok: false, message: String(result.message || "The web document refused to save.") };
+            }
+            return { handled: true, ok: true };
+            """,
+            arguments: [:],
+            in: nil,
+            in: .page
+        ) { [weak self] result in
+            switch result {
+            case .success(let value):
+                let dictionary = value as? [String: Any] ?? [:]
+                let ok = boolValue(dictionary["ok"], defaultValue: true)
+                if ok {
+                    completion(.success(()))
+                    return
+                }
+
+                let message = dictionary["message"] as? String ?? "The web document could not be saved."
+                completion(.failure(webDocumentSaveError(message)))
+
+            case .failure(let error):
+                self?.writeLog("WARN: web document save hook failed: \(String(describing: error))\n")
+                completion(.failure(error))
+            }
+        }
+    }
+
     private func handleWindowWillClose() {
         isClosing = true
         stopServer()
         closeLog()
+        DispatchQueue.main.async { [weak self] in
+            self?.document = nil
+            self?.hostDocument = nil
+        }
+    }
+
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        if isClosing || allowNextWindowClose {
+            allowNextWindowClose = false
+            isClosing = true
+            return true
+        }
+
+        guard webView != nil, didLoadServerURL else {
+            isClosing = true
+            return true
+        }
+
+        guard !closeValidationInProgress else {
+            return false
+        }
+
+        closeValidationInProgress = true
+        waitForCleanWebState(deadline: Date().addingTimeInterval(5.0)) { [weak self, weak sender] result in
+            guard let self else {
+                return
+            }
+
+            self.closeValidationInProgress = false
+            switch result {
+            case .clean:
+                self.allowNextWindowClose = true
+                sender?.performClose(nil)
+
+            case .dirty(let detail):
+                self.showUnsyncedCloseAlert(detail: detail, window: sender)
+            }
+        }
+
+        return false
+    }
+
+    private enum CloseValidationResult {
+        case clean
+        case dirty(String)
+    }
+
+    private struct WebDirtyState {
+        var dirty: Bool
+        var detail: String
+    }
+
+    private func waitForCleanWebState(deadline: Date, completion: @escaping (CloseValidationResult) -> Void) {
+        readWebDirtyState { [weak self] state in
+            guard let self else {
+                return
+            }
+
+            if !state.dirty {
+                completion(.clean)
+                return
+            }
+
+            if Date() < deadline {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+                    self?.waitForCleanWebState(deadline: deadline, completion: completion)
+                }
+                return
+            }
+
+            completion(.dirty(state.detail))
+        }
+    }
+
+    private func readWebDirtyState(completion: @escaping (WebDirtyState) -> Void) {
+        guard let webView else {
+            completion(WebDirtyState(dirty: false, detail: "The web view is no longer loaded."))
+            return
+        }
+
+        webView.evaluateJavaScript(
+            """
+            (() => {
+              const tw = window.$tw;
+              const syncer = tw && tw.syncer;
+              const saver = tw && tw.saverHandler;
+              const appifyHost = window.AppifyHost;
+              const appifyHostDirty = !!(appifyHost && typeof appifyHost.isDirty === "function" && appifyHost.isDirty());
+              const syncerDirty = !!(syncer && typeof syncer.isDirty === "function" && syncer.isDirty());
+              const saverDirty = !!(saver && typeof saver.isDirty === "function" && saver.isDirty());
+              const bodyDirty = !!(document.body && document.body.classList.contains("tc-dirty"));
+              const inProgress = Number((syncer && syncer.numTasksInProgress) || 0);
+              return {
+                dirty: appifyHostDirty || syncerDirty || saverDirty || bodyDirty || inProgress > 0,
+                appifyHostDirty,
+                syncerDirty,
+                saverDirty,
+                bodyDirty,
+                inProgress
+              };
+            })();
+            """
+        ) { [weak self] result, error in
+            if let error {
+                self?.writeLog("WARN: close dirty-state check failed: \(String(describing: error))\n")
+                completion(WebDirtyState(dirty: false, detail: "The dirty-state check failed."))
+                return
+            }
+
+            let dictionary = result as? [String: Any] ?? [:]
+            let appifyHostDirty = boolValue(dictionary["appifyHostDirty"])
+            let syncerDirty = boolValue(dictionary["syncerDirty"])
+            let saverDirty = boolValue(dictionary["saverDirty"])
+            let bodyDirty = boolValue(dictionary["bodyDirty"])
+            let inProgress = intValue(dictionary["inProgress"])
+            let dirty = boolValue(dictionary["dirty"])
+            let detail = "appifyHostDirty=\(appifyHostDirty), syncerDirty=\(syncerDirty), saverDirty=\(saverDirty), bodyDirty=\(bodyDirty), inProgress=\(inProgress)"
+            completion(WebDirtyState(dirty: dirty, detail: detail))
+        }
+    }
+
+    private func showUnsyncedCloseAlert(detail: String, window: NSWindow?) {
+        writeLog("WARN: refused close with unsynced web changes: \(detail)\n")
+
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "\(configuration.appName) Still Has Unsynced Changes"
+        alert.informativeText = "The document is still syncing, or the web app reported unsaved changes. Keep the window open and try closing again after the save indicator clears.\n\nClosing anyway may lose recent changes."
+        alert.addButton(withTitle: "Keep Open")
+        alert.addButton(withTitle: "Close Anyway")
+
+        guard let window else {
+            if alert.runModal() == .alertSecondButtonReturn {
+                allowNextWindowClose = true
+                self.window?.performClose(nil)
+            }
+            return
+        }
+
+        alert.beginSheetModal(for: window) { [weak self, weak window] response in
+            guard let self else {
+                return
+            }
+
+            if response == .alertSecondButtonReturn {
+                self.allowNextWindowClose = true
+                window?.performClose(nil)
+            }
+        }
     }
 
     private func restartServer() {
@@ -145,8 +343,12 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
             window?.title = "\(configuration.windowTitlePrefix) - \(title)"
 
         case .fileDocument:
-            window?.representedURL = documentURL
-            window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
+            window?.representedURL = hostDocument?.fileURL
+            if hostDocument?.fileURL == nil {
+                window?.title = "Untitled"
+            } else {
+                window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
+            }
         }
     }
 
@@ -466,6 +668,36 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
         webView.load(URLRequest(url: url))
     }
 
+    private func scheduleWebViewResizeNudge(for webView: WKWebView) {
+        for delay in [0.0, 0.1, 0.3, 0.7] {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
+                guard let self,
+                      let webView,
+                      self.webView === webView
+                else {
+                    return
+                }
+
+                self.dispatchWebViewResizeEvent(webView)
+            }
+        }
+    }
+
+    private func dispatchWebViewResizeEvent(_ webView: WKWebView) {
+        webView.evaluateJavaScript(
+            """
+            (() => {
+              window.dispatchEvent(new Event("resize"));
+              window.visualViewport?.dispatchEvent(new Event("resize"));
+            })();
+            """
+        ) { [weak self] _, error in
+            if let error {
+                self?.writeLog("WARN: WebView resize event failed: \(String(describing: error))\n")
+            }
+        }
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -491,6 +723,17 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate {
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         window?.makeFirstResponder(webView)
+        scheduleWebViewResizeNudge(for: webView)
+    }
+}
+
+extension HostWindowController: AppifyHostWebViewReloading {
+    var canReloadWebView: Bool {
+        webView != nil
+    }
+
+    func reloadWebView() {
+        webView?.reload()
     }
 }
 
@@ -532,4 +775,34 @@ private func uniquePIDs(_ pids: [pid_t]) -> [pid_t] {
         result.append(pid)
     }
     return result
+}
+
+private func boolValue(_ value: Any?, defaultValue: Bool = false) -> Bool {
+    if let value = value as? Bool {
+        return value
+    }
+    if let value = value as? NSNumber {
+        return value.boolValue
+    }
+    return defaultValue
+}
+
+private func intValue(_ value: Any?) -> Int {
+    if let value = value as? Int {
+        return value
+    }
+    if let value = value as? NSNumber {
+        return value.intValue
+    }
+    return 0
+}
+
+private func webDocumentSaveError(_ message: String) -> NSError {
+    NSError(
+        domain: "AppifyHostWebDocumentSaveError",
+        code: 1,
+        userInfo: [
+            NSLocalizedDescriptionKey: message,
+        ]
+    )
 }

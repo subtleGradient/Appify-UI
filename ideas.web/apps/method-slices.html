@@ -1,0 +1,266 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Method and Slices</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        background: Canvas;
+        color: CanvasText;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+      main {
+        max-inline-size: 78rem;
+        margin-inline: auto;
+        padding: clamp(1rem, 4vw, 3rem);
+        display: grid;
+        gap: 1.25rem;
+      }
+      nav, section {
+        border: 1px solid color-mix(in oklch, CanvasText 14%, transparent);
+        border-radius: 0.75rem;
+        padding: 1rem;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">researched 2026-05-22</p>
+        <h1>Method and Slices</h1>
+        <p class="lede">
+          This atlas maps AppifyHost opportunities: tools that become much more obvious when a Finder document, folder, or package opens straight into a focused TUI or browser-powered workbench.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="appifyhost-patterns.html">host patterns</a> /
+        <a href="tui/top-picks.html">TUI top picks</a> /
+        <a href="tui/data-and-databases.html">TUI data</a> /
+        <a href="tui/devops-and-network.html">TUI devops</a> /
+        <a href="tui/authoring-and-personal.html">TUI authoring</a> /
+        <a href="web/top-picks.html">web top picks</a> /
+        <a href="prototype-backlog.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="map-object">
+        <h2 id="map-object">Map Object</h2>
+        <p>
+          The object is not "cool terminal apps" in general. The object is the narrower terrain where a path-like artifact already exists and a wrapper app can make the artifact feel native: double-click, own UTI, window title, local server, direct save/export, and no cloud account required.
+        </p>
+      </section>
+
+      <section aria-labelledby="probes">
+        <h2 id="probes">Probe Inventory</h2>
+        <div class="grid">
+          <section aria-labelledby="probe-existing">
+            <h3 id="probe-existing">Existing AppifyHost Probes</h3>
+            <ul>
+              <li><a href="../../tw.app/">tw.app</a>: single file document routed to <code>tabiew</code> for delimited, JSON, Parquet, SQLite, Arrow, fixed-width, and Excel-like data.</li>
+              <li><a href="../../litecli.app/">litecli.app</a>: single SQLite file routed to <code>litecli</code> in read-only URI mode.</li>
+              <li><a href="../../LazyGit.app/">LazyGit.app</a>: folder marker package whose parent directory is the real working tree.</li>
+              <li><a href="../../TLCanvas.app/">TLCanvas.app</a>: content package hosted by a Bun/tldraw runner.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="probe-research">
+            <h3 id="probe-research">Research Probes</h3>
+            <ul>
+              <li>Five parallel subagents: data TUI, devops/security TUI, authoring/personal TUI, web-tech wrappers, and local codebase explorer.</li>
+              <li>Direct web checks for current official docs, project pages, package pages, and format references.</li>
+              <li>Local plist/script inspection for document-mode constraints.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="evidence">
+        <h2 id="evidence">Evidence Labels</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Label</th>
+              <th>Meaning</th>
+              <th>Use in this atlas</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>O</td>
+              <td>Official source</td>
+              <td>Project site, docs, or GitHub README controlled by the project.</td>
+            </tr>
+            <tr>
+              <td>P</td>
+              <td>Package/manpage source</td>
+              <td>Homebrew, MacPorts, docs.rs, Debian manpage, or similar packaging metadata.</td>
+            </tr>
+            <tr>
+              <td>C</td>
+              <td>Community/secondary source</td>
+              <td>Blog, article, Reddit, Terminal Trove, LinuxLinks. Useful for "secret excellence", weaker for facts.</td>
+            </tr>
+            <tr>
+              <td>L</td>
+              <td>Local code evidence</td>
+              <td>Info.plist, scripts, and AppifyHost source in this repository.</td>
+            </tr>
+            <tr>
+              <td>I</td>
+              <td>Inference</td>
+              <td>Wrapper fit, risk score, and suggested document package design.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="slices">
+        <h2 id="slices">Hyperslice Table</h2>
+        <p class="lede">
+          Heads means lower AppifyHost friction. Tails means higher wrapper friction. The tails side is not morally bad; it is the direction where implementation risk, support burden, or document-model ambiguity goes up.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Slice label</th>
+              <th>Heads label</th>
+              <th>Tails label</th>
+              <th>Heads examples</th>
+              <th>Tails examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Path-native launch</td>
+              <td>CLI accepts the opened path directly</td>
+              <td>Needs profile assembly before launch</td>
+              <td>Tabiew, csvlens, termshark, doxx, presenterm</td>
+              <td>K9s/kubetui, termscp, Sampler, aerc</td>
+            </tr>
+            <tr>
+              <td>Existing file format</td>
+              <td>Uses a known public format</td>
+              <td>Needs a new Appify package schema</td>
+              <td>.csv, .db, .pcap, .log, .docx, .excalidraw, .canvas</td>
+              <td>.apiworkbench, .mapbundle, .flowbundle, .runbookbundle</td>
+            </tr>
+            <tr>
+              <td>Mutation blast radius</td>
+              <td>Viewer-first or explicit export</td>
+              <td>Live write access to valuable state</td>
+              <td>lnav, termshark, jless, doxx, xleak</td>
+              <td>lazysql, rainfrog, mitmproxy, k9s, termscp</td>
+            </tr>
+            <tr>
+              <td>Runtime footprint</td>
+              <td>Small binary or current Nix package</td>
+              <td>Language/runtime garden</td>
+              <td>termshark, csvlens, yazi, lazygit, jjui</td>
+              <td>JupyterLab, marimo with Python envs, Posting, TLCanvas runner</td>
+            </tr>
+            <tr>
+              <td>Trust surface</td>
+              <td>Local, read-only, no secrets</td>
+              <td>Credentials, certs, shell commands, cluster permissions</td>
+              <td>VisiData on local CSV, termshark on saved pcap, doxx</td>
+              <td>Posting scripts, mitmproxy CA, termscp vault, Kaskade, Sampler</td>
+            </tr>
+            <tr>
+              <td>Rendering fit</td>
+              <td>Plain terminal or normal WebView</td>
+              <td>Special terminal graphics or GPU-heavy browser canvas</td>
+              <td>Harlequin, lnav, Slumber, JSON Canvas</td>
+              <td>presenterm images, Yazi image previews, OpenCascade.js, MapLibre</td>
+            </tr>
+            <tr>
+              <td>App overlap</td>
+              <td>Mac desktop white space</td>
+              <td>Existing polished desktop app already owns the category</td>
+              <td>Termshark.app, Lnav.app, VisiData.app, Posting.app</td>
+              <td>diagrams.net, Photopea, JupyterLab Desktop, Excalidraw wrappers</td>
+            </tr>
+            <tr>
+              <td>Human editability</td>
+              <td>Plain text or structured JSON</td>
+              <td>Opaque binary state</td>
+              <td>OpenAPI YAML, JSON Canvas, Vega-Lite, .mmd, .d2</td>
+              <td>.pcap, .psd, .duckdb, .ipynb outputs with binary blobs</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="territory">
+        <h2 id="territory">Terrain Map</h2>
+        <div class="grid">
+          <section aria-labelledby="home">
+            <h3 id="home">Home Territory</h3>
+            <ul>
+              <li>One document path goes into one command and yields a useful screen.</li>
+              <li>Viewer-first defaults; write operations are explicit and recoverable.</li>
+              <li>Public file formats or packages with a visible manifest.</li>
+              <li>No account, daemon, cloud sync, browser extension, or global OS mutation needed.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="edge">
+            <h3 id="edge">Edge Territory</h3>
+            <ul>
+              <li>Credential profile bundles that are safe only with Keychain integration.</li>
+              <li>Terminal graphics that may degrade in ttyd/xterm.js.</li>
+              <li>Copyleft projects where bundling/distribution needs deliberate compliance.</li>
+              <li>Large WASM or Python stacks where startup time could break the native illusion.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="enemy">
+            <h3 id="enemy">Enemy Territory</h3>
+            <ul>
+              <li>Cloud-only apps with no local save story.</li>
+              <li>Tools that require privileged daemons as the normal path.</li>
+              <li>Proprietary embedding without a clear license.</li>
+              <li>Tools whose UI depends on a desktop terminal feature that xterm.js cannot represent.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="falsifiers">
+        <h2 id="falsifiers">Falsifiers</h2>
+        <ul>
+          <li>A candidate falls below priority if its official CLI cannot open the document path without hidden global config.</li>
+          <li>A TUI falls below priority if ttyd cannot render its required images, mouse model, or key chords acceptably.</li>
+          <li>A web-tech candidate falls below priority if it cannot save back to a stable local file/package without cloud mediation.</li>
+          <li>A prototype should stop if the license does not allow the intended bundle/distribution model.</li>
+          <li>Any candidate that handles secrets must graduate only after a Keychain and redaction design exists.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>L: <a href="../../tw.app/Contents/Info.plist">tw Info.plist</a>, <a href="../../litecli.app/Contents/Info.plist">litecli Info.plist</a>, <a href="../../LazyGit.app/Contents/Info.plist">LazyGit Info.plist</a>, <a href="../../TLCanvas.app/Contents/Info.plist">TLCanvas Info.plist</a>.</li>
+          <li>L: <a href="../../tw.app/Contents/Resources/AppServer/main.sh">tw AppServer</a>, <a href="../../litecli.app/Contents/Resources/AppServer/main.sh">litecli AppServer</a>, <a href="../../LazyGit.app/Contents/Resources/AppServer/main.sh">LazyGit AppServer</a>, <a href="../../TLCanvas.app/Contents/Resources/AppServer/main.sh">TLCanvas AppServer</a>.</li>
+          <li>O: <a href="https://www.visidata.org/docs/formats/">VisiData formats</a>, <a href="https://harlequin.sh/about">Harlequin about</a>, <a href="https://lnav.org/features">lnav features</a>, <a href="https://termshark.io/">Termshark</a>.</li>
+          <li>O: <a href="https://jsoncanvas.org/spec/1.0">JSON Canvas spec</a>, <a href="https://docs.marimo.io/">marimo docs</a>, <a href="https://duckdb.org/docs/current/clients/wasm/overview.html">DuckDB-Wasm docs</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

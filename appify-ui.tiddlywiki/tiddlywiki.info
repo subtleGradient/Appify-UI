@@ -1,0 +1,22 @@
+{
+  "plugins": [
+    "tiddlywiki/tiddlyweb",
+    "tiddlywiki/filesystem"
+  ],
+  "themes": [
+    "tiddlywiki/vanilla",
+    "tiddlywiki/snowwhite"
+  ],
+  "build": {
+    "index": [
+      "--render",
+      "$:/core/save/all",
+      "index.html",
+      "text/plain"
+    ]
+  },
+  "config": {
+    "default-tiddler-location": "tiddlers",
+    "retain-original-tiddler-path": true
+  }
+}

@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>tmux.app Idea</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 76rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 64rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">paused TUI idea / do not generalize yet</p>
+        <h1>tmux.app</h1>
+        <p class="lede">
+          A native Mac shell for active tmux sessions is attractive, but its lifecycle model is not the same as the current AppifyHost document model.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="top-picks.html">TUI top picks</a> /
+        <a href="devops-and-network.html">devops</a> /
+        <a href="../appifyhost-patterns.html">host patterns</a>
+      </nav>
+
+      <section aria-labelledby="user-story">
+        <h2 id="user-story">Desired Behavior</h2>
+        <ul>
+          <li>Launching <code>tmux.app</code> restores all active tmux sessions from the default tmux socket.</li>
+          <li>Each active tmux session appears as its own app window.</li>
+          <li>If a new tmux session is created from Terminal while <code>tmux.app</code> is running, the app notices and opens a new window for it.</li>
+          <li>Closing a tmux.app window kills that tmux session.</li>
+          <li>Quitting or killing <code>tmux.app</code> does not kill tmux sessions; it only detaches the app's clients.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="host-boundary">
+        <h2 id="host-boundary">Shared Host Boundary</h2>
+        <p>
+          Rule: if only one app needs a behavior, it does not go into shared AppifyHost code yet.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Need</th>
+              <th>Current evidence</th>
+              <th>Decision for now</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Discover external runtime objects with no document path</td>
+              <td>Only tmux sessions clearly need this.</td>
+              <td>Keep tmux-specific.</td>
+            </tr>
+            <tr>
+              <td>Mirror every external object as a native window</td>
+              <td>Existing apps are one opened file, folder, or package per window.</td>
+              <td>Do not add a generic host window protocol yet.</td>
+            </tr>
+            <tr>
+              <td>Watch for new objects while the app runs</td>
+              <td>Possible future siblings are <code>screen.app</code>, <code>zellij.app</code>, or <code>dtach.app</code>, but those are tmux-shaped siblings, not independent AppifyHost proof.</td>
+              <td>Prototype inside tmux.app first.</td>
+            </tr>
+            <tr>
+              <td>Send window-close lifecycle events back to a supervisor</td>
+              <td>The close semantics are app-specific: close kills session, app quit detaches.</td>
+              <td>Avoid shared host API until another app needs the same semantics.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="non-examples">
+        <h2 id="non-examples">Non-Examples</h2>
+        <ul>
+          <li><code>LazyGit.app</code>, <code>tw.app</code>, <code>litecli.app</code>, and <code>LogScope.app</code> are still one opened object to one server to one window.</li>
+          <li><code>TLCanvas.app</code>, <code>JSONCanvas.app</code>, <code>WebFormer.app</code>, and <code>WikiDock.app</code> can put tabs, panes, or subviews inside their own web app rather than asking the native host to spawn runtime-discovered windows.</li>
+          <li>Potential profile apps like <code>KubeContext.app</code>, <code>RemoteFiles.app</code>, <code>APIWorkbench.app</code>, and <code>Runbook.app</code> still start from an explicit profile, package, or file document.</li>
+          <li>Future LogScope saved sessions or log bundles might grow richer state, but that should be proven as a LogScope package feature before becoming host behavior.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="prototype-shape">
+        <h2 id="prototype-shape">Prototype Shape</h2>
+        <ul>
+          <li>Build <code>tmux.app</code> as a bespoke app bundle or tmux-specific Swift/AppKit host.</li>
+          <li>Use plain tmux commands and <code>ttyd tmux attach-session</code> before considering tmux control mode or a custom terminal renderer.</li>
+          <li>Track only the default tmux socket in v1, matching plain <code>tmux list-sessions</code>.</li>
+          <li>Promote a shared AppifyHost abstraction only after a second non-tmux app proves the same lifecycle shape.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

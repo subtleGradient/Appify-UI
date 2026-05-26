@@ -1,0 +1,35 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>Client Intake</title>
+
+<h1>Client Intake</h1>
+
+<form>
+<fieldset>
+<legend>Decision Context</legend>
+
+<label>Client name
+<input value="Acme Studio" autocomplete=organization>
+</label>
+
+<label>Scope
+<textarea>Create a printable intake that survives plain file opening.</textarea>
+</label>
+
+<label><input type=checkbox checked> Ready for review</label>
+
+<label>Risk level
+<select>
+<option>Low</option>
+<option selected>Medium</option>
+<option>High</option>
+</select>
+</label>
+
+<section contenteditable=true>
+<h2>Rich Notes</h2>
+<p>This editable area can hold structured WYSIWYG notes.</p>
+</section>
+
+</fieldset>
+</form>

@@ -24,6 +24,7 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
+        XCTAssertNil(config.firstLaunchHelp)
         XCTAssertEqual(config.serverDirectoryURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer")
         XCTAssertEqual(config.serverExecutableURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer/main.sh")
     }
@@ -35,6 +36,7 @@ final class AppifyHostCoreTests: XCTestCase {
         )
 
         XCTAssertEqual(config.documentMode, .folderMarker)
+        XCTAssertEqual(config.documentClassName, "AppifyHostDocument")
         XCTAssertEqual(config.webViewDataStore, .nonPersistent)
     }
 
@@ -50,6 +52,38 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.documentClassName, "AppifyHostDocument")
         XCTAssertEqual(config.documentMode, .fileDocument)
         XCTAssertEqual(config.startupTimeoutSeconds, 600)
+    }
+
+    func testLoadsFirstLaunchHelpConfiguration() throws {
+        var plist = sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["FirstLaunchHelp"] = [
+            "URL": "https://example.com/keybindings",
+            "WindowTitle": "Useful Keybindings",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/tw.app")
+        )
+
+        XCTAssertEqual(config.firstLaunchHelp?.url.absoluteString, "https://example.com/keybindings")
+        XCTAssertEqual(config.firstLaunchHelp?.windowTitle, "Useful Keybindings")
+    }
+
+    func testRejectsInvalidFirstLaunchHelpURL() throws {
+        var plist = sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["FirstLaunchHelp"] = [
+            "URL": "file:///tmp/help.html",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/tw.app")
+        ))
     }
 
     func testBuildsGenericServerCommand() throws {
@@ -172,6 +206,46 @@ final class AppifyHostCoreTests: XCTestCase {
         let symlink = rootURL.appendingPathComponent("symlink.sqlite")
         try FileManager.default.createSymbolicLink(at: symlink, withDestinationURL: targetFile)
         XCTAssertThrowsError(try PackageDocument.workingDirectory(forPackage: symlink, configuration: config))
+    }
+
+    func testUntitledDocumentURLUsesTemporaryUntitledFileForFileDocuments() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "canvas"),
+            bundleURL: URL(fileURLWithPath: "/Applications/JSONCanvas.app")
+        )
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempRoot)
+        }
+
+        let documentURL = PackageDocument.untitledDocumentURL(configuration: config, temporaryDirectory: tempRoot)
+        XCTAssertEqual(documentURL.lastPathComponent, "Untitled.canvas")
+        XCTAssertTrue(documentURL.deletingLastPathComponent().path.hasPrefix(tempRoot.path))
+
+        try PackageDocument.createUntitledDocument(at: documentURL, configuration: config)
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: documentURL.path, isDirectory: &isDirectory))
+        XCTAssertFalse(isDirectory.boolValue)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: documentURL, configuration: config).path, documentURL.deletingLastPathComponent().path)
+    }
+
+    func testUntitledDocumentURLUsesTemporaryUntitledPackageForContentPackages() throws {
+        let config = try sampleConfig()
+        let tempRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        defer {
+            try? FileManager.default.removeItem(at: tempRoot)
+        }
+
+        let documentURL = PackageDocument.untitledDocumentURL(configuration: config, temporaryDirectory: tempRoot)
+        XCTAssertEqual(documentURL.lastPathComponent, "Untitled.sketchdoc")
+
+        try PackageDocument.createUntitledDocument(at: documentURL, configuration: config)
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: documentURL.path, isDirectory: &isDirectory))
+        XCTAssertTrue(isDirectory.boolValue)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: documentURL, configuration: config).path, documentURL.path)
     }
 
     func testFileDocumentAliasResolvesToTarget() throws {

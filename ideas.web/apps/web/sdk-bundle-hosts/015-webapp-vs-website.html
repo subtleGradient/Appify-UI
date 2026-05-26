@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Webapp vs Website Bundles</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">01.5 / boundary</p>
+        <h1><code>.webapp</code> vs <code>.website</code></h1>
+        <p class="lede">
+          These bundle types are fundamentally different. <code>.webapp</code> is for local app packages that may use npm ecosystem tooling; <code>.web</code> and <code>.website</code> are for static web-native documents with no build-step expectations.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="split">
+        <h2 id="split">Hard Split</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bundle</th>
+              <th>Meaning</th>
+              <th>Allowed</th>
+              <th>Not allowed</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>.webapp</code></td>
+              <td>A local web application package.</td>
+              <td><code>package.json</code>, npm dependencies, TypeScript, JSX, Vite-like source, SDK profiles, cache-backed transforms.</td>
+              <td>Silent dependency install, hidden canonical state, lifecycle scripts by default.</td>
+            </tr>
+            <tr>
+              <td><code>.web</code></td>
+              <td>A static web document package.</td>
+              <td><code>index.html</code>, CSS, JavaScript modules, images, fonts, JSON, CSV, relative links, Service Worker only if already authored as static web tech.</td>
+              <td><code>package.json</code>, <code>node_modules</code>, npm install, Vite/Webpack/Rollup expectations, TypeScript compile expectations.</td>
+            </tr>
+            <tr>
+              <td><code>.website</code></td>
+              <td>A static website package with the same constraints as <code>.web</code>.</td>
+              <td>Multiple pages, assets, data files, static routing, prebuilt browser-native JavaScript.</td>
+              <td>Any npm ecosystem dependency resolution or build step needed at open time.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="rule">
+        <h2 id="rule">Rule</h2>
+        <ul>
+          <li>If opening the bundle requires npm, a package manager, a bundler, TypeScript compilation, JSX transform, dependency cache, or SDK aliasing, it is <code>.webapp</code>.</li>
+          <li>If opening the bundle is just serving static browser-native files from a package root, it is <code>.web</code> or <code>.website</code>.</li>
+          <li>A built artifact from a <code>.webapp</code> can be exported as <code>.web</code> or <code>.website</code>, but the exported static bundle must not require the original build toolchain.</li>
+          <li><code>Webapp.app</code> and a future static website host may share AppifyHost mechanics, but they should not share dependency policy or user expectations.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="examples">
+        <h2 id="examples">Examples</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Package</th>
+              <th>Correct type</th>
+              <th>Why</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>D3 source with <code>package.json</code> and imported npm <code>d3</code>.</td>
+              <td><code>.webapp</code></td>
+              <td>It relies on npm package resolution.</td>
+            </tr>
+            <tr>
+              <td>D3 example exported to plain <code>index.html</code> plus prebuilt browser JavaScript.</td>
+              <td><code>.website</code></td>
+              <td>It is static web tech after export.</td>
+            </tr>
+            <tr>
+              <td>Hand-authored research site with HTML, CSS, images, and browser modules.</td>
+              <td><code>.web</code> or <code>.website</code></td>
+              <td>No package manager or build step is implied.</td>
+            </tr>
+            <tr>
+              <td>React Flow source package with JSX and custom nodes.</td>
+              <td><code>.webapp</code></td>
+              <td>It needs a transform/build/runtime dependency policy.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="025-webapp-first.html">Next: Webapp first</a>
+        <a href="010-problem.html">Previous: problem</a>
+      </section>
+    </main>
+  </body>
+</html>

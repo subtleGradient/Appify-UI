@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>TUI Data and Databases</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">TUI data terrain</p>
+        <h1>TUI Data and Databases</h1>
+        <p class="lede">
+          Data files are the cleanest AppifyHost substrate: Finder already understands that a file is the thing, and terminal data tools already accept that path. The current repo's <code>tw.app</code> already proves most of this lane.
+        </p>
+      </header>
+
+      <nav aria-label="Related idea pages">
+        <strong>Atlas links:</strong>
+        <a href="../method-slices.html">method</a> /
+        <a href="top-picks.html">TUI top picks</a> /
+        <a href="../appifyhost-patterns.html">host patterns</a> /
+        <a href="../prototype-backlog.html">prototype backlog</a>
+      </nav>
+
+      <section aria-labelledby="shortlist">
+        <h2 id="shortlist">Candidate Table</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Natural Finder objects</th>
+              <th>Secret value</th>
+              <th>Wrapper idea</th>
+              <th>Score</th>
+              <th>Risk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="https://github.com/shshemi/tabiew">Tabiew</a></td>
+              <td><code>.csv</code>, <code>.tsv</code>, <code>.parquet</code>, <code>.json</code>, <code>.jsonl</code>, <code>.arrow</code>, <code>.sqlite</code>, <code>.xlsx</code></td>
+              <td>Already path-shaped and already in the repo. It turns "open a table" into a terminal spreadsheet/database browser with SQL.</td>
+              <td><code>DataPeek.app</code> or a more polished <code>tw.app</code>.</td>
+              <td>5</td>
+              <td>Dependency packaging.</td>
+            </tr>
+            <tr>
+              <td><a href="https://www.visidata.org/">VisiData</a></td>
+              <td>CSV, JSON, TSV, XLSX/XLS, SQLite, HDF5, fixed-width, zip, ODS, databases, and more.</td>
+              <td>It is less "viewer" than data cockpit: millions of rows, Python power, command logs, joins, pivots, reshape workflows.</td>
+              <td><code>VisiData.app</code> as a universal structured data workbench.</td>
+              <td>5</td>
+              <td>GPLv3 and per-format Python optional dependencies.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/forensicmatt/datatui">DataTUI</a></td>
+              <td>CSV/TSV, Excel, SQLite, Parquet, JSON/JSONL.</td>
+              <td>Newer Rust/Ratatui workbench with tabs, sort/filter builder, Polars SQL, JMESPath, and workspace snapshots.</td>
+              <td><code>DataTUI.app</code>, especially if workspace snapshots can become packages.</td>
+              <td>5</td>
+              <td>Young project maturity.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/derekwisong/datui">Datui</a></td>
+              <td>Parquet, CSV, JSON/NDJSON, Avro, Arrow, ORC, Excel, S3/HTTP sources.</td>
+              <td>Polars-powered terminal analytics and charts; strong for local data-engineering artifacts.</td>
+              <td><code>ParquetPeek.app</code> or <code>DataLakePeek.app</code>.</td>
+              <td>5</td>
+              <td>Very new; remote source handling needs policy.</td>
+            </tr>
+            <tr>
+              <td><a href="https://harlequin.sh/about">Harlequin</a></td>
+              <td><code>.duckdb</code>, <code>.sqlite</code>, <code>.db</code>, database profile package.</td>
+              <td>Terminal SQL IDE with catalog/editor/results; adapters make it a portable database cockpit.</td>
+              <td><code>DuckDBWorkbench.app</code>; also a richer sibling to <code>litecli.app</code>.</td>
+              <td>4</td>
+              <td>Python/Textual and adapter management.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/achristmascarl/rainfrog">rainfrog</a></td>
+              <td>DB URL profile, SQLite/DuckDB path, Postgres/MySQL config.</td>
+              <td>Lightweight database TUI with schema/table browsing, query history, favorites, and filtering.</td>
+              <td><code>DBFrog.app</code> for local DB and profile bundles.</td>
+              <td>4</td>
+              <td>Beta; some backends experimental.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/YS-L/csvlens">csvlens</a></td>
+              <td><code>.csv</code>, delimiter-separated text.</td>
+              <td>"less for CSV" is not broad, but it is fast, obvious, and extremely document-native.</td>
+              <td><code>CSVPeek.app</code> as the smallest polished proof.</td>
+              <td>4</td>
+              <td>CSV-only.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/bgreenwell/xleak">xleak</a></td>
+              <td><code>.xlsx</code>, <code>.xlsm</code>, <code>.xls</code></td>
+              <td>Fast terminal Excel viewer with formulas/search/lazy loading/export.</td>
+              <td><code>ExcelPeek.app</code> for forensic or lightweight inspection.</td>
+              <td>4</td>
+              <td>Viewer more than editor.</td>
+            </tr>
+            <tr>
+              <td><a href="https://github.com/ynqa/jnv">jnv</a> / <a href="https://github.com/PaulJuliusMartinez/jless">jless</a></td>
+              <td><code>.json</code>, <code>.jsonl</code>, <code>.yaml</code>, API responses.</td>
+              <td>Small, sharp JSON inspectors beat generic editors for exploration.</td>
+              <td><code>JSONPeek.app</code>; maybe route JSONL to jnv and nested JSON to jless.</td>
+              <td>3-4</td>
+              <td>Viewer scope; jq/jaq compatibility expectations.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="territory">
+        <h2 id="territory">Home Territory</h2>
+        <ul>
+          <li>Data tools should default to viewer/query mode, even if upstream can edit.</li>
+          <li>Multi-file data packages should use a visible manifest listing source files, display names, and any derived state.</li>
+          <li>Remote data sources belong in a later profile-bundle tier, not the first local document tier.</li>
+          <li>SQLite and DuckDB are the best bridge formats because they already feel like documents.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources</h2>
+        <ul>
+          <li>O: <a href="https://www.visidata.org/">VisiData home</a>, <a href="https://www.visidata.org/docs/formats/">VisiData supported formats</a>.</li>
+          <li>O: <a href="https://harlequin.sh/about">Harlequin about</a>, <a href="https://harlequin.sh/blog/announcing-adapters-config">Harlequin adapters/config</a>.</li>
+          <li>O: <a href="https://github.com/shshemi/tabiew">Tabiew GitHub</a>, <a href="https://github.com/achristmascarl/rainfrog">rainfrog GitHub</a>, <a href="https://github.com/YS-L/csvlens">csvlens GitHub</a>.</li>
+          <li>O/P: <a href="https://github.com/bgreenwell/xleak">xleak GitHub</a>, <a href="https://github.com/ynqa/jnv">jnv GitHub</a>, <a href="https://github.com/PaulJuliusMartinez/jless">jless GitHub</a>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

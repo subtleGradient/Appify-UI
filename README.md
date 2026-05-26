@@ -17,8 +17,18 @@ The repo is intentionally object-first:
 ```text
 .
 ├── LazyGit.app
-├── SQLitePeek.app
+├── JSONCanvas.app
+├── LogScope.app
 ├── TLCanvas.app
+├── Web.app
+├── WebFormer.app
+├── WikiDock.app
+├── litecli.app
+├── tw.app
+├── ideas.web/
+├── bin/
+│   ├── appify-host
+│   └── appify-host.manifest.json
 ├── source/
 │   └── AppifyHost/
 ├── Scripts/
@@ -29,9 +39,12 @@ The repo is intentionally object-first:
 The rule is simple:
 
 - `*.app/` contains everything specific to that app: runtime payloads, app
-  servers, runners, scripts, fixtures, docs, and developer tooling.
+  servers, runners, scripts, fixtures, docs, and developer tooling. Root apps
+  are repo-bound thin apps; they delegate through a tiny launcher shim.
+- `bin/appify-host` is the one checked-in prebuilt host binary used so a cloned
+  or downloaded repo can double-click root apps without Xcode installed.
 - `source/AppifyHost/` contains the shared SwiftPM document host used by the app
-  bundles.
+  bundles. It is the only checked-in Swift source for the host.
 - Git history carries old experiments. The main tree stays clean.
 
 ## Apps
@@ -40,42 +53,105 @@ The rule is simple:
 inside a repo folder; the app starts `ttyd`, runs `lazygit --path` for that repo,
 and shows it in a native WebKit window.
 
-[`SQLitePeek.app`](SQLitePeek.app/) opens `.db`, `.sqlite`, and `.sqlite3` files.
-It starts a local terminal runner and opens the selected database with `tw` from
-the `tabiew` package.
+[`JSONCanvas.app`](JSONCanvas.app/) opens `.canvas` files. It starts a bundled
+Bun web runner, validates JSON Canvas nodes and edges, and writes the document
+back as plain JSON.
+
+[`LogScope.app`](LogScope.app/) opens log-shaped files including `.log`, `.out`,
+`.err`, `.trace`, `.jsonl`, and `.ndjson`. It starts `ttyd`, runs `lnav`, and
+shows the indexed log timeline in a native WebKit window.
 
 [`TLCanvas.app`](TLCanvas.app/) opens `.tlcanvas` document packages. Its bundled
 Runner is the canonical TLCanvas source, including the tldraw SDK app, server,
 tests, schema, and lockfile.
 
+[`Web.app`](Web.app/) opens `.web` document packages. A `.web` package is a
+static browser-native folder: HTML, CSS, JavaScript, assets, data, and relative
+links. It uses Bun's HTML routes for live reload when possible, renders
+Markdown files as a convenience, and does not make npm or build tooling part of
+the `.web` contract.
+
+[`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
+serves the document through an app-local Bun runner, injects runtime save
+affordances with `HTMLRewriter`, and writes edited native form state back into
+the same HTML file with narrow source-span patches.
+
+[`WikiDock.app`](WikiDock.app/) opens `.tiddlywiki` document packages. The
+package is a standard TiddlyWikiFolder with `tiddlywiki.info`, `tiddlers/`, and
+the usual optional `plugins/`, `themes/`, and `languages/` folders. It does not
+register as a generic `.html` handler.
+
+[`tw.app`](tw.app/) opens tabular data files supported by Tabiew, including CSV,
+TSV, Parquet, JSON, JSONL, Arrow, FWF, SQLite, and Excel files. It starts
+`ttyd`, runs `tw`, and shows Tabiew in a native WebKit window.
+
+[`litecli.app`](litecli.app/) opens `.db`, `.sqlite`, and `.sqlite3` files. It
+starts `ttyd`, runs `litecli`, and opens the selected SQLite database through a
+read-only SQLite URI.
+
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
 validate that URL, and show it in a native WebKit window. It does not know about
-LazyGit, SQLite, TLCanvas, Bun, `ttyd`, or tldraw.
+LazyGit, Tabiew, LiteCLI, TLCanvas, Web, WebFormer, Bun, `ttyd`, or tldraw.
 
 ## Build
 
-Shared host:
+Shared host and root apps:
 
 ```sh
-cd source/AppifyHost
-swift test
+Scripts/build-host-artifact.sh
+Scripts/verify-root-apps.sh
+```
+
+Create a standalone distributable app from a root app:
+
+```sh
+Scripts/eject-app.sh WebFormer.app --output /private/tmp/WebFormer.app --sign -
+```
+
+For any root app, the app-local build script is now an eject wrapper:
+
+```sh
+cd WebFormer.app/Contents/Developer
+Scripts/build-app.sh
 ```
 
 LazyGit:
 
 ```sh
 cd LazyGit.app/Contents/Developer
-Scripts/build-app.sh
 Scripts/smoke-ui.sh
 ```
 
-SQLite Peek:
+LogScope:
 
 ```sh
-cd SQLitePeek.app/Contents/Developer
-Scripts/build-root-app.sh
-Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.SQLitePeek "SQLite Peek"
+cd LogScope.app/Contents/Developer
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.logscope LogScope
+```
+
+tw:
+
+```sh
+cd tw.app/Contents/Developer
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.tw tw
+```
+
+litecli:
+
+```sh
+cd litecli.app/Contents/Developer
+Scripts/smoke-menus.jxa.js "$PWD/../.." com.subtlegradient.litecli litecli
+```
+
+JSONCanvas:
+
+```sh
+cd JSONCanvas.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+
+cd ../../Developer
+Scripts/smoke-ui.sh
 ```
 
 TLCanvas:
@@ -87,8 +163,31 @@ bun test tests/*.test.ts
 bun build src/index.html --outdir /private/tmp/tlcanvas-runner-build
 
 cd ../../Developer
-Scripts/build-app.sh
 Scripts/smoke-ui.sh
+```
+
+Web:
+
+```sh
+cd Web.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+```
+
+WebFormer:
+
+```sh
+cd WebFormer.app/Contents/Resources/Runner
+bun test tests/*.test.ts
+
+cd ../../Developer
+Scripts/build-app.sh
+```
+
+WikiDock:
+
+```sh
+cd WikiDock.app/Contents/Developer
+Scripts/build-app.sh
 ```
 
 Verify the checked-in root apps:

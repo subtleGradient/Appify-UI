@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JSONCanvas</title>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="toolbar" aria-label="JSONCanvas toolbar">
+        <div class="title-group">
+          <strong>JSONCanvas</strong>
+          <span id="document-name">Opening</span>
+        </div>
+        <div class="toolbar-group" aria-label="Document actions">
+          <button id="save-button" type="button" title="Save">Save</button>
+          <button id="reload-button" type="button" title="Reload from disk">Reload</button>
+        </div>
+        <div class="toolbar-group" aria-label="Insert">
+          <button id="add-text-button" type="button" title="Add text node">+ Text</button>
+          <button id="add-file-button" type="button" title="Add file node">+ File</button>
+          <button id="add-link-button" type="button" title="Add link node">+ Link</button>
+          <button id="add-group-button" type="button" title="Add group">+ Group</button>
+          <button id="add-edge-button" type="button" title="Add edge">+ Edge</button>
+        </div>
+        <div class="toolbar-group" aria-label="View">
+          <button id="zoom-out-button" type="button" title="Zoom out">-</button>
+          <button id="fit-button" type="button" title="Fit graph">Fit</button>
+          <button id="zoom-in-button" type="button" title="Zoom in">+</button>
+        </div>
+        <div class="mode-tabs" role="tablist" aria-label="Editor mode">
+          <button id="canvas-tab" type="button" role="tab" aria-selected="true">Canvas</button>
+          <button id="json-tab" type="button" role="tab" aria-selected="false">JSON</button>
+        </div>
+        <div id="status" role="status">Loading</div>
+      </header>
+
+      <main class="workspace">
+        <aside class="sidebar" aria-label="Canvas outline">
+          <section>
+            <h2>Nodes</h2>
+            <div id="node-list" class="outline-list"></div>
+          </section>
+          <section>
+            <h2>Edges</h2>
+            <div id="edge-list" class="outline-list"></div>
+          </section>
+        </aside>
+
+        <section id="canvas-panel" class="canvas-panel" aria-label="Canvas editor">
+          <div id="canvas-viewport" class="canvas-viewport">
+            <div id="canvas-world" class="canvas-world">
+              <svg id="edge-layer" class="edge-layer" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <marker id="edge-arrow" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto" markerUnits="strokeWidth">
+                    <path d="M 0 0 L 10 5 L 0 10 z" />
+                  </marker>
+                </defs>
+              </svg>
+              <div id="node-layer" class="node-layer"></div>
+            </div>
+          </div>
+        </section>
+
+        <section id="json-panel" class="json-panel" aria-label="JSON source" hidden>
+          <div class="json-actions">
+            <button id="format-json-button" type="button">Format</button>
+            <button id="apply-json-button" type="button">Apply</button>
+          </div>
+          <textarea id="json-source" spellcheck="false"></textarea>
+        </section>
+
+        <aside class="inspector" aria-label="Inspector">
+          <h2>Inspector</h2>
+          <div id="inspector-body"></div>
+        </aside>
+      </main>
+    </div>
+    <script type="module" src="./frontend.ts"></script>
+  </body>
+</html>

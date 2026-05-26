@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Webapp First</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">02.5 / Webapp first</p>
+        <h1><code>Webapp.app</code> First</h1>
+        <p class="lede">
+          Before minting five SDK-branded document apps, build one generic <code>Webapp.app</code> for <code>.webapp</code> packages and use SDK examples to discover whether dedicated apps are still worth carrying.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="040-package-contract.html">package contract</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="move">
+        <h2 id="move">The Move</h2>
+        <ul>
+          <li><code>Webapp.app</code> handles <code>.webapp</code> content packages.</li>
+          <li>A <code>.webapp</code> package is a normal local web project: <code>index.html</code>, <code>package.json</code>, <code>src/</code>, <code>data/</code>, <code>public/</code>, and optional <code>appify.json</code>.</li>
+          <li><code>.webapp</code> is allowed to have npm ecosystem concerns; <code>.web</code> and <code>.website</code> are not.</li>
+          <li>SDK identity starts as an example or manifest profile, not as a separate macOS app.</li>
+          <li>Dedicated apps only graduate after examples prove repeated SDK-specific open, save, preview, template, or file-association behavior that generic <code>Webapp.app</code> cannot express cleanly.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="examples">
+        <h2 id="examples">Example Packages</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Example</th>
+              <th>Package</th>
+              <th>What it tests</th>
+              <th>Dedicated app question</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>D3</td>
+              <td><code>d3-bar-chart.webapp</code></td>
+              <td>Plain web package entry, host SDK aliasing, CSV/data asset paths.</td>
+              <td>Is <code>Dee Three.app</code> useful, or is D3 just a normal webapp example?</td>
+            </tr>
+            <tr>
+              <td>Cytoscape.js</td>
+              <td><code>small-network.webapp</code></td>
+              <td>Graph JSON loading, style/layout files, <code>cy.json()</code> save bridge.</td>
+              <td>Does <code>.cytoscape</code> deserve Finder identity for graph documents?</td>
+            </tr>
+            <tr>
+              <td>React Flow</td>
+              <td><code>two-node-flow.webapp</code></td>
+              <td>React build path, built-in nodes, custom node component lookup.</td>
+              <td>Does <code>.xyflow</code> need first-class association, or just templates?</td>
+            </tr>
+            <tr>
+              <td>Rete</td>
+              <td><code>json-rete.webapp</code></td>
+              <td>Plain JSON graph first, serializer-required nodes second.</td>
+              <td>Does Rete's serializer burden justify <code>Reter.app</code>?</td>
+            </tr>
+            <tr>
+              <td>tldraw/TLCanvas</td>
+              <td><code>snapshot-canvas.webapp</code></td>
+              <td>Document/session snapshot, assets, migrations, package-local persistence.</td>
+              <td>Does existing <code>TLCanvas.app</code> remain a product, or become a Webapp profile?</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="website-boundary">
+        <h2 id="website-boundary">Static Website Boundary</h2>
+        <ul>
+          <li>A D3 source package with <code>package.json</code> is a <code>.webapp</code>.</li>
+          <li>A prebuilt D3 visualization with plain <code>index.html</code>, browser JavaScript, CSS, and data files can be exported as <code>.web</code> or <code>.website</code>.</li>
+          <li>Do not make <code>.website</code> a softer name for <code>.webapp</code>. It should carry the opposite promise: no npm ecosystem machinery at open time.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="graduation">
+        <h2 id="graduation">Graduation Test</h2>
+        <ul>
+          <li>Dedicated app if the SDK wants a distinct UTI, Quick Look shape, new-document template, save bridge, or import/export menu that users would naturally expect from Finder.</li>
+          <li>Stay as <code>.webapp</code> if the package is mostly source code plus assets and the SDK is just one dependency among others.</li>
+          <li>Stay as <code>.webapp</code> if the dedicated app would only rename the same runner and add brand chrome.</li>
+          <li>Graduate only after at least two examples for that SDK show the same missing affordance.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="result">
+        <h2 id="result">Resulting Order</h2>
+        <ol>
+          <li>Build <code>Webapp.app</code> for <code>.webapp</code>.</li>
+          <li>Build example packages for D3, Cytoscape, React Flow, Rete, and tldraw.</li>
+          <li>Measure which examples need SDK-specific persistence, templates, previews, or file associations.</li>
+          <li>Only then decide whether <code>Cytoscaper.app</code>, <code>Reter.app</code>, <code>React Flow Composer.app</code>, <code>TLCanvas.app</code>, or <code>Dee Three.app</code> should exist.</li>
+        </ol>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="030-layers.html">Next: layers</a>
+        <a href="020-jobs.html">Previous: jobs</a>
+      </section>
+    </main>
+  </body>
+</html>

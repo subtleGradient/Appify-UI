@@ -1,10 +1,19 @@
 import AppKit
 import AppifyHostCore
 import UniformTypeIdentifiers
+import WebKit
 
-final class AppDelegate: NSObject, NSApplicationDelegate {
+protocol AppifyHostWebViewReloading: AnyObject {
+    var canReloadWebView: Bool { get }
+
+    func reloadWebView()
+}
+
+final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
+    private var helpWindowController: AppifyHostHelpWindowController?
+    private var terminateAfterHostWindowsClose = false
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -16,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         DispatchQueue.main.async { [weak self] in
             self?.configureMainMenu()
+            self?.showConfiguredHelpIfNeeded()
         }
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -46,16 +56,52 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         false
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        if terminateAfterHostWindowsClose {
+            terminateAfterHostWindowsClose = false
+            return .terminateNow
+        }
+
+        let hostWindows = visibleHostWindows(in: sender)
+        guard !hostWindows.isEmpty else {
+            return .terminateNow
+        }
+
+        terminateAfterHostWindowsClose = true
+        hostWindows.forEach { $0.performClose(nil) }
+        finishTerminationAfterHostWindowsClose(deadline: Date().addingTimeInterval(30.0))
+        return .terminateCancel
+    }
+
     func applicationShouldOpenUntitledFile(_ sender: NSApplication) -> Bool {
-        false
+        guard let configuration else {
+            return false
+        }
+
+        return configuration.documentMode != .folderMarker
+    }
+
+    func applicationOpenUntitledFile(_ sender: NSApplication) -> Bool {
+        guard let configuration,
+              configuration.documentMode != .folderMarker
+        else {
+            return false
+        }
+
+        showNewDocument()
+        return true
     }
 
     func applicationShouldSaveApplicationState(_ sender: NSApplication) -> Bool {
-        false
+        true
     }
 
     func applicationShouldRestoreApplicationState(_ sender: NSApplication) -> Bool {
-        false
+        true
+    }
+
+    func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {
+        true
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -84,6 +130,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @MainActor
+    @objc private func reloadWebViewFromMenu(_ sender: Any?) {
+        currentWebViewReloadingController()?.reloadWebView()
+    }
+
     @objc private func showAboutFromMenu(_ sender: Any?) {
         guard let configuration, let aboutNotice = configuration.aboutNotice else {
             NSApplication.shared.orderFrontStandardAboutPanel(sender)
@@ -107,6 +158,37 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    @objc private func showConfiguredHelpFromMenu(_ sender: Any?) {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, let configuration = self.configuration, let help = configuration.firstLaunchHelp else {
+                return
+            }
+            self.showHelpWindow(help)
+        }
+    }
+
+    private func visibleHostWindows(in application: NSApplication) -> [NSWindow] {
+        application.windows.filter { window in
+            window.isVisible && window.windowController is HostWindowController
+        }
+    }
+
+    private func finishTerminationAfterHostWindowsClose(deadline: Date) {
+        if visibleHostWindows(in: NSApplication.shared).isEmpty {
+            NSApplication.shared.terminate(nil)
+            return
+        }
+
+        if Date() < deadline {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                self?.finishTerminationAfterHostWindowsClose(deadline: deadline)
+            }
+            return
+        }
+
+        terminateAfterHostWindowsClose = false
+    }
+
     @MainActor
     private func showStartupChoice() {
         guard let configuration else {
@@ -115,27 +197,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         switch configuration.documentMode {
         case .contentPackage:
-            let alert = NSAlert()
-            alert.messageText = "Start \(configuration.appName)"
-            alert.informativeText = "Create a new document or open an existing .\(configuration.primaryDocumentExtension) package."
-            alert.addButton(withTitle: "New")
-            alert.addButton(withTitle: "Open Existing...")
-            alert.addButton(withTitle: "Cancel")
-
-            switch alert.runModal() {
-            case .alertFirstButtonReturn:
-                showNewDocument()
-            case .alertSecondButtonReturn:
-                showOpenPanel()
-            default:
-                return
-            }
+            showNewDocument()
 
         case .folderMarker:
             showFolderPicker()
 
         case .fileDocument:
-            showOpenPanel()
+            showNewDocument()
         }
     }
 
@@ -146,27 +214,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
 
         switch configuration.documentMode {
-        case .contentPackage:
-            createUntitledContentPackage(configuration: configuration)
+        case .contentPackage, .fileDocument:
+            createUntitledDocument(configuration: configuration)
         case .folderMarker:
             showFolderPicker()
-        case .fileDocument:
-            showOpenPanel()
         }
     }
 
     @MainActor
-    private func createUntitledContentPackage(configuration: AppifyHostConfiguration) {
+    private func createUntitledDocument(configuration: AppifyHostConfiguration) {
         do {
-            let tempRoot = FileManager.default.temporaryDirectory
-                .appendingPathComponent("AppifyHost", isDirectory: true)
-                .appendingPathComponent(UUID().uuidString, isDirectory: true)
-            try FileManager.default.createDirectory(at: tempRoot, withIntermediateDirectories: true)
-            let documentURL = tempRoot.appendingPathComponent("Untitled.\(configuration.primaryDocumentExtension)", isDirectory: true)
-            try FileManager.default.createDirectory(at: documentURL, withIntermediateDirectories: true)
-
+            let documentURL = PackageDocument.untitledDocumentURL(configuration: configuration)
+            try PackageDocument.createUntitledDocument(at: documentURL, configuration: configuration)
             let document = AppifyHostDocument()
-            document.configureUntitledPackage(at: documentURL)
+            document.configureUntitledDocument(at: documentURL)
             NSDocumentController.shared.addDocument(document)
             document.makeWindowControllers()
             document.showWindows()
@@ -219,9 +280,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
         panel.treatsFilePackagesAsDirectories = false
-        let allowedTypes = allowedContentTypes(configuration: configuration)
-        if !allowedTypes.isEmpty {
-            panel.allowedContentTypes = allowedTypes
+        if configuration.documentMode == .fileDocument {
+            panel.delegate = self
+        } else {
+            let allowedTypes = allowedContentTypes(configuration: configuration)
+            if !allowedTypes.isEmpty {
+                panel.allowedContentTypes = allowedTypes
+            }
         }
 
         guard panel.runModal() == .OK else {
@@ -234,15 +299,60 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
+        guard let configuration,
+              configuration.documentMode == .fileDocument
+        else {
+            return true
+        }
+
+        var isDirectory: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory),
+           isDirectory.boolValue
+        {
+            return true
+        }
+
+        let extensionName = url.pathExtension.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return configuration.documentExtensions.contains(extensionName)
+    }
+
     @MainActor
     private func openDocument(at url: URL) {
-        NSDocumentController.shared.openDocument(withContentsOf: url, display: true) { [weak self] document, _, error in
-            if let error {
-                self?.showAlert(title: "Could Not Open Document", message: String(describing: error))
+        guard let configuration else {
+            showAlert(title: "Could Not Open Document", message: "The app configuration is not loaded.")
+            return
+        }
+
+        do {
+            let documentURL = try PackageDocument.documentURL(forPackage: url, configuration: configuration)
+            if let existingDocument = existingOpenDocument(at: documentURL) {
+                existingDocument.showWindows()
+                existingDocument.windowControllers.forEach { $0.window?.makeKeyAndOrderFront(nil) }
                 return
             }
 
-            document?.showWindows()
+            let document = AppifyHostDocument()
+            try document.read(from: documentURL, ofType: configuration.documentKindEnvironmentValue)
+            document.fileType = configuration.documentKindEnvironmentValue
+            document.fileURL = documentURL
+            if let modificationDate = try? documentURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate {
+                document.fileModificationDate = modificationDate
+            }
+
+            NSDocumentController.shared.addDocument(document)
+            document.makeWindowControllers()
+            document.showWindows()
+        } catch {
+            showAlert(title: "Could Not Open Document", message: String(describing: error))
+        }
+    }
+
+    @MainActor
+    private func existingOpenDocument(at documentURL: URL) -> AppifyHostDocument? {
+        let standardizedURL = documentURL.standardizedFileURL
+        return NSDocumentController.shared.documents.compactMap { $0 as? AppifyHostDocument }.first { document in
+            document.activeDocumentURL == standardizedURL
         }
     }
 
@@ -320,6 +430,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: "View")
         viewMenuItem.submenu = viewMenu
+        let reloadItem = viewMenu.addItem(withTitle: "Reload", action: #selector(reloadWebViewFromMenu(_:)), keyEquivalent: "r")
+        reloadItem.target = self
+        viewMenu.addItem(.separator())
         viewMenu.addItem(withTitle: "Enter Full Screen", action: #selector(NSWindow.toggleFullScreen(_:)), keyEquivalent: "f")
             .keyEquivalentModifierMask = [.command, .control]
 
@@ -338,7 +451,65 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let helpMenu = NSMenu(title: "Help")
         helpMenuItem.submenu = helpMenu
         NSApp.helpMenu = helpMenu
-        helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
+        if let help = configuration.firstLaunchHelp {
+            let helpItem = helpMenu.addItem(
+                withTitle: help.windowTitle,
+                action: #selector(showConfiguredHelpFromMenu(_:)),
+                keyEquivalent: "?"
+            )
+            helpItem.target = self
+        } else {
+            helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
+        }
+    }
+
+    @MainActor
+    func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(reloadWebViewFromMenu(_:)) {
+            return currentWebViewReloadingController()?.canReloadWebView == true
+        }
+
+        return true
+    }
+
+    @MainActor
+    private func currentWebViewReloadingController() -> AppifyHostWebViewReloading? {
+        if let controller = NSApp.keyWindow?.windowController as? AppifyHostWebViewReloading {
+            return controller
+        }
+
+        return NSApp.mainWindow?.windowController as? AppifyHostWebViewReloading
+    }
+
+    @MainActor
+    private func showConfiguredHelpIfNeeded() {
+        guard let configuration,
+              let help = configuration.firstLaunchHelp
+        else {
+            return
+        }
+
+        let key = firstLaunchHelpDefaultsKey(configuration: configuration, help: help)
+        guard !UserDefaults.standard.bool(forKey: key) else {
+            return
+        }
+
+        UserDefaults.standard.set(true, forKey: key)
+        showHelpWindow(help)
+    }
+
+    private func firstLaunchHelpDefaultsKey(
+        configuration: AppifyHostConfiguration,
+        help: AppifyHostFirstLaunchHelp
+    ) -> String {
+        "AppifyHost.FirstLaunchHelp.\(configuration.bundleIdentifier).\(help.url.absoluteString)"
+    }
+
+    @MainActor
+    private func showHelpWindow(_ help: AppifyHostFirstLaunchHelp) {
+        let controller = helpWindowController ?? AppifyHostHelpWindowController()
+        helpWindowController = controller
+        controller.show(title: help.windowTitle, url: help.url)
     }
 
     private func openPanelMessage(configuration: AppifyHostConfiguration) -> String {
@@ -379,5 +550,53 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.messageText = title
         alert.informativeText = message
         alert.runModal()
+    }
+}
+
+final class AppifyHostHelpWindowController: NSWindowController {
+    private let webView: WKWebView
+
+    init() {
+        let webViewConfiguration = WKWebViewConfiguration()
+        webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        let webView = WKWebView(frame: .zero, configuration: webViewConfiguration)
+
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
+            styleMask: [.titled, .closable, .miniaturizable, .resizable],
+            backing: .buffered,
+            defer: false
+        )
+        window.minSize = NSSize(width: 640, height: 420)
+        window.isReleasedWhenClosed = false
+        window.isRestorable = false
+        window.contentView = webView
+
+        self.webView = webView
+        super.init(window: window)
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("AppifyHostHelpWindowController does not support NSCoder.")
+    }
+
+    func show(title: String, url: URL) {
+        window?.title = title
+        showWindow(nil)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        webView.load(URLRequest(url: url))
+    }
+}
+
+extension AppifyHostHelpWindowController: AppifyHostWebViewReloading {
+    var canReloadWebView: Bool {
+        true
+    }
+
+    func reloadWebView() {
+        webView.reload()
     }
 }

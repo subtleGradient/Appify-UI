@@ -19,6 +19,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var webViewDataStore: AppifyHostWebViewDataStore
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
+    public var firstLaunchHelp: AppifyHostFirstLaunchHelp?
 
     public init(
         appName: String,
@@ -38,7 +39,8 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         startupTimeoutSeconds: TimeInterval,
         webViewDataStore: AppifyHostWebViewDataStore,
         restrictNavigationToReadyURLScope: Bool,
-        aboutNotice: AppifyHostAboutNotice?
+        aboutNotice: AppifyHostAboutNotice?,
+        firstLaunchHelp: AppifyHostFirstLaunchHelp?
     ) {
         self.appName = appName
         self.bundleIdentifier = bundleIdentifier
@@ -58,6 +60,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.webViewDataStore = webViewDataStore
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
+        self.firstLaunchHelp = firstLaunchHelp
     }
 
     public var primaryDocumentExtension: String {
@@ -97,6 +100,16 @@ public struct AppifyHostAboutNotice: Equatable, Sendable {
         self.message = message
         self.linkTitle = linkTitle
         self.linkURL = linkURL
+    }
+}
+
+public struct AppifyHostFirstLaunchHelp: Equatable, Sendable {
+    public var url: URL
+    public var windowTitle: String
+
+    public init(url: URL, windowTitle: String) {
+        self.url = url
+        self.windowTitle = windowTitle
     }
 }
 
@@ -184,6 +197,7 @@ public enum AppifyHostConfigurationLoader {
         }
         let restrictNavigation = boolValue(hostSettings["RestrictNavigationToReadyURLScope"]) ?? true
         let aboutNotice = parseAboutNotice(from: hostSettings)
+        let firstLaunchHelp = try parseFirstLaunchHelp(from: hostSettings, appName: appName)
 
         guard !documentExtensions.isEmpty else {
             throw AppifyHostError.invalidInfoPlist("At least one document filename extension is required.")
@@ -212,7 +226,8 @@ public enum AppifyHostConfigurationLoader {
             startupTimeoutSeconds: startupTimeoutSeconds,
             webViewDataStore: webViewDataStore,
             restrictNavigationToReadyURLScope: restrictNavigation,
-            aboutNotice: aboutNotice
+            aboutNotice: aboutNotice,
+            firstLaunchHelp: firstLaunchHelp
         )
     }
 
@@ -300,6 +315,26 @@ public enum AppifyHostConfigurationLoader {
             linkURL: trimmedString(notice["LinkURL"])
         )
     }
+
+    public static func parseFirstLaunchHelp(from hostSettings: [String: Any], appName: String) throws -> AppifyHostFirstLaunchHelp? {
+        guard let help = hostSettings["FirstLaunchHelp"] as? [String: Any] else {
+            return nil
+        }
+
+        guard let urlString = trimmedString(help["URL"]),
+              let url = URL(string: urlString),
+              let scheme = url.scheme?.lowercased(),
+              ["http", "https"].contains(scheme),
+              url.host(percentEncoded: false) != nil
+        else {
+            throw AppifyHostError.invalidInfoPlist("AppifyHost:FirstLaunchHelp:URL must be an absolute http(s) URL.")
+        }
+
+        return AppifyHostFirstLaunchHelp(
+            url: url,
+            windowTitle: trimmedString(help["WindowTitle"]) ?? "\(appName) Help"
+        )
+    }
 }
 
 public enum PackageDocument {
@@ -329,6 +364,38 @@ public enum PackageDocument {
         let fallback = slug(for: configuration.appName, fallback: "appify")
         let baseName = slug(for: standardized.lastPathComponent, fallback: fallback)
         return standardized.appendingPathComponent("\(baseName).\(configuration.primaryDocumentExtension)", isDirectory: true)
+    }
+
+    public static func untitledDocumentURL(
+        configuration: AppifyHostConfiguration,
+        temporaryDirectory: URL = FileManager.default.temporaryDirectory
+    ) -> URL {
+        let tempRoot = temporaryDirectory
+            .standardizedFileURL
+            .appendingPathComponent("AppifyHost", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        return tempRoot.appendingPathComponent(
+            "Untitled.\(configuration.primaryDocumentExtension)",
+            isDirectory: configuration.documentMode != .fileDocument
+        )
+    }
+
+    public static func createUntitledDocument(
+        at documentURL: URL,
+        configuration: AppifyHostConfiguration
+    ) throws {
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            try FileManager.default.createDirectory(at: documentURL, withIntermediateDirectories: true)
+        case .fileDocument:
+            try FileManager.default.createDirectory(
+                at: documentURL.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            if !FileManager.default.fileExists(atPath: documentURL.path) {
+                _ = FileManager.default.createFile(atPath: documentURL.path, contents: Data())
+            }
+        }
     }
 
     public static func validatePackageURL(_ packageURL: URL, configuration: AppifyHostConfiguration) throws {

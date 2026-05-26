@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Appify UI Idea Atlas</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">Appify UI idea atlas / 2026-05-22</p>
+        <h1>Appify UI Idea Atlas</h1>
+        <p class="lede">
+          A focused set of notes on TUI and web-tech tools that would become stronger as macOS document apps: double-click a file, folder, or package in Finder and land in a purpose-built AppifyHost wrapper.
+        </p>
+      </header>
+
+      <section aria-labelledby="read">
+        <h2 id="read">Read Order</h2>
+        <div class="grid">
+          <section aria-labelledby="method">
+            <h3 id="method">Method</h3>
+            <ul>
+              <li><a href="method-slices.html">Method and Slices</a>: cognitive-cartography map, evidence labels, hyperslice table, falsifiers.</li>
+              <li><a href="appifyhost-patterns.html">AppifyHost Document Patterns</a>: how tw, litecli, LazyGit, and TLCanvas shape the opportunity.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="tui">
+            <h3 id="tui">TUI Atlas</h3>
+            <ul>
+              <li><a href="tui/top-picks.html">TUI Top Picks</a>: ranked cross-category shortlist.</li>
+              <li><a href="tui/data-and-databases.html">TUI Data and Databases</a>: Tabiew, VisiData, Harlequin, DataTUI, and friends.</li>
+              <li><a href="tui/devops-and-network.html">TUI Devops and Network</a>: Termshark, lnav, Posting, Slumber, lazytf, and profile apps.</li>
+              <li><a href="tui/authoring-and-personal.html">TUI Authoring and Personal Tools</a>: doxx, presenterm, calcure, Gorae, coBib.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="web">
+            <h3 id="web">Web-Tech Atlas</h3>
+            <ul>
+              <li><a href="web/top-picks.html">Web Tech Top Picks</a>: ranked shortlist for TLCanvas-style apps.</li>
+              <li><a href="web/canvas-and-editors.html">Web Canvas and Editors</a>: JSON Canvas, Excalidraw, TiddlyWiki, BlockSuite, Monaco, Sandpack.</li>
+              <li><a href="web/sdk-bundle-hosts/index.html">Generic Web SDK Bundles</a>: <code>Webapp.app</code> first, with <a href="web/sdk-bundle-hosts/015-webapp-vs-website.html"><code>.webapp</code> kept separate from static <code>.web</code>/<code>.website</code></a>.</li>
+              <li><a href="web/data-maps-cad.html">Web Data, Maps, and CAD</a>: DuckDB-Wasm, Perspective, MapLibre, Mol*, OpenCascade.js.</li>
+            </ul>
+          </section>
+          <section aria-labelledby="next">
+            <h3 id="next">Next Builds</h3>
+            <ul>
+              <li><a href="chat-and-memory.html">AI Chat and Memory Apps</a>: <code>.chat</code> viewers, SQLite archives, project memory packages, and context-pack workbenches.</li>
+              <li><a href="golfing.md">App Build Golf</a>: scoring model for which document apps to build next.</li>
+              <li><a href="prototype-backlog.html">Prototype Backlog</a>: ordered next probes and stop conditions.</li>
+              <li><a href="../web-components-native.idea.htm">Recovered Web Components Native note</a>: restored historical idea note from git history.</li>
+            </ul>
+          </section>
+        </div>
+      </section>
+
+      <section aria-labelledby="picks">
+        <h2 id="picks">Short Answer</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Lane</th>
+              <th>Best first bet</th>
+              <th>Why</th>
+              <th>Document shape</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>TUI data</td>
+              <td>Polish and extend <code>tw.app</code> as <code>DataPeek.app</code></td>
+              <td>Tabiew is already wired through <code>tw.app</code> and maps cleanly to many tabular files.</td>
+              <td><code>fileDocument</code></td>
+            </tr>
+            <tr>
+              <td>TUI ops</td>
+              <td><code>LogScope.app</code> or <code>PacketPeek.app</code></td>
+              <td>lnav and termshark have crisp read-only artifacts: logs and pcaps.</td>
+              <td><code>fileDocument</code>, later <code>contentPackage</code></td>
+            </tr>
+            <tr>
+              <td>TUI API</td>
+              <td><code>APIWorkbench.app</code></td>
+              <td>Posting/Slumber turn local request collections into a native-feeling API client.</td>
+              <td><code>contentPackage</code></td>
+            </tr>
+            <tr>
+              <td>Web canvas</td>
+              <td><code>JSONCanvas.app</code></td>
+              <td>Closest TLCanvas sibling with an independent open file format.</td>
+              <td><code>fileDocument</code> plus asset package</td>
+            </tr>
+            <tr>
+              <td>Web local app</td>
+              <td><code>WikiDock.app</code></td>
+              <td>TiddlyWiki already has a folder format; native package open/save is the missing ergonomic piece.</td>
+              <td><code>.tiddlywiki</code> <code>contentPackage</code></td>
+            </tr>
+            <tr>
+              <td>AI memory</td>
+              <td><code>ChatDock.app</code>, then <code>ChatArchive.app</code></td>
+              <td>Local chats already exist as readable <code>.chat</code> folders and sharded SQLite archives; Appify can make both browsable.</td>
+              <td><code>.chat</code>, <code>.chatpack</code>, archive root</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

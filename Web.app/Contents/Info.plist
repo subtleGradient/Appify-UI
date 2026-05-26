@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>en</string>
+  <key>CFBundleDisplayName</key>
+  <string>Web</string>
+  <key>CFBundleExecutable</key>
+  <string>main.sh</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.subtlegradient.web</string>
+  <key>CFBundleInfoDictionaryVersion</key>
+  <string>6.0</string>
+  <key>CFBundleName</key>
+  <string>Web</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>0.1.0</string>
+  <key>CFBundleSupportedPlatforms</key>
+  <array>
+    <string>MacOSX</string>
+  </array>
+  <key>CFBundleVersion</key>
+  <string>0.1.0</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSHumanReadableCopyright</key>
+  <string>Copyright (c) 2026 subtleGradient</string>
+
+  <key>AppifyHost</key>
+  <dict>
+    <key>DocumentMode</key>
+    <string>contentPackage</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerArguments</key>
+    <array/>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.subtlegradient.web.package</string>
+    <key>LogName</key>
+    <string>Web</string>
+    <key>WindowTitlePrefix</key>
+    <string>Web</string>
+    <key>WebViewDataStore</key>
+    <string>nonPersistent</string>
+    <key>AboutNotice</key>
+    <dict>
+      <key>Message</key>
+      <string>Web is a local macOS document host for static .web packages.</string>
+    </dict>
+  </dict>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.subtlegradient.web.package</string>
+      <key>UTTypeDescription</key>
+      <string>Web Package</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>com.apple.package</string>
+        <string>public.directory</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>web</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Web Package</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>web</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.subtlegradient.web.package</string>
+      </array>
+      <key>LSTypeIsPackage</key>
+      <true/>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
+    </dict>
+  </array>
+</dict>
+</plist>

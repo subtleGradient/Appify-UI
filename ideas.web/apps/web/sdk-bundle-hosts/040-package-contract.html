@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>SDK Package Contract</title>
+    <link rel="stylesheet" href="bundle-notes.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">04 / package contract</p>
+        <h1>Package Contract</h1>
+        <p class="lede">
+          The package should be a normal <code>.webapp</code> first, and Appify-specific only when needed. SDK-specific extensions are later aliases for packages whose examples prove they deserve a separate Finder identity.
+        </p>
+      </header>
+
+      <nav aria-label="Read order">
+        <strong>Read order:</strong>
+        <a href="index.html">index</a> /
+        <a href="010-problem.html">problem</a> /
+        <a href="015-webapp-vs-website.html">webapp vs website</a> /
+        <a href="020-jobs.html">jobs</a> /
+        <a href="025-webapp-first.html">Webapp first</a> /
+        <a href="030-layers.html">layers</a> /
+        <a href="050-node-modules.html">dependencies</a> /
+        <a href="060-sdk-profiles.html">SDK profiles</a> /
+        <a href="070-golf.html">golf</a> /
+        <a href="080-probes.html">probes</a>
+      </nav>
+
+      <section aria-labelledby="levels">
+        <h2 id="levels">Three Levels</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Level</th>
+              <th>Shape</th>
+              <th>Use when</th>
+              <th>App behavior</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>0. Normal package</td>
+              <td><code>package.json</code>, <code>index.html</code>, <code>src/</code>, <code>data/</code>, <code>public/</code>.</td>
+              <td>A small web project already exists.</td>
+              <td>Infer entry and resolve host SDK aliases.</td>
+            </tr>
+            <tr>
+              <td>1. Appify annotated</td>
+              <td>Normal package plus <code>appify.json</code>.</td>
+              <td>The package needs a canonical save file, custom entry, permissions, or migration info.</td>
+              <td>Use explicit contract and show warnings for missing capabilities.</td>
+            </tr>
+            <tr>
+              <td>2. Sealed package</td>
+              <td>Annotated package plus <code>vendor/</code> or deliberate <code>node_modules/</code>.</td>
+              <td>Offline, archival, classroom, lab, or reproducible handoff matters more than size.</td>
+              <td>Prefer package-local deps and never mutate them silently.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="website-contract">
+        <h2 id="website-contract"><code>.web</code> / <code>.website</code> Contract</h2>
+        <ul>
+          <li><code>.webapp</code> may contain <code>package.json</code>, lockfiles, source transforms, and npm dependency declarations.</li>
+          <li><code>.web</code> and <code>.website</code> must not require <code>package.json</code>, <code>node_modules</code>, npm install, TypeScript compilation, JSX transform, or any bundler at open time.</li>
+          <li><code>.web</code> and <code>.website</code> are static web-native packages: <code>index.html</code>, CSS, browser JavaScript, assets, data, and relative links.</li>
+          <li>A <code>.webapp</code> may export a static <code>.website</code>, but the export must stand alone as static web tech.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="d3">
+        <h2 id="d3">Normal D3 <code>.webapp</code> Package</h2>
+        <pre><code>sales-chart.webapp/
+  package.json
+  index.html
+  src/
+    main.js
+  data/
+    sales.csv
+  public/
+    logo.svg</code></pre>
+      </section>
+
+      <section aria-labelledby="annotated">
+        <h2 id="annotated">Annotated Package</h2>
+        <pre><code>sales-chart.webapp/
+  package.json
+  appify.json
+  index.html
+  src/
+    main.ts
+  data/
+    sales.csv
+  assets/
+  state/
+    session.json
+  QuickLook/
+    Preview.png</code></pre>
+      </section>
+
+      <section aria-labelledby="manifest">
+        <h2 id="manifest">Small <code>appify.json</code></h2>
+        <pre><code>{
+  "appify": 1,
+  "kind": "webapp",
+  "profile": "d3",
+  "entry": "./src/main.ts",
+  "document": {
+    "canonical": ["./src", "./data"],
+    "session": "./state/session.json",
+    "preview": "./QuickLook/Preview.png"
+  },
+  "sdk": {
+    "name": "d3",
+    "version": "host"
+  },
+  "runtime": {
+    "dependencyMode": "host-plus-cache",
+    "allowLifecycleScripts": false
+  }
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="rules">
+        <h2 id="rules">Rules</h2>
+        <ul>
+          <li><code>package.json</code> keeps ecosystem identity: name, scripts, dependencies, dev dependencies, type, exports, and license.</li>
+          <li><code>appify.json</code> should only describe Appify document concerns: kind, entry, canonical files, permissions, dependency mode, and migrations.</li>
+          <li><code>kind</code> starts as <code>webapp</code>; SDK identity belongs in <code>profile</code> until a dedicated app graduates.</li>
+          <li>Do not use <code>kind: "website"</code> for npm-backed packages. That boundary is semantic, not cosmetic.</li>
+          <li>SDK packages imported by name should resolve to the app-owned SDK capsule when possible.</li>
+          <li>Package-local <code>node_modules</code> is an explicit sealed mode, not the default living-document mode.</li>
+          <li><code>dist/</code>, <code>.appify/cache/</code>, and generated previews are derived unless the manifest marks them canonical.</li>
+        </ul>
+      </section>
+
+      <section class="next" aria-label="Next links">
+        <a href="050-node-modules.html">Next: dependencies</a>
+        <a href="030-layers.html">Previous: layers</a>
+      </section>
+    </main>
+  </body>
+</html>

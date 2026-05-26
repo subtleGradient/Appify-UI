@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>010 - Appify UI 26 Hyperslices</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">hyperslice map / adversarial dimensions</p>
+        <h1>Appify UI 26 Hyperslices</h1>
+        <p class="lede">
+          The idea is not a GUI around build scripts. It is a way to make the path from "I have a local tool" to "I have a double-clickable AppifyHost Mac app" feel obvious, reversible, and fun.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="020-constraints.idea.html">020 constraints</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a>
+      </nav>
+
+      <section aria-labelledby="slices">
+        <h2 id="slices">Binary Slices</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Razor</th>
+              <th>Half A</th>
+              <th>Half B</th>
+              <th>Implication</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Source of truth</td>
+              <td>Manifest-first</td>
+              <td>App-bundle-first</td>
+              <td>Manifest-first can generate <code>Info.plist</code>, server env, document types, scripts, fixtures, and smoke checks. App-bundle-first teaches by direct inspection of a working <code>.app</code>. Choose a dominant mode, then borrow from the other.</td>
+            </tr>
+            <tr>
+              <td>Creation mode</td>
+              <td>Wizard</td>
+              <td>Hackable exemplar</td>
+              <td>Wizard lowers first-use friction. Exemplar preserves the repo's spirit: duplicate it, change anything, run it, ship your version.</td>
+            </tr>
+            <tr>
+              <td>Output posture</td>
+              <td>Generator emits apps</td>
+              <td>Workshop owns apps</td>
+              <td>Generated apps stay clean and atomic. Workshop-owned apps feel richer but risk hidden state and project lock-in.</td>
+            </tr>
+            <tr>
+              <td>User promise</td>
+              <td>Easy</td>
+              <td>Fun</td>
+              <td>Easy wants guardrails, defaults, validation, and previews. Fun wants tangible toys: clone this app, rename it, swap the runner, run a smoke test, see it work.</td>
+            </tr>
+            <tr>
+              <td>Runtime model</td>
+              <td>Existing command wrapper</td>
+              <td>New web runner scaffold</td>
+              <td>Command wrappers align with <code>tw</code>, <code>litecli</code>, and <code>LazyGit</code>. Web runner scaffolds align with <code>TLCanvas</code>. Treat them as separate first-class paths.</td>
+            </tr>
+            <tr>
+              <td>Document model</td>
+              <td>Known AppifyHost modes</td>
+              <td>Invented app package schema</td>
+              <td>The known modes are <code>fileDocument</code>, <code>folderMarker</code>, and <code>contentPackage</code>. New schemas should start as named skeletons, not a meta-format for everything.</td>
+            </tr>
+            <tr>
+              <td>Feedback loop</td>
+              <td>Static recipe validation</td>
+              <td>Live app launch</td>
+              <td>Static checks catch missing extensions, unsafe tokens, and bad paths. Live launch is the magic: start the generated app, open a fixture, watch <code>APPIFY_HOST_OPEN_URL</code>, inspect logs.</td>
+            </tr>
+            <tr>
+              <td>Hackability surface</td>
+              <td>Plain files and scripts</td>
+              <td>Opaque polished UI</td>
+              <td>The UI should reveal and improve the generated files, not replace them as the true artifact.</td>
+            </tr>
+            <tr>
+              <td>Safety posture</td>
+              <td>Local/read-only by default</td>
+              <td>Capability escalation</td>
+              <td>Default recipes should avoid secrets and mutation. Network, credentials, shell mutation, Keychain, and write-enabled DB tools become explicit capability badges.</td>
+            </tr>
+            <tr>
+              <td>Recursion</td>
+              <td>Meta-app makes siblings</td>
+              <td>Meta-app can make itself</td>
+              <td>Making siblings is safer. Making itself is the delightful recursive proof, but should be framed as the hackable implementation, not a required editing workflow.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="robust">
+        <h2 id="robust">Robust Slices</h2>
+        <ul>
+          <li><strong>Manifest-first vs app-bundle-first</strong> is the central product fork.</li>
+          <li><strong>Easy vs fun</strong> should not collapse into "lots of UI"; easy is fewer decisions, fun is faster visible evidence.</li>
+          <li><strong>Shippable vs private</strong> is the ethical boundary: what the recipient needs to run and hack ships; personal design process stays outside.</li>
+          <li><strong>Signed runtime vs hackable source</strong> is the technical boundary: hacking should usually flow through source and regeneration, not mutate a trusted app in place.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="clusters">
+        <h2 id="clusters">Two Natural Clusters</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Cluster</th>
+              <th>Primary good</th>
+              <th>Core move</th>
+              <th>Failure to avoid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Recipe Foundry</td>
+              <td>Easy</td>
+              <td>Open <code>.appdev</code>, edit a compact recipe, validate it, generate a root <code>.app</code>, and run smoke checks.</td>
+              <td>A boring form generator that hides the interesting files.</td>
+            </tr>
+            <tr>
+              <td>Living App Dollhouse</td>
+              <td>Fun</td>
+              <td>Use <code>Appify UI 26.app</code> itself as the nested tutorial, template, and live object to duplicate and mutate.</td>
+              <td>A recursive toy that becomes hard to sign, update, or reason about.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>

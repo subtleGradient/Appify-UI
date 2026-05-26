@@ -31,7 +31,19 @@ final class AppifyHostDocument: NSDocument {
         super.init()
     }
 
-    func configureUntitledPackage(at url: URL) {
+    @IBAction override func save(_ sender: Any?) {
+        flushWebDocumentBeforeNativeSave { [weak self] in
+            self?.performNativeSave(sender)
+        }
+    }
+
+    @IBAction override func saveAs(_ sender: Any?) {
+        flushWebDocumentBeforeNativeSave { [weak self] in
+            self?.performNativeSaveAs(sender)
+        }
+    }
+
+    func configureUntitledDocument(at url: URL) {
         temporaryDocumentURL = url.standardizedFileURL
     }
 
@@ -46,6 +58,11 @@ final class AppifyHostDocument: NSDocument {
         try PackageDocument.validatePackageURL(url, configuration: configuration)
     }
 
+    override func read(from fileWrapper: FileWrapper, ofType typeName: String) throws {
+        let configuration = try AppifyHostRuntime.requireConfiguration()
+        try validateFileWrapper(fileWrapper, configuration: configuration)
+    }
+
     override func write(to url: URL, ofType typeName: String) throws {
         let configuration = try AppifyHostRuntime.requireConfiguration()
         switch configuration.documentMode {
@@ -55,6 +72,26 @@ final class AppifyHostDocument: NSDocument {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         case .fileDocument:
             try writeFileDocument(to: url)
+        }
+    }
+
+    override func fileWrapper(ofType typeName: String) throws -> FileWrapper {
+        let configuration = try AppifyHostRuntime.requireConfiguration()
+        switch configuration.documentMode {
+        case .contentPackage:
+            guard let activeDocumentURL else {
+                return FileWrapper(directoryWithFileWrappers: [:])
+            }
+            return try FileWrapper(url: activeDocumentURL, options: [])
+
+        case .folderMarker:
+            return FileWrapper(directoryWithFileWrappers: [:])
+
+        case .fileDocument:
+            guard let activeDocumentURL else {
+                return FileWrapper(regularFileWithContents: Data())
+            }
+            return FileWrapper(regularFileWithContents: try Data(contentsOf: activeDocumentURL))
         }
     }
 
@@ -83,8 +120,35 @@ final class AppifyHostDocument: NSDocument {
         hostWindowController?.stopForAppTermination()
     }
 
+    private func flushWebDocumentBeforeNativeSave(_ nativeSave: @escaping () -> Void) {
+        guard let hostWindowController else {
+            nativeSave()
+            return
+        }
+
+        hostWindowController.flushWebDocumentSave { [weak self] result in
+            DispatchQueue.main.async {
+                switch result {
+                case .success:
+                    nativeSave()
+                case .failure(let error):
+                    self?.presentError(error)
+                }
+            }
+        }
+    }
+
+    private func performNativeSave(_ sender: Any?) {
+        super.save(sender)
+    }
+
+    private func performNativeSaveAs(_ sender: Any?) {
+        super.saveAs(sender)
+    }
+
     override func close() {
         let disposableURL = temporaryDocumentURL
+        stopServerForAppTermination()
         super.close()
         if let disposableURL {
             try? FileManager.default.removeItem(at: disposableURL)
@@ -114,6 +178,32 @@ final class AppifyHostDocument: NSDocument {
         }
     }
 
+    private func validateFileWrapper(_ fileWrapper: FileWrapper, configuration: AppifyHostConfiguration) throws {
+        switch configuration.documentMode {
+        case .contentPackage, .folderMarker:
+            guard fileWrapper.isDirectory else {
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: CocoaError.Code.fileReadCorruptFile.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Expected a document package.",
+                    ]
+                )
+            }
+
+        case .fileDocument:
+            guard fileWrapper.isRegularFile else {
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: CocoaError.Code.fileReadCorruptFile.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Expected a document file.",
+                    ]
+                )
+            }
+        }
+    }
+
     private func writeContentPackage(to url: URL) throws {
         guard let activeDocumentURL else {
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
@@ -135,6 +225,9 @@ final class AppifyHostDocument: NSDocument {
 
     private func writeFileDocument(to url: URL) throws {
         guard let activeDocumentURL else {
+            if !FileManager.default.fileExists(atPath: url.path) {
+                _ = FileManager.default.createFile(atPath: url.path, contents: Data())
+            }
             return
         }
 

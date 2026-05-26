@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>000 - Appify UI 26 Seed Idea</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section, article { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p, blockquote { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      blockquote { border-inline-start: 0.25rem solid color-mix(in oklch, CanvasText 28%, transparent); padding-inline-start: 1rem; color: color-mix(in oklch, CanvasText 76%, transparent); }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .grid { display: grid; gap: 1rem; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/appdev / seed capture / 2026-05-22</p>
+        <h1>Appify UI 26 Seed Idea</h1>
+        <p class="lede">
+          A new generic meta AppifyHost app called <code>Appify UI 26.app</code>: an app for making AppifyHost apps, with a clean split between runnable implementation and private design process.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="010-hyperslices.idea.html">010 hyperslices</a> /
+        <a href="020-constraints.idea.html">020 constraints</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a> /
+        <a href="050-map-reduce.idea.html">050 map reduce</a>
+      </nav>
+
+      <section aria-labelledby="raw">
+        <h2 id="raw">Raw Capture</h2>
+        <blockquote>
+          <p>
+            Let us think about a new super generic meta app called <code>Appify UI 26.app</code>.
+            This will be an <code>AppifyHost</code> app that makes it easy and fun to make AppifyHost apps.
+          </p>
+          <p>
+            It would be cool if its native bundle type could be <code>.app</code> bundles themselves, but macOS probably will not let an app use <code>.app</code> as its native document bundle extension. So use <code>.appdev</code> instead.
+          </p>
+          <p>
+            Self-host the Appify UI 26 app inside an <code>appify-ui.appdev</code> bundle at <code>./appify-ui.appdev/Appify UI 26.app</code>.
+          </p>
+          <p>
+            Philosophically, AppifyHost apps should be fully self-contained within their <code>.app</code> bundles, but only for the stuff needed to run them. The meta stuff related to the design of the app belongs in each <code>.appdesign</code> or <code>.appdev</code> bundle.
+          </p>
+          <p>
+            Therefore <code>appify-ui.appdev</code> encapsulates all the stuff related to designing Appify UI: research, specs, tasks, notes, design files, and similar material. <code>appify-ui.appdev/Appify UI 26.app</code> is the actual implementation.
+          </p>
+          <p>
+            The <code>.app</code> bundle should be zippable and sendable to someone else to run. It should contain all source code necessary for them to hack on it, but it should not contain private notes and personal design/dev process. They can maintain their own separate <code>.appdev</code> bundle with their own notes.
+          </p>
+        </blockquote>
+      </section>
+
+      <section aria-labelledby="desire">
+        <h2 id="desire">What The Idea Wants To Be</h2>
+        <div class="grid">
+          <article aria-labelledby="fun">
+            <h3 id="fun">Fun App Forge</h3>
+            <p>
+              The target is not merely a project generator. The target is a native-feeling forge where turning a web app, TUI, or local tool into a Finder-openable Mac app feels playful and inspectable.
+            </p>
+          </article>
+          <article aria-labelledby="clean">
+            <h3 id="clean">Clean Boundary</h3>
+            <p>
+              The runnable artifact is public and hackable. The thinking residue is private and portable between the creator's tools, but it does not leak into the distributed app.
+            </p>
+          </article>
+          <article aria-labelledby="self">
+            <h3 id="self">Self-Hosting Proof</h3>
+            <p>
+              Appify UI should be made by Appify UI as early as possible. The tool earns trust by living inside the bundle structure it recommends.
+            </p>
+          </article>
+          <article aria-labelledby="document">
+            <h3 id="document">Document-As-Workshop</h3>
+            <p>
+              A <code>.appdev</code> package is not the app. It is the workshop around the app: intent, drafts, rejected paths, assets, tests, source provenance, packaging notes, and local-only process.
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="terms">
+        <h2 id="terms">Working Terms</h2>
+        <ul>
+          <li><code>.app</code>: runnable, distributable, hackable app bundle. Contains everything needed to run and maintain the app.</li>
+          <li><code>.appdev</code>: private or team-local App Development Bundle. Contains the workshop, research, specs, tasks, screenshots, design drafts, build recipes, and one or more app builds.</li>
+          <li><code>Appify UI 26.app</code>: the first self-hosted implementation and test case.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="naming">
+        <h2 id="naming">Naming Decision</h2>
+        <ul>
+          <li>The extension is <code>.appdev</code>.</li>
+          <li>The human-readable document kind is <strong>App Development Bundle</strong>.</li>
+          <li>The internal manifest kind is <code>appify.appdev</code>.</li>
+          <li><code>.appdesign</code>, <code>.appwork</code>, and <code>.appapp</code> stay rejected alternatives, not active sibling formats.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="open">
+        <h2 id="open">Open Tensions</h2>
+        <ul>
+          <li>Whether <code>.appdev</code> should be an AppifyHost document package, a workspace convention, or both.</li>
+          <li>How much source and toolchain belongs inside a zipped <code>.app</code> before the bundle becomes heavy or code-signing-hostile.</li>
+          <li>Whether each project needs one canonical app inside the bundle or a history of built app artifacts.</li>
+          <li>How private notes stay private without making the public app feel amputated or hard to modify.</li>
+          <li>Whether opening an <code>.appdev</code> should inspect the nested app by default but require explicit trust before running any nested executable.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

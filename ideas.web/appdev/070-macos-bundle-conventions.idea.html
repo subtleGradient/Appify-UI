@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>070 - macOS Bundle Conventions To Steal</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 88rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; margin-block-end: 0.35rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      li + li { margin-block-start: 0.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 70rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+      .grid { display: grid; gap: 0.75rem; grid-template-columns: repeat(auto-fit, minmax(min(22rem, 100%), 1fr)); }
+      .callout { background: color-mix(in oklch, CanvasText 6%, transparent); border-radius: 0.5rem; padding: 0.75rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/appdev / hyperslice-jr / 2026-05-22</p>
+        <h1>macOS Bundle Conventions To Steal</h1>
+        <p class="lede">
+          The AppifyHost move is to make app bundles and document packages feel native before inventing new meta-format machinery. macOS already has a lot of discovery surfaces hidden behind boring names: <code>Info.plist</code>, <code>Contents/PlugIns</code>, <code>Contents/Library/Spotlight</code>, <code>Contents/XPCServices</code>, <code>.lproj</code>, Help Books, Services, URL schemes, UTIs, and document package conventions.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="060-hello-world-probe.idea.html">060 hello world</a> /
+        <a href="080-macos-bundle-taxonomy.idea.html">080 taxonomy</a> /
+        <a href="../../SPEC/macOS-platform/QuickLook.SPEC.html">Quick Look spec</a>
+      </nav>
+
+      <section aria-labelledby="stance">
+        <h2 id="stance">Stance</h2>
+        <div class="grid">
+          <div class="callout">
+            <h3>Default posture</h3>
+            <p>Prefer platform-discovered files and <code>Info.plist</code> declarations over app-specific registries when the system already has a native behavior.</p>
+          </div>
+          <div class="callout">
+            <h3>Line to hold</h3>
+            <p>Do not add extension/helper targets just to keep document packages aesthetically pure. Add code-bearing bundle machinery when it creates a real Finder, Spotlight, Shortcuts, sandboxing, or background-processing win.</p>
+          </div>
+          <div class="callout">
+            <h3>Portability rule</h3>
+            <p>Shared resources may stay platform-neutral, but a macOS package may contain macOS-specific affordance directories when those directories are the native user surface.</p>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="pile">
+        <h2 id="pile">Pile Of Candidate Conventions</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Convention</th>
+              <th>Where it lives</th>
+              <th>Free behavior</th>
+              <th>AppifyHost use</th>
+              <th>Cost shape</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Package Quick Look files</td>
+              <td><code>Document.pkg/QuickLook/Preview.*</code>, <code>Thumbnail.*</code></td>
+              <td>Finder preview and thumbnail without an app extension.</td>
+              <td>Default for <code>.tlcanvas</code>, <code>.hi</code>, and any readable package document.</td>
+              <td>Very low. Needs save-time discipline so preview files do not drift.</td>
+            </tr>
+            <tr>
+              <td>Exported UTTypes</td>
+              <td><code>UTExportedTypeDeclarations</code> in app <code>Info.plist</code></td>
+              <td>System-wide type identity, conformance, kind names, icons, pasteboard/file filtering.</td>
+              <td>Every AppifyHost document type should get a reverse-DNS UTType that conforms to <code>com.apple.package</code> for bundles.</td>
+              <td>Low. Namespace care matters.</td>
+            </tr>
+            <tr>
+              <td>Document type declarations</td>
+              <td><code>CFBundleDocumentTypes</code>, <code>LSItemContentTypes</code>, <code>LSTypeIsPackage</code></td>
+              <td>Double-click open, Open With, role ranking, package treatment, document icons.</td>
+              <td>Core contract for generated apps.</td>
+              <td>Low. Launch Services registration can be cachey during development.</td>
+            </tr>
+            <tr>
+              <td>Document and app icons</td>
+              <td><code>CFBundleIconFile</code>, <code>CFBundleTypeIconFile</code>, <code>UTTypeIconFile</code>, <code>Resources/*.icns</code></td>
+              <td>Finder, Dock, Open panel, Get Info, and Launch Services visuals.</td>
+              <td>Generated apps should own one app icon and each custom document type should own an icon.</td>
+              <td>Low to medium. Icon production is craft work, not architecture.</td>
+            </tr>
+            <tr>
+              <td>Localized bundle resources</td>
+              <td><code>Contents/Resources/*.lproj/</code>, <code>InfoPlist.strings</code>, <code>Localizable.strings</code></td>
+              <td>Bundle resource lookup follows user language preferences.</td>
+              <td>Future-proof app names, document kind names, help, and template labels without custom locale plumbing.</td>
+              <td>Low if kept textual. Medium if every template becomes localized too early.</td>
+            </tr>
+            <tr>
+              <td>Private frameworks</td>
+              <td><code>Contents/Frameworks/</code></td>
+              <td>App-local dynamic libraries that are revision-locked to the app.</td>
+              <td>Could package AppifyHost shared native runtime pieces cleanly if Swift code splits.</td>
+              <td>Medium. Code signing, rpaths, notarization, and binary compatibility become real.</td>
+            </tr>
+            <tr>
+              <td>Loadable plug-ins and app extensions</td>
+              <td><code>Contents/PlugIns/</code></td>
+              <td>Blessed home for extension bundles and in-app loadable modules.</td>
+              <td>Only for real extension points: Quick Look Preview extension, Finder Action extension, Share extension, Finder Sync, or app-owned plug-in APIs.</td>
+              <td>Medium to high. Separate targets, signatures, entitlements, host lifecycles.</td>
+            </tr>
+            <tr>
+              <td>Shared support resources</td>
+              <td><code>Contents/SharedSupport/</code></td>
+              <td>Named place for non-critical bundled assets such as templates, samples, tutorials, and seed data.</td>
+              <td>A good home for hackable example documents or optional templates inside a self-contained app.</td>
+              <td>Low. Keep runtime-required files in <code>Resources</code> or the app-local server tree.</td>
+            </tr>
+            <tr>
+              <td>Spotlight importers</td>
+              <td><code>Contents/Library/Spotlight/*.mdimporter</code></td>
+              <td>Searchable metadata for custom formats in Spotlight and Finder search.</td>
+              <td>Tempting for <code>.appdev</code>, <code>.tlcanvas</code>, notes, task metadata, and app names embedded inside packages.</td>
+              <td>Medium. Importers must be UI-free, app-independent, and privacy-aware.</td>
+            </tr>
+            <tr>
+              <td>XPC services</td>
+              <td><code>Contents/XPCServices/*.xpc</code></td>
+              <td>On-demand helper processes managed by <code>launchd</code>, with isolation and crash containment.</td>
+              <td>Use for risky parsers, preview rendering, language servers, or build workers that should not crash the UI process.</td>
+              <td>High. Protocol design, async behavior, signing, sandboxing, and statelessness matter.</td>
+            </tr>
+            <tr>
+              <td>Login items and bundled agents</td>
+              <td>Helper executables controlled through <code>SMAppService</code></td>
+              <td>User-approved background agents and login helpers without loose installer scatter.</td>
+              <td>Maybe for a future appdev watcher, local indexer, or app-build service.</td>
+              <td>High. Background behavior is trust-sensitive and should not be casual.</td>
+            </tr>
+            <tr>
+              <td>URL scheme declarations</td>
+              <td><code>CFBundleURLTypes</code></td>
+              <td>Deep links from browsers, other apps, terminal tools, and docs.</td>
+              <td><code>appify:</code> links could open an appdev bundle, create an app, jump to a document, or run an app-local command.</td>
+              <td>Low to medium. Global scheme ownership and security validation matter.</td>
+            </tr>
+            <tr>
+              <td>Services menu entries</td>
+              <td><code>NSServices</code> in app <code>Info.plist</code></td>
+              <td>System Services menu actions for selected text, files, URLs, and pasteboard data.</td>
+              <td>Useful for "Make Appify app from selection", "Open package in Appify UI", or "Create note in current appdev".</td>
+              <td>Medium. Old-school but native; needs pasteboard type clarity.</td>
+            </tr>
+            <tr>
+              <td>Finder Action extensions</td>
+              <td>App extension under <code>Contents/PlugIns</code></td>
+              <td>Quick Actions from Finder and preview panes.</td>
+              <td>Could expose "Render preview", "Validate app bundle", "Zip distributable app", or "Open in Appify UI".</td>
+              <td>Medium to high. Good when file-context actions become central.</td>
+            </tr>
+            <tr>
+              <td>Finder Sync extensions</td>
+              <td>App extension under <code>Contents/PlugIns</code></td>
+              <td>Badges, labels, contextual menus, toolbar buttons, and sidebar affordances for monitored folders.</td>
+              <td>Maybe for a curated Appify workspace root, not for general Finder modification.</td>
+              <td>High. Apple frames it around sync-like folders, not arbitrary Finder theming.</td>
+            </tr>
+            <tr>
+              <td>Help Books</td>
+              <td>Help folder in <code>Contents/Resources</code> plus <code>CFBundleHelpBookFolder</code> and <code>CFBundleHelpBookName</code></td>
+              <td>Native Help menu and Help Viewer lookup.</td>
+              <td>Great fit for shipped docs in hackable apps: "how this app is built" can be local and native.</td>
+              <td>Low to medium. Help Book formatting is its own small tradition.</td>
+            </tr>
+            <tr>
+              <td><code>NSDocument</code> and <code>NSFileWrapper</code></td>
+              <td>AppKit document architecture and package file wrappers</td>
+              <td>Autosave, versions, safe package reads/writes, file coordination, recent documents.</td>
+              <td>Long-term native ideal for package documents that are edited directly rather than served through shell scripts.</td>
+              <td>High relative to AppifyHost's current webview host simplicity.</td>
+            </tr>
+            <tr>
+              <td>App Intents and App Shortcuts</td>
+              <td>Swift intent types and optional extension support</td>
+              <td>Shortcuts, Spotlight, Siri, and system automation discover app actions.</td>
+              <td>Could surface "Create app", "Open appdev", "Export app", or "Render previews" outside the app.</td>
+              <td>Medium. Best once commands are stable and user-language-friendly.</td>
+            </tr>
+            <tr>
+              <td>Privacy manifests</td>
+              <td><code>Contents/Resources/PrivacyInfo.xcprivacy</code> for macOS apps</td>
+              <td>Platform-compliant privacy declaration for distribution paths that care.</td>
+              <td>Part of the generated app checklist, especially if templates bundle SDKs or network code.</td>
+              <td>Low if generated from known capabilities. Bad if treated as paperwork after the fact.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="slices">
+        <h2 id="slices">Hyperslice Table</h2>
+        <p class="lede">
+          Each slice points from lower coordination burden toward higher coordination burden. The tail is not "bad"; it is where the design tax rises and should buy a sharper platform win.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Slice label</th>
+              <th>Heads label</th>
+              <th>Tails label</th>
+              <th>Heads examples</th>
+              <th>Tails examples</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Ceremony load</td>
+              <td>Passive file or plist convention</td>
+              <td>Separate target/process convention</td>
+              <td><code>QuickLook/Preview.png</code>, <code>CFBundleDocumentTypes</code>, <code>CFBundleURLTypes</code>, icons</td>
+              <td>Quick Look Preview extension, Finder Action extension, Finder Sync extension, XPC service</td>
+            </tr>
+            <tr>
+              <td>Runtime persistence</td>
+              <td>Used only when asked</td>
+              <td>Can run in the background or system host</td>
+              <td>Document icons, Help Book, URL open handler, Services action</td>
+              <td>Login item, Finder Sync extension, Spotlight importer, XPC worker</td>
+            </tr>
+            <tr>
+              <td>Signing sensitivity</td>
+              <td>Resource-only</td>
+              <td>Code-bearing bundle slot</td>
+              <td><code>.lproj</code>, <code>SharedSupport</code>, <code>PrivacyInfo.xcprivacy</code>, <code>QuickLook/Preview.*</code></td>
+              <td><code>Frameworks</code>, <code>PlugIns</code>, <code>XPCServices</code>, <code>Library/Spotlight</code></td>
+            </tr>
+            <tr>
+              <td>Global namespace pressure</td>
+              <td>Private to one bundle or document</td>
+              <td>Registered with system-wide discovery</td>
+              <td><code>Contents/Resources</code>, <code>SharedSupport</code>, package-local <code>QuickLook</code></td>
+              <td>UTTypes, URL schemes, Services menu items, App Shortcuts</td>
+            </tr>
+            <tr>
+              <td>Finder surface blast radius</td>
+              <td>Natural representation of one file</td>
+              <td>Active Finder UI modification</td>
+              <td>Document package, icon, Quick Look preview, Spotlight metadata</td>
+              <td>Finder Sync badges, Finder toolbar buttons, Quick Actions</td>
+            </tr>
+            <tr>
+              <td>Source-of-truth drift risk</td>
+              <td>Primary content is the previewable content</td>
+              <td>Preview is generated cache</td>
+              <td><code>.hi/QuickLook/Preview.html</code>, Help Book HTML, template files</td>
+              <td><code>.tlcanvas/QuickLook/Preview.png</code>, thumbnails, Spotlight extracted metadata</td>
+            </tr>
+            <tr>
+              <td>Save-loop complexity</td>
+              <td>Build-time or app-launch declaration</td>
+              <td>Document-write coordination</td>
+              <td><code>Info.plist</code> keys, icons, URL schemes, Help Book registration</td>
+              <td><code>NSFileWrapper</code>, autosave in place, package previews updated during saves, Spotlight timing</td>
+            </tr>
+            <tr>
+              <td>Privacy exposure</td>
+              <td>User sees it by opening the file/app</td>
+              <td>System indexes or advertises it elsewhere</td>
+              <td>Quick Look preview, icon, Help Book, document type kind</td>
+              <td>Spotlight importer fields, App Intents parameters, Services handling selected text, URL actions</td>
+            </tr>
+            <tr>
+              <td>Appify leverage</td>
+              <td>Makes generated apps feel native</td>
+              <td>Makes generated apps participate in the OS</td>
+              <td>UTTypes, document packages, Quick Look files, icons, Help Books</td>
+              <td>Shortcuts, Finder Actions, Services, Spotlight, background agents</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="ranking">
+        <h2 id="ranking">Adoption Ranking</h2>
+        <div class="grid">
+          <div class="callout">
+            <h3>Adopt by default</h3>
+            <ul>
+              <li>Package <code>QuickLook/Preview.*</code> and optional <code>Thumbnail.*</code>.</li>
+              <li>Exported UTTypes for Appify-owned document packages.</li>
+              <li><code>CFBundleDocumentTypes</code> with <code>LSItemContentTypes</code>, role, icon, and package declaration.</li>
+              <li>App and document <code>.icns</code> resources.</li>
+              <li><code>Contents/SharedSupport</code> for optional hackable examples/templates.</li>
+            </ul>
+          </div>
+          <div class="callout">
+            <h3>Prototype next</h3>
+            <ul>
+              <li>Spotlight importer for <code>.appdev</code> and <code>.tlcanvas</code> metadata search.</li>
+              <li>Help Book for generated apps that ship self-documenting source and examples.</li>
+              <li><code>CFBundleURLTypes</code> for appify links into appdev documents and commands.</li>
+              <li><code>NSServices</code> for selection-to-app and file-to-app workflows.</li>
+              <li>App Intents once the command vocabulary settles.</li>
+            </ul>
+          </div>
+          <div class="callout">
+            <h3>Defer until demanded</h3>
+            <ul>
+              <li>Quick Look Preview extensions, because package-local previews are cheaper and more inspectable.</li>
+              <li>Finder Sync, because it is for monitored-folder state, not general Finder wish-casting.</li>
+              <li>XPC services, unless a renderer/parser/build worker needs crash isolation or sandbox separation.</li>
+              <li>Login items or agents, unless background indexing/watching becomes a product-level promise.</li>
+              <li>Private frameworks, unless the native runtime grows past a single-app-bundle shape.</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section aria-labelledby="promising">
+        <h2 id="promising">Most Promising Appify Patterns</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Pattern</th>
+              <th>Concrete sketch</th>
+              <th>Why it feels native</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Self-previewing packages</td>
+              <td>Every package document has an inspectable <code>QuickLook/Preview.*</code> generated by the app's own save pipeline.</td>
+              <td>Finder becomes a useful browser for Appify work without custom chrome.</td>
+            </tr>
+            <tr>
+              <td>Self-describing app bundles</td>
+              <td>Generated apps include <code>Contents/SharedSupport/Examples</code>, a Help Book, and source in the app bundle.</td>
+              <td>Zip the <code>.app</code>, send it, run it, inspect it, learn from it.</td>
+            </tr>
+            <tr>
+              <td>Searchable appdev packages</td>
+              <td>A Spotlight importer extracts app name, declared document types, tasks, notes, and bundled app summaries from <code>.appdev</code>.</td>
+              <td>App projects become first-class Finder/Spotlight knowledge objects.</td>
+            </tr>
+            <tr>
+              <td>Native commands without app focus</td>
+              <td><code>appify:</code> URLs, Services, and later App Shortcuts call stable appdev commands.</td>
+              <td>The app feels like part of the Mac rather than a sealed web tool.</td>
+            </tr>
+            <tr>
+              <td>Crash-isolated renderers</td>
+              <td>Preview rendering or untrusted package parsing moves into a bundled XPC service only when needed.</td>
+              <td>AppifyHost keeps its simple host while dangerous work gets a native containment boundary.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="questions">
+        <h2 id="questions">Questions For The Next Loop</h2>
+        <ol>
+          <li>Should every generated AppifyHost app reserve <code>Contents/SharedSupport/Appify</code> for source, examples, and templates, or should each app choose its own internal shape?</li>
+          <li>Should <code>.appdev</code> get a Spotlight importer before Appify UI exists, or after there is enough metadata to prove the importer vocabulary?</li>
+          <li>Do we want <code>appify:</code> URLs early as a low-cost command surface, or should we wait until command authorization and document identity are clearer?</li>
+          <li>Is a Help Book charming enough to make every generated app self-documenting, or is plain bundled HTML in <code>SharedSupport</code> enough?</li>
+          <li>Where is the line between "native Mac app" and "too much invisible OS magic" for people hacking on the generated app bundle?</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Apple Sources Consulted</h2>
+        <ul>
+          <li><a href="https://developer.apple.com/library/archive/documentation/CoreFoundation/Conceptual/CFBundles/BundleTypes/BundleTypes.html">Bundle Programming Guide: Bundle Structures</a></li>
+          <li><a href="https://developer.apple.com/documentation/bundleresources/placing-content-in-a-bundle">Placing content in a bundle</a></li>
+          <li><a href="https://developer.apple.com/documentation/uniformtypeidentifiers/defining-file-and-data-types-for-your-app">Defining file and data types for your app</a></li>
+          <li><a href="https://developer.apple.com/documentation/BundleResources/Information-Property-List/CFBundleDocumentTypes/LSTypeIsPackage">LSTypeIsPackage</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html">Information Property List Key Reference: Core Foundation Keys</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/LaunchServicesKeys.html">Information Property List Key Reference: Launch Services Keys</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/SysServices/Articles/properties.html">Services Implementation Guide: Services Properties</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/MDImporters/Concepts/Importers.html">Spotlight Importer Programming Guide: Extracting Metadata from Files</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/MetadataIntro/Concepts/DocumentBundles.html">Spotlight and Document Bundles</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/MacOSX/Conceptual/BPSystemStartup/Chapters/CreatingXPCServices.html">Daemons and Services Programming Guide: Creating XPC Services</a></li>
+          <li><a href="https://developer.apple.com/documentation/servicemanagement/smappservice">SMAppService</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/ExtensionCreation.html">App Extension Programming Guide: Creating an App Extension</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/General/Conceptual/ExtensibilityPG/Finder.html">App Extension Programming Guide: Finder Sync</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/Carbon/Conceptual/ProvidingUserAssitAppleHelp/registering_help/registering_help.html">Apple Help Programming Guide: Help Book Registration</a></li>
+          <li><a href="https://developer.apple.com/library/archive/documentation/FileManagement/Conceptual/FileSystemProgrammingGuide/FileWrappers/FileWrappers.html">File System Programming Guide: Using FileWrappers as File Containers</a></li>
+          <li><a href="https://developer.apple.com/documentation/appintents/creating-your-first-app-intent">Creating your first app intent</a></li>
+          <li><a href="https://developer.apple.com/documentation/bundleresources/adding-a-privacy-manifest-to-your-app-or-third-party-sdk">Adding a privacy manifest to your app or third-party SDK</a></li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>060 - Hello World Appdev Probe</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; }
+      a { color: LinkText; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">smallest concrete probe / 2026-05-22</p>
+        <h1>Hello World Appdev Probe</h1>
+        <p class="lede">
+          Before creating <code>appify-ui.appdev/Appify UI 26.app</code>, prove the smallest useful shape: an <code>.appdev</code> bundle that contains a tiny AppifyHost app and a sibling document package that opens one Quick Look HTML preview file.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">000 capture</a> /
+        <a href="030-bundle-shape.idea.html">030 bundle shape</a> /
+        <a href="040-two-proposals.idea.html">040 two proposals</a> /
+        <a href="050-map-reduce.idea.html">050 map reduce</a>
+      </nav>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">JSON5 Preference</h2>
+        <ul>
+          <li>Prefer <code>.json5</code> over <code>.json</code> for Appify UI manifests and examples.</li>
+          <li>Bun has native JSON5 support, and JSON5 is better for human-authored app recipes because comments and trailing commas are useful.</li>
+          <li>Keep <code>Info.plist</code> as plist because that is the macOS bundle contract.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="target">
+        <h2 id="target">Target Example</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Role</th>
+              <th>Rule</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>examples/hello-world.appdev/Hello.app</code></td>
+              <td>Smallest AppifyHost app</td>
+              <td>Handles <code>.hi</code> bundles. No Bun, no local HTTP server, no templates, no extra controls.</td>
+            </tr>
+            <tr>
+              <td><code>examples/hello-world.hi/QuickLook/Preview.html</code></td>
+              <td>Smallest content package document</td>
+              <td>When the <code>.hi</code> bundle is double-clicked, <code>Hello.app</code> opens this HTML file in a document window, and Finder Quick Look previews the same file.</td>
+            </tr>
+            <tr>
+              <td><code>examples/hello-world.appdev</code></td>
+              <td>Workshop container</td>
+              <td>For the first probe, it may contain only <code>Hello.app</code>. Let the absence of extra files create pressure for the next question.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="contract">
+        <h2 id="contract">Runtime Contract</h2>
+        <ol>
+          <li><code>Hello.app</code> declares <code>.hi</code> as a package document type.</li>
+          <li>AppifyHost opens the <code>.hi</code> package as <code>contentPackage</code>.</li>
+          <li>The app-local script prints <code>APPIFY_HOST_OPEN_URL=file://{documentPath}/QuickLook/Preview.html</code>.</li>
+          <li>The WebView loads the file because AppifyHost permits local file URLs under the opened document package.</li>
+          <li>The script stays alive so the AppifyHost document window does not immediately treat the app-local process as exited.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="questions">
+        <h2 id="questions">Questions This Should Beg</h2>
+        <ul>
+          <li>Does <code>hello-world.appdev</code> need an <code>appdev.json5</code>, or is a single nested app enough for the first mental model?</li>
+          <li>Does <code>Hello.app</code> need bundled AppifyHost source, or is a copied runtime binary enough for the first zero-feature example?</li>
+          <li>Should appdev examples keep documents inside the appdev bundle, beside it, or both?</li>
+          <li>Should a double-clickable example include installer/Launch Services registration instructions, or is direct <code>open -a Hello.app hello-world.hi</code> enough at first?</li>
+          <li>What is the smallest useful "hack me" affordance that does not break the zero-feature promise?</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

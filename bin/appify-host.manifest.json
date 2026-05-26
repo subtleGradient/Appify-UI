@@ -1,0 +1,10 @@
+{
+  "schema": 1,
+  "product": "appify-host",
+  "configuration": "release",
+  "source": "source/AppifyHost",
+  "sourceHash": "bd377053b511bcb2205f406a3cc37db7afb31f1e898fe152c7382fe517d128d5",
+  "binary": "bin/appify-host",
+  "binaryHash": "6036fcc7c41e608685b815ff58c8e0e3e0ca65da43604ecf897cd1acc4acd456",
+  "architecture": "arm64"
+}
