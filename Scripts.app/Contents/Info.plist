@@ -24,7 +24,7 @@
 		<key>StartupTimeoutSeconds</key>
 		<integer>45</integer>
 		<key>WebViewDataStore</key>
-		<string>portable</string>
+		<string>nonPersistent</string>
 		<key>WindowTitlePrefix</key>
 		<string>Scripts</string>
 	</dict>
