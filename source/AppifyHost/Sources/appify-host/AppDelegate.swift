@@ -601,6 +601,7 @@ final class AppifyHostHelpWindowController: NSWindowController {
         let webViewConfiguration = WKWebViewConfiguration()
         webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
         let webView = WKWebView(frame: .zero, configuration: webViewConfiguration)
+        webView.allowsMagnification = true
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 960, height: 720),
