@@ -181,6 +181,46 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: packageURL, configuration: config).path, packageURL.path)
     }
 
+    func testContentPackageOrFileAcceptsFilesAndPackages() throws {
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: sampleInfoPlist(documentMode: "contentPackageOrFile", extensionName: "web"),
+            bundleURL: URL(fileURLWithPath: "/Applications/Web.app")
+        )
+        XCTAssertEqual(config.documentMode, .contentPackageOrFile)
+
+        let rootURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: rootURL, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: rootURL)
+        }
+
+        let markerFile = rootURL.appendingPathComponent("site.web")
+        FileManager.default.createFile(atPath: markerFile.path, contents: Data())
+        XCTAssertEqual(try PackageDocument.documentURL(forPackage: markerFile, configuration: config).path, markerFile.path)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: markerFile, configuration: config).path, rootURL.path)
+
+        let emptyPackage = rootURL.appendingPathComponent("empty.web", isDirectory: true)
+        try FileManager.default.createDirectory(at: emptyPackage, withIntermediateDirectories: false)
+        XCTAssertEqual(try PackageDocument.documentURL(forPackage: emptyPackage, configuration: config).path, emptyPackage.path)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: emptyPackage, configuration: config).path, rootURL.path)
+
+        FileManager.default.createFile(atPath: emptyPackage.appendingPathComponent(".DS_Store").path, contents: Data())
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: emptyPackage, configuration: config).path, rootURL.path)
+
+        let nonEmptyPackage = rootURL.appendingPathComponent("package.web", isDirectory: true)
+        try FileManager.default.createDirectory(at: nonEmptyPackage, withIntermediateDirectories: false)
+        FileManager.default.createFile(atPath: nonEmptyPackage.appendingPathComponent("index.html").path, contents: Data())
+        XCTAssertEqual(try PackageDocument.documentURL(forPackage: nonEmptyPackage, configuration: config).path, nonEmptyPackage.path)
+        XCTAssertEqual(try PackageDocument.workingDirectory(forPackage: nonEmptyPackage, configuration: config).path, nonEmptyPackage.path)
+
+        let documentURL = PackageDocument.untitledDocumentURL(configuration: config, temporaryDirectory: rootURL)
+        try PackageDocument.createUntitledDocument(at: documentURL, configuration: config)
+        var isDirectory: ObjCBool = false
+        XCTAssertTrue(FileManager.default.fileExists(atPath: documentURL.path, isDirectory: &isDirectory))
+        XCTAssertFalse(isDirectory.boolValue)
+    }
+
     func testFileDocumentWorkingDirectoryIsTheContainingFolder() throws {
         let config = try AppifyHostConfigurationLoader.load(
             infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),

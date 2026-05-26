@@ -207,7 +207,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         switch configuration.documentMode {
-        case .contentPackage:
+        case .contentPackage, .contentPackageOrFile:
             showNewDocument()
 
         case .folderMarker:
@@ -225,7 +225,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         switch configuration.documentMode {
-        case .contentPackage, .fileDocument:
+        case .contentPackage, .contentPackageOrFile, .fileDocument:
             createUntitledDocument(configuration: configuration)
         case .folderMarker:
             showFolderPicker()
@@ -291,7 +291,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
         panel.treatsFilePackagesAsDirectories = false
-        if configuration.documentMode == .fileDocument {
+        if usesExtensionFilteredOpenPanel(configuration: configuration) {
             panel.delegate = self
         } else {
             let allowedTypes = allowedContentTypes(configuration: configuration)
@@ -312,7 +312,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
     func panel(_ sender: Any, shouldEnable url: URL) -> Bool {
         guard let configuration,
-              configuration.documentMode == .fileDocument
+              usesExtensionFilteredOpenPanel(configuration: configuration)
         else {
             return true
         }
@@ -554,9 +554,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         switch configuration.documentMode {
         case .contentPackage, .folderMarker:
             return "Choose a \(formattedExtensions) document package."
+        case .contentPackageOrFile:
+            return "Choose a \(formattedExtensions) document package or file."
         case .fileDocument:
             return "Choose a \(formattedExtensions) document."
         }
+    }
+
+    private func usesExtensionFilteredOpenPanel(configuration: AppifyHostConfiguration) -> Bool {
+        configuration.documentMode == .fileDocument || configuration.documentMode == .contentPackageOrFile
     }
 
     private func allowedContentTypes(configuration: AppifyHostConfiguration) -> [UTType] {

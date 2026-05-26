@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { mkdir, rm, symlink, writeFile } from "node:fs/promises";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   buildHtmlRoutes,
   contentTypeFor,
@@ -10,7 +10,9 @@ import {
   readFileResponse,
   renderMarkdownDocument,
   renderMarkdownResponse,
+  resolveDocumentPath,
   resolveRequestPath,
+  resolveServeRoot,
   scanHtmlPages,
 } from "../src/webPackage";
 
@@ -26,6 +28,25 @@ afterEach(async () => {
 });
 
 describe("web package resolution", () => {
+  test("resolves .web files and empty packages to their parent directory", async () => {
+    await rm(root, { recursive: true, force: true });
+    await writeFile(root, "");
+    expect(resolveDocumentPath(root)).toBe(root);
+    expect(await resolveServeRoot(root)).toBe(dirname(root));
+
+    await rm(root, { force: true });
+    await mkdir(root, { recursive: true });
+    expect(await resolveServeRoot(root)).toBe(dirname(root));
+
+    await writeFile(join(root, ".DS_Store"), "");
+    expect(await resolveServeRoot(root)).toBe(dirname(root));
+  });
+
+  test("resolves non-empty .web packages to their own contents", async () => {
+    await writeFile(join(root, "index.html"), "<h1>Home</h1>");
+    expect(await resolveServeRoot(root)).toBe(root);
+  });
+
   test("rejects path traversal and symlinks", async () => {
     await writeFile(join(root, "index.html"), "<h1>ok</h1>");
     expect(await resolveRequestPath(root, "/index.html")).toEqual({ kind: "file", path: join(root, "index.html") });

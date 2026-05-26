@@ -82,6 +82,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
 
 public enum AppifyHostDocumentMode: String, Equatable, Sendable {
     case contentPackage
+    case contentPackageOrFile
     case folderMarker
     case fileDocument
 }
@@ -376,7 +377,7 @@ public enum PackageDocument {
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         return tempRoot.appendingPathComponent(
             "Untitled.\(configuration.primaryDocumentExtension)",
-            isDirectory: configuration.documentMode != .fileDocument
+            isDirectory: configuration.documentMode == .contentPackage || configuration.documentMode == .folderMarker
         )
     }
 
@@ -387,7 +388,7 @@ public enum PackageDocument {
         switch configuration.documentMode {
         case .contentPackage, .folderMarker:
             try FileManager.default.createDirectory(at: documentURL, withIntermediateDirectories: true)
-        case .fileDocument:
+        case .contentPackageOrFile, .fileDocument:
             try FileManager.default.createDirectory(
                 at: documentURL.deletingLastPathComponent(),
                 withIntermediateDirectories: true
@@ -428,6 +429,11 @@ public enum PackageDocument {
                 throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a folder.")
             }
 
+        case .contentPackageOrFile:
+            guard values.isDirectory == true || values.isRegularFile == true else {
+                throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a file or folder.")
+            }
+
         case .fileDocument:
             guard values.isRegularFile == true else {
                 throw AppifyHostError.invalidPackage("\(standardized.lastPathComponent) is not a file.")
@@ -465,11 +471,26 @@ public enum PackageDocument {
         switch configuration.documentMode {
         case .contentPackage:
             return documentURL
+        case .contentPackageOrFile:
+            if try isNonEmptyDirectory(documentURL) {
+                return documentURL
+            }
+            return documentURL.deletingLastPathComponent()
         case .folderMarker:
             return documentURL.deletingLastPathComponent()
         case .fileDocument:
             return documentURL.deletingLastPathComponent()
         }
+    }
+
+    private static func isNonEmptyDirectory(_ url: URL) throws -> Bool {
+        let values = try url.resourceValues(forKeys: [.isDirectoryKey])
+        guard values.isDirectory == true else {
+            return false
+        }
+
+        let entries = try FileManager.default.contentsOfDirectory(atPath: url.path)
+        return entries.contains { $0 != ".DS_Store" }
     }
 }
 

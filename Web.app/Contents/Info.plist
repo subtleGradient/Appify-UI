@@ -34,7 +34,7 @@
   <key>AppifyHost</key>
   <dict>
     <key>DocumentMode</key>
-    <string>contentPackage</string>
+    <string>contentPackageOrFile</string>
     <key>ServerInstallDirectory</key>
     <string>Contents/Resources/AppServer</string>
     <key>ServerExecutable</key>
@@ -52,7 +52,7 @@
     <key>AboutNotice</key>
     <dict>
       <key>Message</key>
-      <string>Web is a local macOS document host for static .web packages.</string>
+      <string>Web is a local macOS document host for static .web packages and marker files.</string>
     </dict>
   </dict>
 
@@ -67,6 +67,23 @@
       <array>
         <string>com.apple.package</string>
         <string>public.directory</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>web</string>
+        </array>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.subtlegradient.web.file</string>
+      <key>UTTypeDescription</key>
+      <string>Web File</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.data</string>
       </array>
       <key>UTTypeTagSpecification</key>
       <dict>
@@ -97,6 +114,24 @@
       </array>
       <key>LSTypeIsPackage</key>
       <true/>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
+    </dict>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Web File</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>web</string>
+      </array>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.subtlegradient.web.file</string>
+      </array>
       <key>NSDocumentClass</key>
       <string>AppifyHostDocument</string>
     </dict>

@@ -11,19 +11,21 @@ import {
   renderMarkdownResponse,
   resolveDocumentPath,
   resolveRequestPath,
+  resolveServeRoot,
   scanHtmlPages,
 } from "./webPackage";
 
 const documentPath = resolveDocumentPath(process.argv[2] || process.env.APPIFY_HOST_DOCUMENT_PATH);
+const serveRoot = await resolveServeRoot(documentPath);
 const hmrEnabled = process.env.WEB_APP_HMR !== "0";
 const reloader = createReloadBroadcaster();
-const htmlPages = await scanHtmlPages(documentPath);
-const rootEntry = await findRootEntry(documentPath, htmlPages);
-const routes = await buildHtmlRoutes(documentPath, htmlPages, rootEntry, hmrEnabled);
+const htmlPages = await scanHtmlPages(serveRoot);
+const rootEntry = await findRootEntry(serveRoot, htmlPages);
+const routes = await buildHtmlRoutes(serveRoot, htmlPages, rootEntry, hmrEnabled);
 
 if (hmrEnabled) {
   try {
-    const watcher = watch(documentPath, { recursive: true }, () => {
+    const watcher = watch(serveRoot, { recursive: true }, () => {
       reloader.broadcast();
     });
     for (const signal of ["SIGTERM", "SIGINT"] as const) {
@@ -33,7 +35,7 @@ if (hmrEnabled) {
       });
     }
   } catch (error) {
-    console.error(`Web live reload watcher could not start for ${documentPath}:`, error);
+    console.error(`Web live reload watcher could not start for ${serveRoot}:`, error);
   }
 }
 
@@ -57,7 +59,7 @@ const server = Bun.serve({
       return reloader.versionResponse();
     }
 
-    const resolvedPath = await resolveRequestPath(documentPath, url.pathname);
+    const resolvedPath = await resolveRequestPath(serveRoot, url.pathname);
     if (resolvedPath === null) {
       return new Response("Not found", {
         status: 404,
@@ -69,7 +71,7 @@ const server = Bun.serve({
       if (!url.pathname.endsWith("/")) {
         return Response.redirect(`${url.pathname}/${url.search}`, 308);
       }
-      return await createDirectoryListingResponse(documentPath, resolvedPath.path, url.pathname, {
+      return await createDirectoryListingResponse(serveRoot, resolvedPath.path, url.pathname, {
         liveReload: hmrEnabled,
       });
     }
@@ -87,5 +89,5 @@ const server = Bun.serve({
   },
 });
 
-console.log(`Web serving ${resolve(documentPath)}`);
+console.log(`Web serving ${resolve(serveRoot)}`);
 console.log(`APPIFY_HOST_OPEN_URL=${server.url}`);

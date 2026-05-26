@@ -52,7 +52,7 @@ final class AppifyHostDocument: NSDocument {
         switch configuration.documentMode {
         case .contentPackage, .folderMarker:
             try ensurePackageExists(at: url)
-        case .fileDocument:
+        case .contentPackageOrFile, .fileDocument:
             break
         }
         try PackageDocument.validatePackageURL(url, configuration: configuration)
@@ -68,6 +68,8 @@ final class AppifyHostDocument: NSDocument {
         switch configuration.documentMode {
         case .contentPackage:
             try writeContentPackage(to: url)
+        case .contentPackageOrFile:
+            try writeContentPackageOrFile(to: url)
         case .folderMarker:
             try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
         case .fileDocument:
@@ -83,6 +85,15 @@ final class AppifyHostDocument: NSDocument {
                 return FileWrapper(directoryWithFileWrappers: [:])
             }
             return try FileWrapper(url: activeDocumentURL, options: [])
+
+        case .contentPackageOrFile:
+            guard let activeDocumentURL else {
+                return FileWrapper(regularFileWithContents: Data())
+            }
+            if try isDirectoryDocument(activeDocumentURL) {
+                return try FileWrapper(url: activeDocumentURL, options: [])
+            }
+            return FileWrapper(regularFileWithContents: try Data(contentsOf: activeDocumentURL))
 
         case .folderMarker:
             return FileWrapper(directoryWithFileWrappers: [:])
@@ -191,6 +202,17 @@ final class AppifyHostDocument: NSDocument {
                 )
             }
 
+        case .contentPackageOrFile:
+            guard fileWrapper.isDirectory || fileWrapper.isRegularFile else {
+                throw NSError(
+                    domain: NSCocoaErrorDomain,
+                    code: CocoaError.Code.fileReadCorruptFile.rawValue,
+                    userInfo: [
+                        NSLocalizedDescriptionKey: "Expected a document package or file.",
+                    ]
+                )
+            }
+
         case .fileDocument:
             guard fileWrapper.isRegularFile else {
                 throw NSError(
@@ -201,6 +223,19 @@ final class AppifyHostDocument: NSDocument {
                     ]
                 )
             }
+        }
+    }
+
+    private func writeContentPackageOrFile(to url: URL) throws {
+        guard let activeDocumentURL else {
+            try writeFileDocument(to: url)
+            return
+        }
+
+        if try isDirectoryDocument(activeDocumentURL) {
+            try writeContentPackage(to: url)
+        } else {
+            try writeFileDocument(to: url)
         }
     }
 
@@ -221,6 +256,11 @@ final class AppifyHostDocument: NSDocument {
             try FileManager.default.removeItem(at: destination)
         }
         try FileManager.default.copyItem(at: source, to: destination)
+    }
+
+    private func isDirectoryDocument(_ url: URL) throws -> Bool {
+        let values = try url.resourceValues(forKeys: [.isDirectoryKey])
+        return values.isDirectory == true
     }
 
     private func writeFileDocument(to url: URL) throws {

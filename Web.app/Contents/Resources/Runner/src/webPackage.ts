@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { lstat, readdir } from "node:fs/promises";
-import { basename, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
 export type ResolvedRequestPath =
@@ -52,7 +52,7 @@ const SKIPPED_DIRECTORIES = new Set([".git", "node_modules"]);
 
 export function resolveDocumentPath(documentPath: string | undefined): string {
   if (!documentPath) {
-    throw new Error("Expected a .web document package path as the last argument.");
+    throw new Error("Expected a .web document path as the last argument.");
   }
 
   const resolved = resolve(documentPath);
@@ -63,6 +63,21 @@ export function resolveDocumentPath(documentPath: string | undefined): string {
     throw new Error(`${resolved} does not exist.`);
   }
   return resolved;
+}
+
+export async function resolveServeRoot(documentPath: string): Promise<string> {
+  const stat = await lstat(documentPath);
+  if (stat.isFile()) {
+    return dirname(documentPath);
+  }
+  if (stat.isDirectory()) {
+    if (await isEmptyDirectory(documentPath)) {
+      return dirname(documentPath);
+    }
+    return documentPath;
+  }
+
+  throw new Error(`${documentPath} must be a .web file or directory.`);
 }
 
 export function contentTypeFor(filePath: string): string {
@@ -431,6 +446,11 @@ async function pathExists(path: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+async function isEmptyDirectory(path: string): Promise<boolean> {
+  const entries = await readdir(path);
+  return entries.every((entry) => entry === ".DS_Store");
 }
 
 async function assertNoSymlinkAlongPath(rootPath: string, candidate: string): Promise<boolean> {

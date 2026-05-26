@@ -328,7 +328,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         }
 
         switch configuration.documentMode {
-        case .contentPackage:
+        case .contentPackage, .contentPackageOrFile:
             window?.representedURL = hostDocument?.fileURL
             if hostDocument?.fileURL == nil {
                 window?.title = "Untitled"
