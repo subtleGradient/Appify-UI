@@ -544,7 +544,7 @@ function directoryAliasForIndex(rootPath: string, pagePath: string): string | nu
 }
 
 function htmlRouteValue(pagePath: string, htmlImport: unknown, options: RenderOptions): unknown {
-  if (typeof htmlImport === "string") {
+  if (options.localStoragePersistence || typeof htmlImport === "string") {
     return {
       async GET() {
         return await readFileResponse(pagePath, options);

@@ -153,6 +153,26 @@ describe("web package resolution", () => {
     } finally {
       persistenceServer.stop(true);
     }
+
+    await writeFile(join(root, "module.html"), "<!doctype html><script type=\"module\" src=\"./module.js\"></script>");
+    await writeFile(join(root, "module.js"), "document.body.textContent = 'module';");
+    const moduleRoutes = await buildHtmlRoutes(root, await scanHtmlPages(root), await findRootEntry(root), false, {
+      localStoragePersistence: true,
+    });
+    const moduleServer = Bun.serve({
+      port: await resolveServerPort(),
+      idleTimeout: 0,
+      routes: moduleRoutes,
+      fetch() {
+        return new Response("fallback");
+      },
+    });
+    try {
+      const modulePage = await fetch(new URL("/module.html", moduleServer.url));
+      expect(await modulePage.text()).toContain("__WEB_APP_LOCAL_STORAGE__");
+    } finally {
+      moduleServer.stop(true);
+    }
   });
 });
 

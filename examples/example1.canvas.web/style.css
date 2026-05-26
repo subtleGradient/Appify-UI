@@ -1,0 +1,198 @@
+:root {
+  color-scheme: light dark;
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: Canvas;
+  color: CanvasText;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+}
+
+button {
+  border: 1px solid color-mix(in oklch, CanvasText 24%, transparent);
+  border-radius: 6px;
+  background: ButtonFace;
+  color: ButtonText;
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+}
+
+button:hover {
+  border-color: color-mix(in oklch, LinkText 70%, CanvasText);
+}
+
+.app-shell {
+  min-block-size: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid color-mix(in oklch, CanvasText 14%, transparent);
+  background: color-mix(in oklch, Canvas 92%, CanvasText 8%);
+}
+
+.toolbar strong {
+  display: block;
+}
+
+#status {
+  color: color-mix(in oklch, CanvasText 62%, transparent);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workspace {
+  min-block-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(22rem, 32rem);
+}
+
+.canvas-panel {
+  min-width: 0;
+  overflow: auto;
+  background:
+    linear-gradient(color-mix(in oklch, CanvasText 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, CanvasText 8%, transparent) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.canvas {
+  position: relative;
+  inline-size: 1280px;
+  block-size: 820px;
+}
+
+.edges,
+.nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.edges {
+  inline-size: 1280px;
+  block-size: 820px;
+  pointer-events: none;
+}
+
+.edges path {
+  fill: none;
+  stroke: color-mix(in oklch, CanvasText 54%, transparent);
+  stroke-width: 2;
+  marker-end: url("#arrow");
+}
+
+.edges marker path {
+  fill: color-mix(in oklch, CanvasText 54%, transparent);
+}
+
+.node {
+  position: absolute;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklch, CanvasText 20%, transparent);
+  border-radius: 8px;
+  background: Canvas;
+  box-shadow: 0 10px 26px color-mix(in oklch, CanvasText 14%, transparent);
+  padding: 0.75rem;
+  cursor: grab;
+}
+
+.node:active {
+  cursor: grabbing;
+}
+
+.node.selected {
+  outline: 3px solid color-mix(in oklch, LinkText 72%, transparent);
+}
+
+.node.group {
+  background: color-mix(in oklch, Canvas 86%, LinkText 14%);
+}
+
+.node.link {
+  background: color-mix(in oklch, Canvas 88%, #59c3c3 12%);
+}
+
+.node.file {
+  background: color-mix(in oklch, Canvas 88%, #f0b35f 12%);
+}
+
+.node h2 {
+  margin: 0 0 0.45rem;
+  font-size: 0.95rem;
+}
+
+.node pre,
+.node p {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.inspector {
+  min-width: 0;
+  padding: 1rem;
+  border-inline-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent);
+  display: grid;
+  grid-template-rows: auto 1fr auto auto;
+  gap: 0.75rem;
+}
+
+.inspector label {
+  font-weight: 650;
+}
+
+#json-source {
+  min-block-size: 0;
+  resize: none;
+  border: 1px solid color-mix(in oklch, CanvasText 18%, transparent);
+  border-radius: 8px;
+  background: Canvas;
+  color: CanvasText;
+  font: 0.85rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.45;
+  padding: 0.75rem;
+}
+
+.hint {
+  margin: 0;
+  color: color-mix(in oklch, CanvasText 62%, transparent);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 880px) {
+  .toolbar,
+  .workspace {
+    display: block;
+  }
+
+  .toolbar > * + * {
+    margin-block-start: 0.75rem;
+  }
+
+  .canvas-panel {
+    block-size: 54vh;
+  }
+
+  .inspector {
+    border-inline-start: 0;
+    border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent);
+    block-size: 46vh;
+  }
+}
