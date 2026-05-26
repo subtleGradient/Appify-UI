@@ -95,6 +95,7 @@ describe("web package resolution", () => {
 
   test("ignores .local changes for live reload", () => {
     expect(isIgnoredReloadPath(root, ".local/Web/localStorage.json")).toBe(true);
+    expect(isIgnoredReloadPath(root, ".local/Web/localStorage/example.json")).toBe(true);
     expect(isIgnoredReloadPath(root, Buffer.from(".local/Web/localStorage.json"))).toBe(true);
     expect(isIgnoredReloadPath(root, "index.html")).toBe(false);
     expect(isIgnoredReloadPath(root, null)).toBe(false);
@@ -213,11 +214,65 @@ describe("localStorage persistence", () => {
     const snapshot = { schema: 1 as const, entries: [["theme", "dark"] as [string, string]] };
 
     await writeLocalStorageSnapshot(storageFilePath, snapshot);
-    expect(JSON.parse(await readFile(storageFilePath, "utf8"))).toEqual(snapshot);
+    expect(JSON.parse(await readFile(storageFilePath, "utf8"))).toEqual({
+      schema: 2,
+      entries: [{ key: "theme", value: "dark" }],
+    });
     expect(await readLocalStorageSnapshot(storageFilePath)).toEqual(snapshot);
 
     await writeLocalStorageSnapshot(storageFilePath, { schema: 1, entries: [] });
     expect(existsSync(storageFilePath)).toBe(false);
+    expect(existsSync(join(dirname(storageFilePath), "localStorage"))).toBe(false);
+  });
+
+  test("reads legacy string-pair snapshots", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const snapshot = { schema: 1 as const, entries: [["theme", "dark"] as [string, string]] };
+
+    await mkdir(dirname(storageFilePath), { recursive: true });
+    await writeFile(storageFilePath, `${JSON.stringify(snapshot, null, 2)}\n`);
+
+    expect(await readLocalStorageSnapshot(storageFilePath)).toEqual(snapshot);
+  });
+
+  test("stores JSON localStorage values as readable JSON on disk", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const documentValue = {
+      nodes: [
+        { id: "intro", type: "text", text: "A long enough JSON document to split into a sidecar file.".repeat(3) },
+      ],
+      edges: [],
+    };
+    const viewValue = { selectedId: "intro" };
+    const snapshot = {
+      schema: 1 as const,
+      entries: [
+        ["document", JSON.stringify(documentValue)],
+        ["theme", "dark"],
+        ["view", JSON.stringify(viewValue)],
+      ] as [string, string][],
+    };
+
+    await writeLocalStorageSnapshot(storageFilePath, snapshot);
+
+    const diskSnapshot = JSON.parse(await readFile(storageFilePath, "utf8"));
+    expect(diskSnapshot).toEqual({
+      schema: 2,
+      entries: [
+        { key: "document", jsonFile: expect.stringMatching(/^localStorage\/document-[a-f0-9]{8}\.json$/) },
+        { key: "theme", value: "dark" },
+        { key: "view", json: viewValue },
+      ],
+    });
+
+    const documentEntry = diskSnapshot.entries.find((entry: { key: string }) => entry.key === "document");
+    const documentText = await readFile(join(dirname(storageFilePath), documentEntry.jsonFile), "utf8");
+    expect(documentText).toContain('\n  "nodes": [');
+    expect(JSON.parse(documentText)).toEqual(documentValue);
+    expect(await readLocalStorageSnapshot(storageFilePath)).toEqual(snapshot);
+
+    await writeLocalStorageSnapshot(storageFilePath, { schema: 1, entries: [["theme", "light"]] });
+    expect(existsSync(join(dirname(storageFilePath), documentEntry.jsonFile))).toBe(false);
   });
 
   test("persistence route validates and persists snapshots", async () => {

@@ -1,4 +1,5 @@
 import { existsSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -18,6 +19,16 @@ export type LocalStorageSnapshot = {
   schema: 1;
   entries: [string, string][];
 };
+
+type LocalStorageDiskSnapshot = {
+  schema: 2;
+  entries: LocalStorageDiskEntry[];
+};
+
+type LocalStorageDiskEntry =
+  | { key: string; value: string }
+  | { key: string; json: unknown }
+  | { key: string; jsonFile: string };
 
 const TEXT_TYPES = new Map<string, string>([
   [".css", "text/css; charset=utf-8"],
@@ -57,6 +68,8 @@ const BINARY_TYPES = new Map<string, string>([
 
 const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
+const LOCAL_STORAGE_VALUE_DIRECTORY = "localStorage";
+const JSON_VALUE_FILE_MIN_LENGTH = 120;
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
 
 export function resolveDocumentPath(documentPath: string | undefined): string {
@@ -442,7 +455,7 @@ export function createReloadBroadcaster() {
 
 export async function readLocalStorageSnapshot(storageFilePath: string): Promise<LocalStorageSnapshot> {
   try {
-    return normalizeLocalStorageSnapshot(JSON.parse(await readFile(storageFilePath, "utf8")));
+    return await localStorageSnapshotFromDisk(storageFilePath, JSON.parse(await readFile(storageFilePath, "utf8")));
   } catch (error) {
     if (isNotFoundError(error)) {
       return { schema: 1, entries: [] };
@@ -456,14 +469,42 @@ export async function writeLocalStorageSnapshot(
   snapshot: LocalStorageSnapshot,
 ): Promise<void> {
   const normalized = normalizeLocalStorageSnapshot(snapshot);
+  const jsonDirectoryPath = join(dirname(storageFilePath), LOCAL_STORAGE_VALUE_DIRECTORY);
   if (normalized.entries.length === 0) {
     await rm(storageFilePath, { force: true });
+    await rm(jsonDirectoryPath, { recursive: true, force: true });
     return;
   }
 
   await mkdir(dirname(storageFilePath), { recursive: true });
+  await rm(jsonDirectoryPath, { recursive: true, force: true });
+
+  const entries: LocalStorageDiskEntry[] = [];
+  let wroteJsonDirectory = false;
+  for (const [key, value] of sortedLocalStorageEntries(normalized.entries)) {
+    const json = parsedCanonicalJsonContainer(value);
+    if (json === null) {
+      entries.push({ key, value });
+      continue;
+    }
+
+    if (value.length >= JSON_VALUE_FILE_MIN_LENGTH) {
+      if (!wroteJsonDirectory) {
+        await mkdir(jsonDirectoryPath, { recursive: true });
+        wroteJsonDirectory = true;
+      }
+      const jsonFile = `${LOCAL_STORAGE_VALUE_DIRECTORY}/${localStorageJsonFileName(key)}`;
+      await writeFile(localStorageJsonFilePath(storageFilePath, jsonFile), `${JSON.stringify(json, null, 2)}\n`);
+      entries.push({ key, jsonFile });
+      continue;
+    }
+
+    entries.push({ key, json });
+  }
+
+  const diskSnapshot: LocalStorageDiskSnapshot = { schema: 2, entries };
   const tempPath = `${storageFilePath}.${crypto.randomUUID()}.tmp`;
-  await writeFile(tempPath, `${JSON.stringify(normalized, null, 2)}\n`);
+  await writeFile(tempPath, `${JSON.stringify(diskSnapshot, null, 2)}\n`);
   await rename(tempPath, storageFilePath);
 }
 
@@ -515,6 +556,133 @@ function normalizeLocalStorageSnapshot(value: unknown): LocalStorageSnapshot {
       return [entry[0], entry[1]];
     }),
   };
+}
+
+async function localStorageSnapshotFromDisk(storageFilePath: string, value: unknown): Promise<LocalStorageSnapshot> {
+  if (typeof value !== "object" || value === null) {
+    throw new Error("localStorage snapshot must be an object.");
+  }
+
+  const snapshot = value as { schema?: unknown };
+  if (snapshot.schema === 1) {
+    return normalizeLocalStorageSnapshot(value);
+  }
+  if (snapshot.schema === 2) {
+    return await normalizeLocalStorageDiskSnapshot(storageFilePath, value);
+  }
+  throw new Error("localStorage snapshot schema must be 1 or 2.");
+}
+
+async function normalizeLocalStorageDiskSnapshot(
+  storageFilePath: string,
+  value: unknown,
+): Promise<LocalStorageSnapshot> {
+  const snapshot = value as { schema?: unknown; entries?: unknown };
+  if (snapshot.schema !== 2) {
+    throw new Error("localStorage disk snapshot schema must be 2.");
+  }
+  if (!Array.isArray(snapshot.entries)) {
+    throw new Error("localStorage disk snapshot entries must be an array.");
+  }
+
+  const entries: [string, string][] = [];
+  for (const entry of snapshot.entries) {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      throw new Error("localStorage disk snapshot entries must be objects.");
+    }
+
+    const diskEntry = entry as { key?: unknown; value?: unknown; json?: unknown; jsonFile?: unknown };
+    if (typeof diskEntry.key !== "string") {
+      throw new Error("localStorage disk snapshot entries must include string keys.");
+    }
+
+    const hasValue = "value" in diskEntry;
+    const hasJson = "json" in diskEntry;
+    const hasJsonFile = "jsonFile" in diskEntry;
+    if ([hasValue, hasJson, hasJsonFile].filter(Boolean).length !== 1) {
+      throw new Error("localStorage disk snapshot entries must include one value source.");
+    }
+
+    if (hasValue) {
+      if (typeof diskEntry.value !== "string") {
+        throw new Error("localStorage disk snapshot value entries must be strings.");
+      }
+      entries.push([diskEntry.key, diskEntry.value]);
+      continue;
+    }
+
+    if (hasJson) {
+      entries.push([diskEntry.key, stringifyJsonStorageValue(diskEntry.json)]);
+      continue;
+    }
+
+    if (typeof diskEntry.jsonFile !== "string") {
+      throw new Error("localStorage disk snapshot jsonFile entries must be strings.");
+    }
+    const json = JSON.parse(await readFile(localStorageJsonFilePath(storageFilePath, diskEntry.jsonFile), "utf8"));
+    entries.push([diskEntry.key, stringifyJsonStorageValue(json)]);
+  }
+
+  return { schema: 1, entries: sortedLocalStorageEntries(entries) };
+}
+
+function parsedCanonicalJsonContainer(value: string): unknown | null {
+  let json: unknown;
+  try {
+    json = JSON.parse(value);
+  } catch {
+    return null;
+  }
+
+  if (!isJsonContainer(json) || JSON.stringify(json) !== value) {
+    return null;
+  }
+  return json;
+}
+
+function stringifyJsonStorageValue(value: unknown): string {
+  if (!isJsonContainer(value)) {
+    throw new Error("localStorage JSON values must be objects or arrays.");
+  }
+
+  const text = JSON.stringify(value);
+  if (typeof text !== "string") {
+    throw new Error("localStorage JSON values must be serializable.");
+  }
+  return text;
+}
+
+function isJsonContainer(value: unknown): boolean {
+  return typeof value === "object" && value !== null;
+}
+
+function sortedLocalStorageEntries(entries: [string, string][]): [string, string][] {
+  return [...entries].sort((left, right) => left[0].localeCompare(right[0]));
+}
+
+function localStorageJsonFileName(key: string): string {
+  const slug = key.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 80) || "entry";
+  const digest = createHash("sha256").update(key).digest("hex").slice(0, 8);
+  return `${slug}-${digest}.json`;
+}
+
+function localStorageJsonFilePath(storageFilePath: string, jsonFile: string): string {
+  if (
+    !jsonFile.startsWith(`${LOCAL_STORAGE_VALUE_DIRECTORY}/`)
+    || jsonFile.includes("\\")
+    || jsonFile.includes("\0")
+    || extname(jsonFile).toLowerCase() !== ".json"
+  ) {
+    throw new Error("localStorage jsonFile paths must point inside localStorage/.");
+  }
+
+  const storageDirectoryPath = dirname(storageFilePath);
+  const jsonDirectoryPath = join(storageDirectoryPath, LOCAL_STORAGE_VALUE_DIRECTORY);
+  const candidate = resolve(storageDirectoryPath, jsonFile);
+  if (!isInsideRoot(jsonDirectoryPath, candidate)) {
+    throw new Error("localStorage jsonFile paths must stay inside localStorage/.");
+  }
+  return candidate;
 }
 
 function isNotFoundError(error: unknown): boolean {

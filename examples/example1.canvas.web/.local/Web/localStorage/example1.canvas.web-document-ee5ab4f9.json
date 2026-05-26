@@ -4,8 +4,8 @@
       "id": "bundle",
       "type": "group",
       "label": "Standalone JSON Canvas web bundle",
-      "x": 32,
-      "y": 32,
+      "x": 263,
+      "y": 657,
       "width": 760,
       "height": 360,
       "color": "6"
