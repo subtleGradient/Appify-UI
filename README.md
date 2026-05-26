@@ -75,8 +75,8 @@ the `.web` contract.
 [`Webapp.app`](Webapp.app/) opens `.webapp` document packages. A `.webapp`
 package is a normal Bun package folder with a `.webapp` extension. The app
 scaffolds package metadata only when needed, runs `bun install`, then runs
-`bun dev`, logging stdio under the package's `.local/.log/` directory and
-loading the first loopback URL printed by the dev process.
+`bun dev`, teeing stdio to the package's `.local/dev.log` file and loading the
+first loopback URL printed by the dev process.
 
 [`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
 serves the document through an app-local Bun runner, injects runtime save

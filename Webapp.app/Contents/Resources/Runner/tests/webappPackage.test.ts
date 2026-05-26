@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import {
   type CommandExecutor,
@@ -113,7 +113,7 @@ describe("webapp lifecycle", () => {
     expect(await onlyLogText(root)).toContain("install failed");
   });
 
-  test("tees stdout and stderr from install and dev into one package-local log", async () => {
+  test("tees stdout and stderr from install and dev into .local/dev.log", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const executor: CommandExecutor = async (spec, onOutput) => {
       onOutput("stdout", `${spec.phase} stdout\n`);
@@ -172,10 +172,7 @@ function createCaptureWriter() {
 }
 
 async function onlyLogText(documentPath: string): Promise<string> {
-  const logDirectory = join(documentPath, ".local", ".log");
-  const logs = (await readdir(logDirectory)).filter((name) => name.endsWith(".log"));
-  expect(logs).toHaveLength(1);
-  return await readFile(join(logDirectory, logs[0]!), "utf8");
+  return await readFile(join(documentPath, ".local", "dev.log"), "utf8");
 }
 
 function packageName(documentPath: string): string {

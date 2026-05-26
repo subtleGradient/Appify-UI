@@ -24,14 +24,12 @@ export type OutputWriter = {
 
 export type EnsureWebappPackageResult = {
   devScript: string;
-  logDirectory: string;
+  logPath: string;
   packageJsonPath: string;
 };
 
 export type RunWebappLifecycleOptions = {
   executor?: CommandExecutor;
-  now?: () => Date;
-  randomUUID?: () => string;
   stderr?: OutputWriter;
   stdout?: OutputWriter;
 };
@@ -63,8 +61,8 @@ export async function resolveWebappDocumentPath(documentPath: string | undefined
 
 export async function ensureWebappPackage(documentPath: string): Promise<EnsureWebappPackageResult> {
   const packageJsonPath = join(documentPath, "package.json");
-  const logDirectory = join(documentPath, ".local", ".log");
-  await mkdir(logDirectory, { recursive: true });
+  const logPath = devLogPath(documentPath);
+  await mkdir(join(documentPath, ".local"), { recursive: true });
 
   const packageJson = await readPackageJson(packageJsonPath, documentPath);
   const scripts = isRecord(packageJson.scripts) ? { ...packageJson.scripts } : {};
@@ -84,15 +82,16 @@ export async function ensureWebappPackage(documentPath: string): Promise<EnsureW
 
   return {
     devScript: String((packageJson.scripts as Record<string, unknown>).dev),
-    logDirectory,
+    logPath,
     packageJsonPath,
   };
 }
 
 export async function runWebappLifecycle(documentPath: string, options: RunWebappLifecycleOptions = {}): Promise<number> {
-  await ensureWebappPackage(documentPath);
+  const webappPackage = await ensureWebappPackage(documentPath);
 
-  const logPath = createLogPath(documentPath, options);
+  const logPath = webappPackage.logPath;
+  await writeFile(logPath, "");
   const executor = options.executor ?? createBunCommandExecutor(process.env);
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
@@ -312,11 +311,8 @@ await new Promise(() => {});
 `;
 }
 
-function createLogPath(documentPath: string, options: RunWebappLifecycleOptions): string {
-  const now = options.now ?? (() => new Date());
-  const randomUUID = options.randomUUID ?? (() => crypto.randomUUID());
-  const timestamp = now().toISOString().replace(/[:.]/g, "-");
-  return join(documentPath, ".local", ".log", `webapp-${timestamp}-${randomUUID()}.log`);
+function devLogPath(documentPath: string): string {
+  return join(documentPath, ".local", "dev.log");
 }
 
 function childEnvironment(documentPath: string, logPath: string): Record<string, string> {
