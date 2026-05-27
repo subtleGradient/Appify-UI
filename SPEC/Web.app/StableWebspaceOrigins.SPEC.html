@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Stable Webspace Origins</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; margin-block-start: 0.8rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre { margin: 0; overflow: auto; padding: 0.75rem; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">SPEC/Web.app / origins and storage</p>
+        <h1>Stable Webspace Origins</h1>
+        <p class="lede">
+          Web.app serves <code>.web</code> bundles as normal client-side web sites. AppifyHost should give each webspace a stable localhost origin so native browser persistence, service workers, and cross-bundle composition behave like they would on a normal hosted HTTPS site.
+        </p>
+      </header>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li>Use one fixed AppifyHost broker port: <code>55555</code>.</li>
+          <li>Derive the visible hostname from the webspace root, not from the opened <code>.web</code> bundle.</li>
+          <li>Load Web.app windows from stable origins shaped like <code>http://repo-slug--rootHash.localhost:55555/path/to/a.web/</code>.</li>
+          <li>Keep the current dynamic Bun server as a private backend implementation detail.</li>
+          <li>Native website-specific storage should persist normally through WebKit's persistent website data store.</li>
+          <li>File-backed <code>localStorage</code> remains the intentional Web.app document-storage enhancement.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="origin-model">
+        <h2 id="origin-model">Origin Model</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Concept</th>
+              <th>Identity</th>
+              <th>Example</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Webspace origin</td>
+              <td>Scheme, stable webspace hostname, and fixed port.</td>
+              <td><code>http://repo--a1b2c3d4.localhost:55555</code></td>
+            </tr>
+            <tr>
+              <td>Opened bundle</td>
+              <td>Path inside the webspace origin.</td>
+              <td><code>/path/to/a.web/</code></td>
+            </tr>
+            <tr>
+              <td>Peer bundle</td>
+              <td>Another path inside the same webspace origin.</td>
+              <td><code>/path/to/sub/b.web/</code></td>
+            </tr>
+            <tr>
+              <td>Native browser persistence</td>
+              <td>Normal origin-wide website state.</td>
+              <td>IndexedDB, CacheStorage, cookies, service workers, OPFS.</td>
+            </tr>
+            <tr>
+              <td>Web.app file-backed storage</td>
+              <td>Resolved URL path plus strict writable-root checks.</td>
+              <td><code>localStorage.setItem("./document.canvas", json)</code></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="storage">
+        <h2 id="storage">LocalStorage Storage Semantics</h2>
+        <ul>
+          <li>Ordinary <code>localStorage</code> keys are shared across the webspace and persisted in <code>&lt;webspace-root&gt;/.local/storage.json5</code>.</li>
+          <li><code>./file.ext</code> keys write files relative to the current page URL directory.</li>
+          <li><code>/file.ext</code> keys write files relative to the shared webspace root.</li>
+          <li>Invalid or unsupported file keys are not errors; they fall back to the shared <code>.local/storage.json5</code>.</li>
+          <li>Bundles that want private non-file state should namespace normal keys with their route path.</li>
+        </ul>
+        <h3>Examples</h3>
+        <pre><code>// From /path/to/a.web/editor.html:
+localStorage.setItem("theme", "dark")
+// =&gt; repo/.local/storage.json5
+
+localStorage.setItem("./document.canvas", stableJSON(canvas))
+// =&gt; repo/path/to/a.web/document.canvas
+
+localStorage.setItem("/path/to/sub/b.web/document.canvas", stableJSON(canvas))
+// =&gt; repo/path/to/sub/b.web/document.canvas
+
+const scope = new URL(".", location.href).pathname
+localStorage.setItem(`${scope}:view`, JSON.stringify(view))
+// =&gt; repo/.local/storage.json5, namespaced by bundle path</code></pre>
+      </section>
+
+      <section aria-labelledby="file-keys">
+        <h2 id="file-keys">File-Key Security</h2>
+        <ul>
+          <li>A separate file is created only when the key starts with <code>/</code> or <code>./</code>.</li>
+          <li>The key must pass strict path grammar: no <code>..</code>, percent escapes, backslashes, null bytes, empty segments, query strings, fragments, hidden segments, or control directories.</li>
+          <li>The final segment must have a file extension.</li>
+          <li>The resolved route must land inside a known writable web root.</li>
+          <li>Known writable roots include the active local <code>.web</code> package root and local peer manifest source roots.</li>
+          <li>Remote and materialized git cache mounts are read-only for file-backed <code>localStorage</code> writes.</li>
+          <li>Existing directory chains must not traverse symlinks.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="disk-schema">
+        <h2 id="disk-schema">Shared Disk Index</h2>
+        <p>
+          The root storage file must merge writes from all bundles in the webspace. File entries are indexed by resolved route path so multiple bundles can use the same relative key, such as <code>./document.canvas</code>, without clobbering each other.
+        </p>
+        <pre><code>{
+  schema: 4,
+  entries: [
+    { key: "theme", value: "dark" },
+    { key: "/path/to/a.web/:view", json: { selectedId: "intro" } },
+  ],
+  files: [
+    {
+      key: "./document.canvas",
+      routePath: "/path/to/a.web/document.canvas",
+      valueType: "text",
+    },
+    {
+      key: "./document.canvas",
+      routePath: "/path/to/sub/b.web/document.canvas",
+      valueType: "text",
+    },
+  ],
+}</code></pre>
+        <ul>
+          <li>Hydration includes all ordinary shared entries.</li>
+          <li>Hydration includes explicit <code>/...</code> file entries because their root-relative route is unambiguous.</li>
+          <li>Hydration includes <code>./...</code> file entries only when they resolve for the current page path.</li>
+          <li>Writes must merge with the existing file index instead of replacing unrelated sibling-bundle file entries.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="composition">
+        <h2 id="composition">Cross-Bundle Composition</h2>
+        <ul>
+          <li>A repo webspace shares one origin across all served <code>.web</code> bundles under that repo.</li>
+          <li>Imports and fetches between peer bundles stay same-origin and do not require CORS.</li>
+          <li>Service worker scopes follow normal web path rules.</li>
+          <li>Opening a peer bundle as its own document window keeps the same webspace origin if it belongs to the same repo root.</li>
+          <li>The path, not the hostname, distinguishes bundle identity inside a composed webspace.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation">
+        <h2 id="implementation">Implementation Notes</h2>
+        <ul>
+          <li>AppifyHost owns the <code>55555</code> broker port and maps stable webspace hostnames to hidden dynamic backend URLs.</li>
+          <li>Hostnames are deterministic: <code>&lt;safe-webspace-name&gt;--&lt;short-root-hash&gt;.localhost</code>.</li>
+          <li>If <code>55555</code> is held by the same AppifyHost broker, reuse it; if another process owns it, show a clear startup error.</li>
+          <li>Web.app should use a persistent WebKit website data store for native site-specific persistence.</li>
+          <li><code>/_web/*</code> write and control routes should require same-origin checks plus an unguessable per-document control token.</li>
+          <li>Do not patch normal web APIs such as <code>fetch</code>, Workers, IndexedDB, CacheStorage, cookies, OPFS, service workers, dialogs, or <code>window.open</code> merely to police native browser behavior.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="tests">
+        <h2 id="tests">Acceptance Tests</h2>
+        <ul>
+          <li><code>window.location.origin</code> stays stable across backend restarts.</li>
+          <li><code>window.isSecureContext</code> is true on the stable <code>*.localhost:55555</code> origin.</li>
+          <li>IndexedDB, CacheStorage, cookies, service workers, and OPFS persist per webspace origin after reopening Web.app.</li>
+          <li>Two different repo roots get isolated origins and cannot read each other's native website storage.</li>
+          <li>Peer bundles in the same webspace can import and fetch each other's files without CORS.</li>
+          <li>Ordinary <code>localStorage</code> keys from multiple bundles merge into one root <code>.local/storage.json5</code>.</li>
+          <li><code>./document.canvas</code> from two different bundle paths writes two different files and keeps two distinct file index entries.</li>
+          <li>Unsafe file keys fall back to root <code>.local/storage.json5</code>.</li>
+          <li>Remote and git-cache mounts cannot be written through file-backed <code>localStorage</code> keys.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rationale">
+        <h2 id="rationale">Golf Rationale</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Thing Golf</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Webspace-root origin with shared fallback storage</td>
+              <td>Matches normal hosted website semantics, minimizes CORS, and keeps file-backed writes behind strict route checks.</td>
+              <td>Default.</td>
+            </tr>
+            <tr>
+              <td>One origin per opened bundle</td>
+              <td>Improves app isolation but makes cross-bundle composition feel less like a normal site.</td>
+              <td>Avoid for repo webspaces.</td>
+            </tr>
+            <tr>
+              <td>Dedicated remembered ports per bundle</td>
+              <td>Adds bookkeeping, collisions, migrations, and stale state.</td>
+              <td>Reject.</td>
+            </tr>
+            <tr>
+              <td>Portless HTTPS localhost</td>
+              <td>Cleanest URL, but requires certs, privileged ports, or helper plumbing.</td>
+              <td>Defer until fixed-port localhost proves insufficient.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
