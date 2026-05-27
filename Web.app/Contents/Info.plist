@@ -59,7 +59,9 @@
     <key>WindowTitlePrefix</key>
     <string>Web</string>
     <key>WebViewDataStore</key>
-    <string>nonPersistent</string>
+    <string>persistent</string>
+    <key>RestrictNavigationToReadyURLScope</key>
+    <false/>
     <key>AboutNotice</key>
     <dict>
       <key>Links</key>

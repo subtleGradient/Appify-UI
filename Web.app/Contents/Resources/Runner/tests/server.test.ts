@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
+import { dirname, join } from "node:path";
 import {
   buildHtmlRoutes,
   contentTypeFor,
@@ -10,6 +10,7 @@ import {
   createLocalStoragePersistenceRoutes,
   createPostedRequestPayload,
   createReloadBroadcaster,
+  defaultStableWebSpacePort,
   findRootEntry,
   isIgnoredReloadPath,
   readFileResponse,
@@ -25,6 +26,8 @@ import {
   resolveWebSpace,
   resolveWebSpaceRequestPath,
   scanHtmlPages,
+  stableWebSpaceHostname,
+  stableWebSpaceURL,
   webFileSchemaURLForBuildCommit,
   writeLocalStorageSnapshot,
 } from "../src/webPackage";
@@ -41,6 +44,17 @@ afterEach(async () => {
   await rm(root, { recursive: true, force: true });
 });
 
+function testWebSpace(rootPath = root) {
+  return {
+    documentPath: rootPath,
+    activeRootPath: rootPath,
+    webspaceRootPath: rootPath,
+    activeBasePath: "/",
+    webspaceKind: "sibling" as const,
+    mounts: [],
+  };
+}
+
 describe("web package resolution", () => {
   test("resolves .web files and empty packages to their parent directory", async () => {
     await rm(root, { recursive: true, force: true });
@@ -56,7 +70,7 @@ describe("web package resolution", () => {
     expect(await resolveServeRoot(root)).toBe(dirname(root));
 
     await mkdir(join(root, ".local"), { recursive: true });
-    await writeFile(join(root, ".local", "storage.json"), "{}");
+    await writeFile(join(root, ".local", "storage.json5"), "{}");
     expect(await resolveServeRoot(root)).toBe(dirname(root));
   });
 
@@ -288,6 +302,26 @@ describe("web package resolution", () => {
     }
   });
 
+  test("derives stable localhost origins from the webspace root", async () => {
+    const project = join(root, "project");
+    const app = join(project, "apps", "dashboard.web");
+    const peer = join(project, "apps", "peer.web");
+    await mkdir(join(project, ".git"), { recursive: true });
+    await mkdir(app, { recursive: true });
+    await mkdir(peer, { recursive: true });
+    await writeFile(join(app, "index.html"), "<h1>Dashboard</h1>");
+    await writeFile(join(peer, "index.html"), "<h1>Peer</h1>");
+
+    const appWebspace = await resolveWebSpace(app);
+    const peerWebspace = await resolveWebSpace(peer);
+
+    expect(stableWebSpaceHostname(appWebspace.webspaceRootPath)).toBe(stableWebSpaceHostname(peerWebspace.webspaceRootPath));
+    expect(stableWebSpaceURL(appWebspace).origin).toBe(stableWebSpaceURL(peerWebspace).origin);
+    expect(stableWebSpaceURL(appWebspace).port).toBe(String(defaultStableWebSpacePort()));
+    expect(stableWebSpaceURL(appWebspace).pathname).toBe("/apps/dashboard.web/");
+    expect(stableWebSpaceURL(peerWebspace).pathname).toBe("/apps/peer.web/");
+  });
+
   test("rejects path traversal and symlinks", async () => {
     await writeFile(join(root, "index.html"), "<h1>ok</h1>");
     expect(await resolveRequestPath(root, "/index.html")).toEqual({ kind: "file", path: join(root, "index.html") });
@@ -392,9 +426,9 @@ describe("web package resolution", () => {
   });
 
   test("ignores .local changes for live reload", () => {
-    expect(isIgnoredReloadPath(root, ".local/storage.json")).toBe(true);
+    expect(isIgnoredReloadPath(root, ".local/storage.json5")).toBe(true);
     expect(isIgnoredReloadPath(root, ".local/example.web.storage.json")).toBe(true);
-    expect(isIgnoredReloadPath(root, Buffer.from(".local/storage.json"))).toBe(true);
+    expect(isIgnoredReloadPath(root, Buffer.from(".local/storage.json5"))).toBe(true);
     expect(isIgnoredReloadPath(root, "index.html")).toBe(false);
     expect(isIgnoredReloadPath(root, null)).toBe(false);
   });
@@ -507,7 +541,7 @@ describe("web package resolution", () => {
 
 describe("localStorage persistence", () => {
   test("uses package-local storage for directory documents", async () => {
-    expect(await resolveLocalStorageFilePath(root)).toBe(join(root, ".local", "storage.json"));
+    expect(await resolveLocalStorageFilePath(root)).toBe(join(root, ".local", "storage.json5"));
   });
 
   test("uses adjacent sidecar storage for file documents", async () => {
@@ -515,7 +549,7 @@ describe("localStorage persistence", () => {
     await writeFile(root, "");
 
     expect(await resolveLocalStorageFilePath(root)).toBe(
-      join(dirname(root), ".local", `${basename(root)}.storage.json`),
+      join(dirname(root), ".local", "storage.json5"),
     );
   });
 
@@ -535,7 +569,7 @@ describe("localStorage persistence", () => {
 
     await writeLocalStorageSnapshot(storageFilePath, snapshot);
     expect(JSON.parse(await readFile(storageFilePath, "utf8"))).toEqual({
-      schema: 3,
+      schema: 4,
       entries: [{ key: "theme", value: "dark" }],
       files: [],
     });
@@ -551,7 +585,7 @@ describe("localStorage persistence", () => {
 
     await mkdir(dirname(storageFilePath), { recursive: true });
     await writeFile(storageFilePath, `${JSON.stringify({
-      schema: 3,
+      schema: 4,
       entries: [
         { key: "theme", value: "dark" },
         { key: "view", json: viewValue },
@@ -586,7 +620,7 @@ describe("localStorage persistence", () => {
     };
 
     await writeLocalStorageSnapshot(storageFilePath, snapshot, {
-      rootPath: root,
+      webspace: testWebSpace(),
       pagePath: "/path/to/random/file.html",
     });
 
@@ -597,7 +631,7 @@ describe("localStorage persistence", () => {
 
     const diskSnapshot = JSON.parse(await readFile(storageFilePath, "utf8"));
     expect(diskSnapshot).toEqual({
-      schema: 3,
+      schema: 4,
       entries: [
         { key: "../bad.canvas", value: "bad" },
         { key: "./.hidden/file.txt", value: "bad" },
@@ -606,13 +640,13 @@ describe("localStorage persistence", () => {
         { key: "theme", value: "dark" },
       ],
       files: [
-        { key: "./subpath/document.canvas", path: "path/to/random/subpath/document.canvas", valueType: "text" },
-        { key: "/root.canvas", path: "root.canvas", valueType: "text" },
+        { key: "./subpath/document.canvas", routePath: "/path/to/random/subpath/document.canvas", valueType: "text" },
+        { key: "/root.canvas", routePath: "/root.canvas", valueType: "text" },
       ],
     });
 
     expect(await readLocalStorageSnapshot(storageFilePath, {
-      rootPath: root,
+      webspace: testWebSpace(),
       pagePath: "/path/to/random/file.html",
     })).toEqual({
       schema: 1,
@@ -628,7 +662,7 @@ describe("localStorage persistence", () => {
     });
 
     expect(await readLocalStorageSnapshot(storageFilePath, {
-      rootPath: root,
+      webspace: testWebSpace(),
       pagePath: "/other.html",
     })).toEqual({
       schema: 1,
@@ -640,6 +674,49 @@ describe("localStorage persistence", () => {
         ["/root.canvas", "root document\n"],
         ["theme", "dark"],
       ],
+    });
+  });
+
+  test("merges page-relative file indexes across sibling bundle paths", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const webspace = testWebSpace();
+    await mkdir(join(root, "apps", "a.web"), { recursive: true });
+    await mkdir(join(root, "apps", "b.web"), { recursive: true });
+
+    await writeLocalStorageSnapshot(storageFilePath, {
+      schema: 1,
+      entries: [["./document.canvas", "A"], ["theme", "dark"]],
+    }, {
+      webspace,
+      pagePath: "/apps/a.web/index.html",
+    });
+    await writeLocalStorageSnapshot(storageFilePath, {
+      schema: 1,
+      entries: [["./document.canvas", "B"], ["theme", "dark"]],
+    }, {
+      webspace,
+      pagePath: "/apps/b.web/index.html",
+    });
+
+    expect(await readFile(join(root, "apps", "a.web", "document.canvas"), "utf8")).toBe("A");
+    expect(await readFile(join(root, "apps", "b.web", "document.canvas"), "utf8")).toBe("B");
+    expect(JSON.parse(await readFile(storageFilePath, "utf8")).files).toEqual([
+      { key: "./document.canvas", routePath: "/apps/a.web/document.canvas", valueType: "text" },
+      { key: "./document.canvas", routePath: "/apps/b.web/document.canvas", valueType: "text" },
+    ]);
+    expect(await readLocalStorageSnapshot(storageFilePath, {
+      webspace,
+      pagePath: "/apps/a.web/index.html",
+    })).toEqual({
+      schema: 1,
+      entries: [["./document.canvas", "A"], ["theme", "dark"]],
+    });
+    expect(await readLocalStorageSnapshot(storageFilePath, {
+      webspace,
+      pagePath: "/apps/b.web/index.html",
+    })).toEqual({
+      schema: 1,
+      entries: [["./document.canvas", "B"], ["theme", "dark"]],
     });
   });
 
@@ -658,7 +735,7 @@ describe("localStorage persistence", () => {
         ["/assets/broken.png", "data:image/png;base64,not base64"],
       ],
     }, {
-      rootPath: root,
+      webspace: testWebSpace(),
       pagePath: "/index.html",
     });
 
@@ -669,7 +746,7 @@ describe("localStorage persistence", () => {
 
     const diskSnapshot = JSON.parse(await readFile(storageFilePath, "utf8"));
     expect(diskSnapshot).toEqual({
-      schema: 3,
+      schema: 4,
       entries: [
         { key: "/assets/broken.png", value: "data:image/png;base64,not base64" },
         { key: "/notes/page.html", value: unsupportedDataUrl },
@@ -677,14 +754,14 @@ describe("localStorage persistence", () => {
       files: [
         {
           key: "/assets/image.png",
-          path: "assets/image.png",
+          routePath: "/assets/image.png",
           valueType: "data-url",
           mediaType: "image/png",
           encoding: "base64",
         },
         {
           key: "/notes/greeting.txt",
-          path: "notes/greeting.txt",
+          routePath: "/notes/greeting.txt",
           valueType: "data-url",
           mediaType: "text/plain",
           encoding: "utf-8",
@@ -693,7 +770,7 @@ describe("localStorage persistence", () => {
     });
 
     expect(await readLocalStorageSnapshot(storageFilePath, {
-      rootPath: root,
+      webspace: testWebSpace(),
       pagePath: "/index.html",
     })).toEqual({
       schema: 1,
@@ -957,7 +1034,7 @@ const x = 1;
     expect(fakeWindow.localStorage).not.toBe(nativeStorage);
   });
 
-  test("injected storage warnings fire once and persist through localStorage", async () => {
+  test("injected localStorage facade leaves native site storage APIs alone", async () => {
     const page = join(root, "stateful.html");
     await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
     const response = await readFileResponse(page, { localStoragePersistence: true });
@@ -998,29 +1075,9 @@ const x = 1;
         return { name };
       }
     }
-    class FakeIDBDatabase {
-      createObjectStore(name: string) {
-        return { name };
-      }
-    }
-    class FakeIDBObjectStore {
-      put(value: unknown) {
-        return value;
-      }
-    }
     class FakeCacheStorage {
       open(name: string) {
         return Promise.resolve({ name });
-      }
-    }
-    class FakeCache {
-      put(request: unknown, value: unknown) {
-        return Promise.resolve([request, value]);
-      }
-    }
-    class FakeCookieStore {
-      set(name: string, value: string) {
-        return Promise.resolve([name, value]);
       }
     }
     class FakeServiceWorkerContainer {
@@ -1033,17 +1090,6 @@ const x = 1;
         return Promise.resolve({});
       }
     }
-    class FakeFileSystemDirectoryHandle {
-      getFileHandle(name: string) {
-        return Promise.resolve({ name });
-      }
-    }
-    class FakeFileSystemFileHandle {
-      createWritable() {
-        return Promise.resolve({});
-      }
-    }
-
     const serviceWorkerContainer = new FakeServiceWorkerContainer();
     const storageManager = new FakeStorageManager();
     class FakeNavigator {
@@ -1074,7 +1120,6 @@ const x = 1;
       sessionStorage: new FakeStorage(),
       indexedDB: new FakeIDBFactory(),
       caches: new FakeCacheStorage(),
-      cookieStore: new FakeCookieStore(),
       Navigator: FakeNavigator,
       document: new FakeDocument(),
       location: { pathname: "/stateful.html" },
@@ -1104,17 +1149,11 @@ const x = 1;
       "fetch",
       "console",
       "IDBFactory",
-      "IDBDatabase",
-      "IDBObjectStore",
       "CacheStorage",
-      "Cache",
       "Document",
       "HTMLDocument",
-      "CookieStore",
       "ServiceWorkerContainer",
       "StorageManager",
-      "FileSystemDirectoryHandle",
-      "FileSystemFileHandle",
       script!,
     )(
       fakeWindow,
@@ -1128,38 +1167,27 @@ const x = 1;
       },
       { warn: (message: string) => warnings.push(message) },
       FakeIDBFactory,
-      FakeIDBDatabase,
-      FakeIDBObjectStore,
       FakeCacheStorage,
-      FakeCache,
       FakeDocument,
       FakeDocument,
-      FakeCookieStore,
       FakeServiceWorkerContainer,
       FakeStorageManager,
-      FakeFileSystemDirectoryHandle,
-      FakeFileSystemFileHandle,
     );
 
     (fakeWindow.sessionStorage as Storage).setItem("session", "value");
-    (fakeWindow.indexedDB as FakeIDBFactory).open("db");
-    new FakeIDBDatabase().createObjectStore("store");
-    new FakeIDBObjectStore().put({ ok: true });
-    (fakeWindow.caches as FakeCacheStorage).open("cache");
-    new FakeCache().put("/asset", new Response("ok"));
+    expect((fakeWindow.sessionStorage as Storage).getItem("session")).toBe("value");
+    expect((fakeWindow.indexedDB as FakeIDBFactory).open("db")).toEqual({ name: "db" });
+    await expect((fakeWindow.caches as FakeCacheStorage).open("cache")).resolves.toEqual({ name: "cache" });
     (fakeWindow.document as FakeDocument).cookie = "a=b";
-    (fakeWindow.cookieStore as FakeCookieStore).set("a", "b");
-    fakeNavigator.serviceWorker.register("/sw.js");
-    fakeNavigator.storage.getDirectory();
-    new FakeFileSystemDirectoryHandle().getFileHandle("file.txt");
-    new FakeFileSystemFileHandle().createWritable();
+    expect((fakeWindow.document as FakeDocument).cookie).toBe("a=b");
+    await expect(fakeNavigator.serviceWorker.register("/sw.js")).resolves.toEqual({ scriptURL: "/sw.js" });
+    await expect(fakeNavigator.storage.getDirectory()).resolves.toEqual({});
 
     const storage = fakeWindow.localStorage as Storage;
-    expect(warnings).toHaveLength(1);
-    expect(warnings[0]).toContain("sessionStorage");
-    expect(warnings[0]).toContain("one disk-backed source of truth");
-    expect(storage.getItem("appify:web:unsupported-storage-warning-seen")).toBe("1");
-    expect(requests.some((body) => body.includes("appify:web:unsupported-storage-warning-seen"))).toBe(true);
+    storage.setItem("local", "value");
+    expect(storage.getItem("local")).toBe("value");
+    expect(warnings).toEqual([]);
+    expect(requests.some((body) => body.includes("unsupported-storage-warning"))).toBe(false);
   });
 
   test("injected localStorage facade fails closed when it cannot replace native storage", async () => {

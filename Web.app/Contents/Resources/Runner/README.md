@@ -33,15 +33,19 @@ manifest file's normal `.web` URL route.
 
 When a real `.web` package is inside a normal git repo, the repo root defines
 the local URL space while only `.web` package contents are readable. For example,
-`apps/dashboard.web` opens at `/apps/dashboard.web/` and can import or fetch from
-`../ui-kit.web/` or `/packages/ui-kit.web/` when those peers exist under the same
-repo. If there is no normal git root, Web falls back to sibling `.web` packages
-under the opened package's parent directory. A `.git` at the user's home
-directory or filesystem root is ignored as ambient state.
+`apps/dashboard.web` opens at
+`http://repo--<root-hash>.localhost:55555/apps/dashboard.web/` and can import or
+fetch from `../ui-kit.web/` or `/packages/ui-kit.web/` when those peers exist
+under the same repo. If there is no normal git root, Web falls back to sibling
+`.web` packages under the opened package's parent directory. A `.git` at the
+user's home directory or filesystem root is ignored as ambient state.
 
-Storage stays per opened document window: imported modules from another `.web`
-package use the current package's duck-punched `localStorage`, and fetched peer
-HTML is served without injected storage or live-reload scripts.
+Web.app uses WebKit's persistent website data store, so native origin-scoped
+state such as IndexedDB, CacheStorage, cookies, service workers, and OPFS stays
+with the stable `*.localhost:55555` webspace origin. The injected `localStorage`
+facade remains the Web.app document-storage enhancement: ordinary keys are
+stored in `<webspace-root>/.local/storage.json5`, while strict `/file.ext` and
+`./file.ext` keys can write real files under known writable `.web` routes.
 
 Compatibility behavior is example-driven. Server-ish affordances such as fossil
 CGI URLs, form POST handling, SSI, or old AJAX expectations must start with a

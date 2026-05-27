@@ -396,6 +396,12 @@ final class AppifyHostCoreTests: XCTestCase {
 
         let documentFileURL = URL(fileURLWithPath: "/tmp/Canvas.sketchdoc/index.html")
         XCTAssertEqual(try AppifyHostOpenURL.validateReadyURL(documentFileURL, documentURL: documentURL, bundleURL: bundleURL), documentFileURL)
+
+        let stableWebspaceURL = URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!
+        XCTAssertEqual(
+            try AppifyHostOpenURL.validateReadyURL(stableWebspaceURL, documentURL: documentURL, bundleURL: bundleURL),
+            stableWebspaceURL
+        )
     }
 
     func testParsesDeepLinks() throws {
@@ -457,6 +463,13 @@ final class AppifyHostCoreTests: XCTestCase {
             documentURL: documentURL,
             bundleURL: bundleURL,
             restrictToReadyURLScope: true
+        ))
+        XCTAssertTrue(AppifyHostOpenURL.isAllowedNavigation(
+            URL(string: "http://127.0.0.1:49152/other")!,
+            readyURL: readyURL,
+            documentURL: documentURL,
+            bundleURL: bundleURL,
+            restrictToReadyURLScope: false
         ))
     }
 

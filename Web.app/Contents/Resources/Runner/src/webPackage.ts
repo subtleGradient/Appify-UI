@@ -1,5 +1,6 @@
 import { existsSync } from "node:fs";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { createServer } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
@@ -19,6 +20,7 @@ export type RenderOptions = {
   liveReload?: boolean;
   localStoragePersistence?: boolean;
   controlBasePath?: string;
+  controlToken?: string;
   postedRequest?: PostedRequestPayload;
   title?: string;
 };
@@ -99,7 +101,7 @@ type GitWebFileSource = {
 };
 
 type LocalStorageDiskSnapshot = {
-  schema: 3;
+  schema: 4;
   entries: LocalStorageDiskEntry[];
   files: LocalStorageFileEntry[];
 };
@@ -110,26 +112,27 @@ type LocalStorageDiskEntry =
 
 type LocalStorageFileEntry = {
   key: string;
-  path: string;
+  routePath: string;
   valueType: "text" | "data-url";
   mediaType?: string;
   encoding?: "base64" | "utf-8";
 };
 
 type LocalStoragePersistenceContext = {
-  rootPath: string;
+  webspace: WebSpace;
   pagePath?: string | null;
+  writableRoots?: LocalStorageWritableRoot[];
 };
 
 type StorageFileTarget = {
   absolutePath: string;
-  relativePath: string;
+  routePath: string;
+  writableRootPath: string;
 };
 
-type StorageFileWrite = {
-  target: StorageFileTarget;
-  contents: string | Uint8Array;
-  fileEntry: LocalStorageFileEntry;
+type LocalStorageWritableRoot = {
+  routeBasePath: string;
+  rootPath: string;
 };
 
 const TEXT_TYPES = new Map<string, string>([
@@ -171,7 +174,8 @@ const BINARY_TYPES = new Map<string, string>([
 const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
-const STORAGE_FILE_NAME = "storage.json";
+const STORAGE_FILE_NAME = "storage.json5";
+const DEFAULT_STABLE_WEBSPACE_PORT = 55555;
 const WEB_FILE_SCHEMA_PATH = "schema/web-file.schema.json";
 const WEB_FILE_SCHEMA_REPOSITORY = "subtleGradient/Appify-UI";
 const RUNNER_ROOT_PATH = dirname(dirname(fileURLToPath(import.meta.url)));
@@ -224,6 +228,25 @@ export async function resolveServerPort(configuredPort = process.env.PORT): Prom
   }
 
   return await findAvailableLoopbackPort();
+}
+
+export function stableWebSpaceHostname(webspaceRootPath: string): string {
+  const root = resolve(webspaceRootPath);
+  const rawName = basename(root).toLowerCase();
+  const safeName = rawName
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "webspace";
+  const rootHash = createHash("sha256").update(root).digest("hex").slice(0, 8);
+  return `${safeName}--${rootHash}.localhost`;
+}
+
+export function stableWebSpaceURL(webspace: Pick<WebSpace, "webspaceRootPath" | "activeBasePath">, port = DEFAULT_STABLE_WEBSPACE_PORT): URL {
+  return new URL(webspace.activeBasePath, `http://${stableWebSpaceHostname(webspace.webspaceRootPath)}:${port}`);
+}
+
+export function defaultStableWebSpacePort(): number {
+  return DEFAULT_STABLE_WEBSPACE_PORT;
 }
 
 async function findAvailableLoopbackPort(): Promise<number> {
@@ -780,7 +803,12 @@ async function discoverWebFileMounts(
 
   const mounts: WebSpaceMount[] = [];
   async function walk(directory: string): Promise<void> {
-    const entries = await readdir(directory, { withFileTypes: true });
+    const entries = await readdir(directory, { withFileTypes: true }).catch((error) => {
+      if (isNotFoundError(error)) {
+        return [];
+      }
+      throw error;
+    });
     for (const entry of entries) {
       if (entry.name === ".DS_Store") {
         continue;
@@ -853,10 +881,14 @@ export async function resolveLocalStorageFilePath(documentPath: string): Promise
     return join(documentPath, LOCAL_DIRECTORY, STORAGE_FILE_NAME);
   }
   if (stat.isFile()) {
-    return join(dirname(documentPath), LOCAL_DIRECTORY, `${basename(documentPath)}.${STORAGE_FILE_NAME}`);
+    return join(dirname(documentPath), LOCAL_DIRECTORY, STORAGE_FILE_NAME);
   }
 
   throw new Error(`${documentPath} must be a .web file or directory.`);
+}
+
+export function resolveWebSpaceLocalStorageFilePath(webspace: Pick<WebSpace, "webspaceRootPath">): string {
+  return join(webspace.webspaceRootPath, LOCAL_DIRECTORY, STORAGE_FILE_NAME);
 }
 
 export function isIgnoredReloadPath(rootPath: string, fileName: string | Buffer | null): boolean {
@@ -1083,7 +1115,7 @@ export async function buildHtmlRoutes(
   htmlPages: string[],
   rootEntry: string | null,
   hmrEnabled: boolean,
-  options: Pick<RenderOptions, "localStoragePersistence" | "controlBasePath"> & { routeBasePath?: string } = {},
+  options: Pick<RenderOptions, "localStoragePersistence" | "controlBasePath" | "controlToken"> & { routeBasePath?: string } = {},
 ): Promise<Record<string, unknown>> {
   const routes: Record<string, unknown> = {};
   const aliasTargets = preferredDirectoryAliasTargets(rootPath, htmlPages);
@@ -1096,6 +1128,7 @@ export async function buildHtmlRoutes(
         liveReload: hmrEnabled,
         localStoragePersistence: options.localStoragePersistence,
         controlBasePath: options.controlBasePath,
+        controlToken: options.controlToken,
       });
       routes[routePathWithBase(routeBasePath, routePathFor(rootPath, pagePath))] = routeValue;
 
@@ -1140,12 +1173,13 @@ export async function renderMarkdownResponse(filePath: string, options: RenderOp
       options.liveReload === true,
       options.localStoragePersistence === true,
       options.controlBasePath,
+      options.controlToken,
     ),
     {
-    headers: {
-      "Cache-Control": "no-store",
-      "Content-Type": "text/html; charset=utf-8",
-    },
+      headers: {
+        "Cache-Control": "no-store",
+        "Content-Type": "text/html; charset=utf-8",
+      },
     },
   );
 }
@@ -1188,7 +1222,7 @@ export async function createDirectoryListingResponse(
     <meta name="color-scheme" content="light dark" />
     <title>${escapeHTML(title)}</title>
     <style>${directoryListingCSS()}</style>
-    ${options.localStoragePersistence ? localStoragePersistenceClientScript(options.controlBasePath) : ""}
+    ${options.localStoragePersistence ? localStoragePersistenceClientScript(options.controlBasePath, options.controlToken) : ""}
   </head>
   <body>
     <main>
@@ -1215,6 +1249,7 @@ export function renderMarkdownDocument(
   liveReload = false,
   localStoragePersistence = false,
   controlBasePath = "/",
+  controlToken?: string,
 ): string {
   const body = renderMarkdown(source);
   return `<!doctype html>
@@ -1225,7 +1260,7 @@ export function renderMarkdownDocument(
     <meta name="color-scheme" content="light dark" />
     <title>${escapeHTML(title)}</title>
     <style>${markdownCSS()}</style>
-    ${localStoragePersistence ? localStoragePersistenceClientScript(controlBasePath) : ""}
+    ${localStoragePersistence ? localStoragePersistenceClientScript(controlBasePath, controlToken) : ""}
   </head>
   <body>
     <main class="markdown-body">
@@ -1293,7 +1328,7 @@ export async function readLocalStorageSnapshot(
   context?: LocalStoragePersistenceContext,
 ): Promise<LocalStorageSnapshot> {
   try {
-    const diskSnapshot = normalizeLocalStorageDiskSnapshot(JSON.parse(await readFile(storageFilePath, "utf8")));
+    const diskSnapshot = normalizeLocalStorageDiskSnapshot(await parseJson5File(storageFilePath));
     return await localStorageSnapshotFromDisk(diskSnapshot, context);
   } catch (error) {
     if (isNotFoundError(error)) {
@@ -1309,23 +1344,41 @@ export async function writeLocalStorageSnapshot(
   context?: LocalStoragePersistenceContext,
 ): Promise<void> {
   const normalized = normalizeLocalStorageSnapshot(snapshot);
-  if (normalized.entries.length === 0) {
-    await rm(storageFilePath, { force: true });
-    return;
-  }
-
+  const existing = await readLocalStorageDiskSnapshotIfExists(storageFilePath);
+  const snapshotKeys = new Set(normalized.entries.map(([key]) => key));
+  const touchedRoutePaths = new Set<string>();
   const entries: LocalStorageDiskEntry[] = [];
   const files: LocalStorageFileEntry[] = [];
   for (const [key, value] of sortedLocalStorageEntries(normalized.entries)) {
     if (context !== undefined) {
-      const fileWrite = await storageFileWriteForEntry(context, key, value);
-      if (fileWrite !== null && await writeStorageFile(context.rootPath, fileWrite.target, fileWrite.contents)) {
-        files.push(fileWrite.fileEntry);
-        continue;
+      const target = await resolveStorageFileTarget(context, key);
+      if (target !== null) {
+        touchedRoutePaths.add(target.routePath);
+        const valueWrite = storageFileValueFor(value);
+        if (valueWrite !== null && await writeStorageFile(target, valueWrite.contents)) {
+          files.push({
+            key,
+            routePath: target.routePath,
+            ...valueWrite.fileEntry,
+          });
+          continue;
+        }
       }
     }
 
     entries.push(localStorageDiskEntryFor(key, value));
+  }
+
+  if (context !== undefined && existing !== null) {
+    for (const fileEntry of existing.files) {
+      if (touchedRoutePaths.has(fileEntry.routePath)) {
+        continue;
+      }
+      if (await localStorageFileEntryIsVisibleInContext(fileEntry, context) && !snapshotKeys.has(fileEntry.key)) {
+        continue;
+      }
+      files.push(fileEntry);
+    }
   }
 
   if (entries.length === 0 && files.length === 0) {
@@ -1334,7 +1387,7 @@ export async function writeLocalStorageSnapshot(
   }
 
   await mkdir(dirname(storageFilePath), { recursive: true });
-  const diskSnapshot: LocalStorageDiskSnapshot = { schema: 3, entries, files };
+  const diskSnapshot: LocalStorageDiskSnapshot = { schema: 4, entries, files: sortedLocalStorageFileEntries(files) };
   const tempPath = `${storageFilePath}.${crypto.randomUUID()}.tmp`;
   await writeFile(tempPath, `${JSON.stringify(diskSnapshot, null, 2)}\n`);
   await rename(tempPath, storageFilePath);
@@ -1342,19 +1395,19 @@ export async function writeLocalStorageSnapshot(
 
 export function createLocalStoragePersistenceRoutes(
   storageFilePath: string,
-  rootPath: string,
+  webspace: WebSpace | string,
   controlBasePath = "/",
+  controlToken?: string,
 ): Record<string, unknown> {
+  const resolvedWebspace = typeof webspace === "string" ? rootOnlyWebSpace(webspace) : webspace;
   const routePath = routePathWithBase(controlBasePath, LOCAL_STORAGE_ROUTE);
   return {
     [routePath]: {
       async GET(request?: Request) {
         try {
+          assertAllowedControlRequest(request, controlToken);
           return Response.json(
-            await readLocalStorageSnapshot(storageFilePath, {
-              rootPath,
-              pagePath: pagePathForPersistenceRequest(request),
-            }),
+            await readLocalStorageSnapshot(storageFilePath, await localStoragePersistenceContext(resolvedWebspace, request)),
             {
               headers: {
                 "Cache-Control": "no-store",
@@ -1367,16 +1420,30 @@ export function createLocalStoragePersistenceRoutes(
       },
       async POST(request: Request) {
         try {
-          await writeLocalStorageSnapshot(storageFilePath, await request.json(), {
-            rootPath,
-            pagePath: pagePathForPersistenceRequest(request),
-          });
+          assertAllowedControlRequest(request, controlToken);
+          await writeLocalStorageSnapshot(
+            storageFilePath,
+            await request.json(),
+            await localStoragePersistenceContext(resolvedWebspace, request),
+          );
           return new Response(null, { status: 204 });
         } catch (error) {
           return new Response(String(error), { status: 400 });
         }
       },
     },
+  };
+}
+
+function rootOnlyWebSpace(rootPath: string): WebSpace {
+  const resolvedRootPath = resolve(rootPath);
+  return {
+    documentPath: resolvedRootPath,
+    activeRootPath: resolvedRootPath,
+    webspaceRootPath: resolvedRootPath,
+    activeBasePath: "/",
+    webspaceKind: "sibling",
+    mounts: [],
   };
 }
 
@@ -1528,8 +1595,8 @@ async function localStorageSnapshotFromDisk(
 
   if (context !== undefined) {
     for (const fileEntry of diskSnapshot.files) {
-      const target = resolveStorageFileTarget(context, fileEntry.key);
-      if (target === null || target.relativePath !== fileEntry.path) {
+      const target = await resolveStorageFileTarget(context, fileEntry.key);
+      if (target === null || target.routePath !== fileEntry.routePath) {
         continue;
       }
 
@@ -1551,8 +1618,8 @@ function normalizeLocalStorageDiskSnapshot(value: unknown): LocalStorageDiskSnap
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     throw new Error("localStorage disk snapshot must be an object.");
   }
-  if (snapshot.schema !== 3) {
-    throw new Error("localStorage disk snapshot schema must be 3.");
+  if (snapshot.schema !== 3 && snapshot.schema !== 4) {
+    throw new Error("localStorage disk snapshot schema must be 4.");
   }
   if (!Array.isArray(snapshot.entries)) {
     throw new Error("localStorage disk snapshot entries must be an array.");
@@ -1599,12 +1666,16 @@ function normalizeLocalStorageDiskSnapshot(value: unknown): LocalStorageDiskSnap
     const fileEntry = entry as {
       key?: unknown;
       path?: unknown;
+      routePath?: unknown;
       valueType?: unknown;
       mediaType?: unknown;
       encoding?: unknown;
     };
-    if (typeof fileEntry.key !== "string" || typeof fileEntry.path !== "string") {
-      throw new Error("localStorage disk snapshot file entries must include string keys and paths.");
+    const routePath = snapshot.schema === 3
+      ? (typeof fileEntry.path === "string" ? `/${fileEntry.path}` : null)
+      : (typeof fileEntry.routePath === "string" ? fileEntry.routePath : null);
+    if (typeof fileEntry.key !== "string" || routePath === null || !isSafeStoredRoutePath(routePath)) {
+      throw new Error("localStorage disk snapshot file entries must include string keys and route paths.");
     }
     if (fileEntry.valueType !== "text" && fileEntry.valueType !== "data-url") {
       throw new Error("localStorage disk snapshot file entries must include a known valueType.");
@@ -1613,7 +1684,7 @@ function normalizeLocalStorageDiskSnapshot(value: unknown): LocalStorageDiskSnap
     if (fileEntry.valueType === "text") {
       files.push({
         key: fileEntry.key,
-        path: fileEntry.path,
+        routePath,
         valueType: "text",
       });
       continue;
@@ -1627,14 +1698,14 @@ function normalizeLocalStorageDiskSnapshot(value: unknown): LocalStorageDiskSnap
     }
     files.push({
       key: fileEntry.key,
-      path: fileEntry.path,
+      routePath,
       valueType: "data-url",
       mediaType: fileEntry.mediaType,
       encoding: fileEntry.encoding,
     });
   }
 
-  return { schema: 3, entries, files };
+  return { schema: 4, entries, files };
 }
 
 function parsedCanonicalJsonContainer(value: string): unknown | null {
@@ -1676,35 +1747,9 @@ function localStorageDiskEntryFor(key: string, value: string): LocalStorageDiskE
   return json === null ? { key, value } : { key, json };
 }
 
-async function storageFileWriteForEntry(
-  context: LocalStoragePersistenceContext,
-  key: string,
-  value: string,
-): Promise<StorageFileWrite | null> {
-  const target = resolveStorageFileTarget(context, key);
-  if (target === null) {
-    return null;
-  }
-
-  const valueWrite = storageFileValueFor(value);
-  if (valueWrite === null) {
-    return null;
-  }
-
-  return {
-    target,
-    contents: valueWrite.contents,
-    fileEntry: {
-      key,
-      path: target.relativePath,
-      ...valueWrite.fileEntry,
-    },
-  };
-}
-
 function storageFileValueFor(value: string): {
   contents: string | Uint8Array;
-  fileEntry: Omit<LocalStorageFileEntry, "key" | "path">;
+  fileEntry: Omit<LocalStorageFileEntry, "key" | "routePath">;
 } | null {
   if (!value.startsWith("data:")) {
     return {
@@ -1718,7 +1763,7 @@ function storageFileValueFor(value: string): {
 
 function storageDataUrlValueFor(value: string): {
   contents: string | Uint8Array;
-  fileEntry: Omit<LocalStorageFileEntry, "key" | "path">;
+  fileEntry: Omit<LocalStorageFileEntry, "key" | "routePath">;
 } | null {
   const commaIndex = value.indexOf(",");
   if (commaIndex < 0) {
@@ -1773,10 +1818,10 @@ async function readStorageFileValue(filePath: string, fileEntry: LocalStorageFil
   return `data:${fileEntry.mediaType};charset=utf-8,${encodeURIComponent(text)}`;
 }
 
-function resolveStorageFileTarget(
+async function resolveStorageFileTarget(
   context: LocalStoragePersistenceContext,
   key: string,
-): StorageFileTarget | null {
+): Promise<StorageFileTarget | null> {
   const keySegments = storageKeySegments(key);
   if (keySegments === null) {
     return null;
@@ -1789,12 +1834,65 @@ function resolveStorageFileTarget(
     return null;
   }
 
-  const relativePath = segments.join("/");
-  const absolutePath = resolve(context.rootPath, ...segments);
-  if (!isInsideRoot(context.rootPath, absolutePath)) {
+  const routePath = storageRoutePathForSegments(segments);
+  const writableRoot = writableRootForStorageRoutePath(
+    context.writableRoots ?? await localStorageWritableRoots(context.webspace),
+    routePath,
+  );
+  if (writableRoot === null) {
     return null;
   }
-  return { absolutePath, relativePath };
+
+  const suffix = storageRoutePathSuffixSegments(routePath, writableRoot.routeBasePath);
+  if (suffix === null) {
+    return null;
+  }
+
+  const absolutePath = resolve(writableRoot.rootPath, ...suffix);
+  if (!isInsideRoot(writableRoot.rootPath, absolutePath)) {
+    return null;
+  }
+  return { absolutePath, routePath, writableRootPath: writableRoot.rootPath };
+}
+
+function storageRoutePathForSegments(segments: string[]): string {
+  return `/${segments.join("/")}`;
+}
+
+function writableRootForStorageRoutePath(
+  writableRoots: LocalStorageWritableRoot[],
+  routePath: string,
+): LocalStorageWritableRoot | null {
+  const normalizedRoutePath = normalizeStorageRoutePath(routePath);
+  for (const writableRoot of writableRoots) {
+    const basePath = directoryStorageRouteBasePath(writableRoot.routeBasePath);
+    if (basePath === "/") {
+      return writableRoot;
+    }
+    const baseWithoutSlash = basePath.slice(0, -1);
+    if (normalizedRoutePath === baseWithoutSlash || normalizedRoutePath.startsWith(basePath)) {
+      return writableRoot;
+    }
+  }
+  return null;
+}
+
+function storageRoutePathSuffixSegments(routePath: string, routeBasePath: string): string[] | null {
+  const normalizedRoutePath = normalizeStorageRoutePath(routePath);
+  const basePath = directoryStorageRouteBasePath(routeBasePath);
+  const suffix = basePath === "/"
+    ? normalizedRoutePath.slice(1)
+    : normalizedRoutePath.startsWith(basePath)
+      ? normalizedRoutePath.slice(basePath.length)
+      : null;
+  if (suffix === null) {
+    return null;
+  }
+  if (suffix === "") {
+    return [];
+  }
+  const segments = suffix.split("/");
+  return segments.every(isFileStoragePathSegment) ? segments : null;
 }
 
 function storageKeySegments(key: string): string[] | null {
@@ -1868,17 +1966,16 @@ function hasFileNameWithExtension(segment: string | undefined): boolean {
 }
 
 async function writeStorageFile(
-  rootPath: string,
   target: StorageFileTarget,
   contents: string | Uint8Array,
 ): Promise<boolean> {
   const tempPath = join(dirname(target.absolutePath), `.${basename(target.absolutePath)}.${crypto.randomUUID()}.tmp`);
   try {
-    if (!await canWriteStorageFile(rootPath, target.absolutePath)) {
+    if (!await canWriteStorageFile(target.writableRootPath, target.absolutePath)) {
       return false;
     }
     await mkdir(dirname(target.absolutePath), { recursive: true });
-    if (!await canWriteStorageFile(rootPath, target.absolutePath)) {
+    if (!await canWriteStorageFile(target.writableRootPath, target.absolutePath)) {
       return false;
     }
     await writeFile(tempPath, contents);
@@ -1933,6 +2030,121 @@ async function existingDirectoryChainIsSafe(rootPath: string, directoryPath: str
   return true;
 }
 
+async function localStoragePersistenceContext(webspace: WebSpace, request: Request | undefined): Promise<LocalStoragePersistenceContext> {
+  return {
+    webspace,
+    pagePath: pagePathForPersistenceRequest(request),
+    writableRoots: await localStorageWritableRoots(webspace),
+  };
+}
+
+async function localStorageWritableRoots(webspace: WebSpace): Promise<LocalStorageWritableRoot[]> {
+  const roots: LocalStorageWritableRoot[] = [];
+  const addRoot = (routeBasePath: string, rootPath: string) => {
+    const normalizedRouteBasePath = directoryStorageRouteBasePath(routeBasePath);
+    if (!roots.some((root) => root.routeBasePath === normalizedRouteBasePath && root.rootPath === rootPath)) {
+      roots.push({ routeBasePath: normalizedRouteBasePath, rootPath });
+    }
+  };
+
+  if (webspace.activeRootPath === webspace.webspaceRootPath) {
+    addRoot("/", webspace.webspaceRootPath);
+  }
+
+  for (const mount of webspace.mounts) {
+    if (mount.kind === "local") {
+      addRoot(storageRouteBasePathFromHTTPRoute(mount.routeBasePath), mount.rootPath);
+    }
+  }
+
+  if (await pathExists(webspace.webspaceRootPath)) {
+    async function walk(directory: string): Promise<void> {
+      const entries = await readdir(directory, { withFileTypes: true }).catch((error) => {
+        if (isNotFoundError(error)) {
+          return [];
+        }
+        throw error;
+      });
+      for (const entry of entries) {
+        if (entry.name === ".DS_Store") {
+          continue;
+        }
+        const entryPath = join(directory, entry.name);
+        if (entry.isSymbolicLink()) {
+          continue;
+        }
+        if (!entry.isDirectory() || SKIPPED_DIRECTORIES.has(entry.name)) {
+          continue;
+        }
+        if (extname(entry.name).toLowerCase() === ".web") {
+          addRoot(directoryStorageRouteBasePath(storageRoutePathFor(webspace.webspaceRootPath, entryPath)), entryPath);
+        }
+        await walk(entryPath);
+      }
+    }
+
+    if (extname(webspace.webspaceRootPath).toLowerCase() === ".web") {
+      addRoot("/", webspace.webspaceRootPath);
+    }
+    await walk(webspace.webspaceRootPath);
+  }
+
+  return roots.sort((left, right) => right.routeBasePath.length - left.routeBasePath.length);
+}
+
+async function readLocalStorageDiskSnapshotIfExists(storageFilePath: string): Promise<LocalStorageDiskSnapshot | null> {
+  try {
+    return normalizeLocalStorageDiskSnapshot(await parseJson5File(storageFilePath));
+  } catch (error) {
+    if (isNotFoundError(error)) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+async function localStorageFileEntryIsVisibleInContext(
+  fileEntry: LocalStorageFileEntry,
+  context: LocalStoragePersistenceContext,
+): Promise<boolean> {
+  const target = await resolveStorageFileTarget(context, fileEntry.key);
+  return target !== null && target.routePath === fileEntry.routePath;
+}
+
+function sortedLocalStorageFileEntries(files: LocalStorageFileEntry[]): LocalStorageFileEntry[] {
+  return [...files].sort((left, right) => (
+    left.routePath.localeCompare(right.routePath) || left.key.localeCompare(right.key)
+  ));
+}
+
+function assertAllowedControlRequest(request: Request | undefined, controlToken: string | undefined): void {
+  if (request === undefined) {
+    if (controlToken !== undefined) {
+      throw new Error("Control token is required.");
+    }
+    return;
+  }
+
+  const url = new URL(request.url);
+  if (controlToken !== undefined) {
+    const headerToken = request.headers.get("X-Web-App-Control-Token");
+    const queryToken = url.searchParams.get("token");
+    if (headerToken !== controlToken && queryToken !== controlToken) {
+      throw new Error("Control token is invalid.");
+    }
+  }
+
+  const origin = request.headers.get("Origin");
+  if (origin !== null && origin !== url.origin) {
+    throw new Error("Control requests must be same-origin.");
+  }
+
+  const fetchSite = request.headers.get("Sec-Fetch-Site")?.toLowerCase();
+  if (fetchSite === "cross-site") {
+    throw new Error("Cross-site control requests are not accepted.");
+  }
+}
+
 function pagePathForPersistenceRequest(request: Request | undefined): string {
   if (request === undefined) {
     return "/";
@@ -1942,6 +2154,48 @@ function pagePathForPersistenceRequest(request: Request | undefined): string {
   } catch {
     return "/";
   }
+}
+
+function storageRouteBasePathFromHTTPRoute(routeBasePath: string): string {
+  try {
+    const decoded = decodeURIComponent(routeBasePath);
+    return directoryStorageRouteBasePath(decoded);
+  } catch {
+    return "/";
+  }
+}
+
+function storageRoutePathFor(rootPath: string, filePath: string): string {
+  const rel = relative(rootPath, filePath);
+  if (rel === "") {
+    return "/";
+  }
+  return storageRoutePathForSegments(rel.split(sep).filter(Boolean));
+}
+
+function directoryStorageRouteBasePath(routePath: string): string {
+  const normalized = normalizeStorageRoutePath(routePath);
+  return normalized === "/" ? "/" : `${normalized}/`;
+}
+
+function normalizeStorageRoutePath(routePath: string): string {
+  let normalized = routePath.startsWith("/") ? routePath : `/${routePath}`;
+  while (normalized.length > 1 && normalized.endsWith("/")) {
+    normalized = normalized.slice(0, -1);
+  }
+  return normalized;
+}
+
+function isSafeStoredRoutePath(routePath: string): boolean {
+  if (!routePath.startsWith("/") || routePath.startsWith("//")) {
+    return false;
+  }
+  const relativeRoutePath = routePath.slice(1);
+  if (relativeRoutePath === "") {
+    return false;
+  }
+  const segments = relativeRoutePath.split("/");
+  return segments.every(isFileStoragePathSegment) && hasFileNameWithExtension(segments.at(-1));
 }
 
 function isNotFoundError(error: unknown): boolean {
@@ -2134,7 +2388,7 @@ function injectClientScripts(html: string, options: RenderOptions): string {
     result = injectHeadScript(result, postedRequestClientScript(options.postedRequest));
   }
   if (options.localStoragePersistence) {
-    result = injectHeadScript(result, localStoragePersistenceClientScript(options.controlBasePath));
+    result = injectHeadScript(result, localStoragePersistenceClientScript(options.controlBasePath, options.controlToken));
   }
   if (options.liveReload) {
     result = injectBodyScript(result, liveReloadClientScript(options.controlBasePath));
@@ -2250,22 +2504,23 @@ function jsonForInlineScript(value: unknown): string {
     .replaceAll("\u2029", "\\u2029");
 }
 
-function localStoragePersistenceClientScript(controlBasePath = "/"): string {
+function localStoragePersistenceClientScript(controlBasePath = "/", controlToken?: string): string {
   const endpoint = routePathWithBase(controlBasePath, LOCAL_STORAGE_ROUTE);
-  const basePath = normalizeControlBasePath(controlBasePath);
   return `<script>
 (() => {
   if (window.__WEB_APP_LOCAL_STORAGE__) return;
   const endpoint = ${JSON.stringify(endpoint)};
-  const basePath = ${JSON.stringify(basePath)};
+  const controlToken = ${JSON.stringify(controlToken ?? "")};
   const pagePath = () => {
     const pathname = window.location?.pathname || "/";
-    if (basePath === "") return pathname || "/";
-    if (pathname === basePath) return "/";
-    if (pathname.startsWith(basePath + "/")) return pathname.slice(basePath.length) || "/";
-    return "/";
+    return pathname || "/";
   };
-  const endpointForPage = () => endpoint + "?page=" + encodeURIComponent(pagePath());
+  const endpointForPage = () => {
+    const params = new URLSearchParams();
+    params.set("page", pagePath());
+    if (controlToken) params.set("token", controlToken);
+    return endpoint + "?" + params.toString();
+  };
   const items = new Map();
   const reservedProperties = new Set(["clear", "getItem", "key", "length", "removeItem", "setItem"]);
   let flushTimer = 0;
@@ -2322,7 +2577,9 @@ function localStoragePersistenceClientScript(controlBasePath = "/"): string {
     }
     fetch(endpointForPage(), {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: controlToken
+        ? { "Content-Type": "application/json", "X-Web-App-Control-Token": controlToken }
+        : { "Content-Type": "application/json" },
       body,
       keepalive,
     }).catch((error) => console.warn("Web localStorage persistence failed:", error));
@@ -2357,6 +2614,7 @@ function localStoragePersistenceClientScript(controlBasePath = "/"): string {
     const request = new XMLHttpRequest();
     request.open("GET", endpointForPage(), false);
     request.setRequestHeader("Accept", "application/json");
+    if (controlToken) request.setRequestHeader("X-Web-App-Control-Token", controlToken);
     request.send(null);
     if (request.status < 200 || request.status >= 300) {
       throw new Error("Storage route returned HTTP " + request.status + ".");
@@ -2555,152 +2813,6 @@ function localStoragePersistenceClientScript(controlBasePath = "/"): string {
     } catch {}
   };
   patchStoragePrototype();
-
-  const unsupportedStorageWarningKey = "appify:web:unsupported-storage-warning-seen";
-  const warnUnsupportedStorage = (apiName) => {
-    if (getItem(unsupportedStorageWarningKey) === "1") return;
-    setItem(unsupportedStorageWarningKey, "1");
-    flush(false);
-    console.warn(
-      "Web.app does not support " + apiName + " as document storage. "
-      + "Use localStorage so Web.app can keep one disk-backed source of truth. "
-      + "This warning is shown once per .web bundle.",
-    );
-  };
-
-  const patchMethod = (prototype, methodName, apiName) => {
-    if (!prototype || typeof prototype[methodName] !== "function") return;
-    const original = prototype[methodName];
-    try {
-      Object.defineProperty(prototype, methodName, {
-        configurable: true,
-        writable: true,
-        value(...args) {
-          warnUnsupportedStorage(apiName);
-          return Reflect.apply(original, this, args);
-        },
-      });
-    } catch {}
-  };
-
-  const patchGetter = (prototype, propertyName, apiName) => {
-    if (!prototype) return;
-    const descriptor = Object.getOwnPropertyDescriptor(prototype, propertyName);
-    if (!descriptor || !descriptor.configurable || typeof descriptor.get !== "function") return;
-    try {
-      Object.defineProperty(prototype, propertyName, {
-        configurable: true,
-        enumerable: descriptor.enumerable,
-        get() {
-          warnUnsupportedStorage(apiName);
-          return descriptor.get.call(this);
-        },
-        set: typeof descriptor.set === "function"
-          ? function setUnsupportedStorageProperty(value) {
-            warnUnsupportedStorage(apiName);
-            return descriptor.set.call(this, value);
-          }
-          : undefined,
-      });
-    } catch {}
-  };
-
-  const patchCookieAccess = () => {
-    const patched = new Set();
-    let prototype = window.document ? Object.getPrototypeOf(window.document) : null;
-    while (prototype && prototype !== Object.prototype) {
-      if (!patched.has(prototype)) {
-        patchGetter(prototype, "cookie", "cookies");
-        patched.add(prototype);
-      }
-      prototype = Object.getPrototypeOf(prototype);
-    }
-    if (typeof Document === "function") patchGetter(Document.prototype, "cookie", "cookies");
-    if (typeof HTMLDocument === "function") patchGetter(HTMLDocument.prototype, "cookie", "cookies");
-    if (typeof CookieStore === "function") {
-      for (const methodName of ["delete", "get", "getAll", "set"]) {
-        patchMethod(CookieStore.prototype, methodName, "cookies");
-      }
-    }
-  };
-
-  const patchUnsupportedStorageWarnings = () => {
-    let nativeSessionStorage = null;
-    try {
-      nativeSessionStorage = window.sessionStorage;
-    } catch {}
-    patchGetter(window.Window?.prototype, "sessionStorage", "sessionStorage");
-    if (typeof Storage === "function" && Storage.prototype) {
-      for (const methodName of ["clear", "getItem", "key", "removeItem", "setItem"]) {
-        const original = Storage.prototype[methodName];
-        if (typeof original !== "function") continue;
-        try {
-          Object.defineProperty(Storage.prototype, methodName, {
-            configurable: true,
-            writable: true,
-            value(...args) {
-              if (nativeSessionStorage !== null && this === nativeSessionStorage) {
-                warnUnsupportedStorage("sessionStorage");
-              }
-              return Reflect.apply(original, this, args);
-            },
-          });
-        } catch {}
-      }
-    }
-
-    if (typeof IDBFactory === "function") {
-      for (const methodName of ["cmp", "databases", "deleteDatabase", "open"]) {
-        patchMethod(IDBFactory.prototype, methodName, "IndexedDB");
-      }
-    }
-    if (typeof IDBDatabase === "function") {
-      for (const methodName of ["createObjectStore", "deleteObjectStore", "transaction"]) {
-        patchMethod(IDBDatabase.prototype, methodName, "IndexedDB");
-      }
-    }
-    if (typeof IDBObjectStore === "function") {
-      for (const methodName of ["add", "clear", "delete", "put"]) {
-        patchMethod(IDBObjectStore.prototype, methodName, "IndexedDB");
-      }
-    }
-
-    if (typeof CacheStorage === "function") {
-      for (const methodName of ["delete", "has", "keys", "match", "open"]) {
-        patchMethod(CacheStorage.prototype, methodName, "CacheStorage");
-      }
-    }
-    if (typeof Cache === "function") {
-      for (const methodName of ["add", "addAll", "delete", "keys", "match", "matchAll", "put"]) {
-        patchMethod(Cache.prototype, methodName, "CacheStorage");
-      }
-    }
-
-    patchCookieAccess();
-
-    patchGetter(window.Navigator?.prototype, "serviceWorker", "service worker storage");
-    if (typeof ServiceWorkerContainer === "function") {
-      for (const methodName of ["getRegistration", "getRegistrations", "register"]) {
-        patchMethod(ServiceWorkerContainer.prototype, methodName, "service worker storage");
-      }
-    }
-
-    patchGetter(window.Navigator?.prototype, "storage", "OPFS");
-    if (typeof StorageManager === "function") {
-      patchMethod(StorageManager.prototype, "getDirectory", "OPFS");
-    }
-    if (typeof FileSystemDirectoryHandle === "function") {
-      for (const methodName of ["getDirectoryHandle", "getFileHandle", "removeEntry", "resolve"]) {
-        patchMethod(FileSystemDirectoryHandle.prototype, methodName, "OPFS");
-      }
-    }
-    if (typeof FileSystemFileHandle === "function") {
-      for (const methodName of ["createSyncAccessHandle", "createWritable", "getFile"]) {
-        patchMethod(FileSystemFileHandle.prototype, methodName, "OPFS");
-      }
-    }
-  };
-  patchUnsupportedStorageWarnings();
 
   window.__WEB_APP_LOCAL_STORAGE__ = true;
   window.addEventListener("pagehide", () => flush(true));

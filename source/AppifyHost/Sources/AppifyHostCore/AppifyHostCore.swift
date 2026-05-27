@@ -908,7 +908,7 @@ public enum AppifyHostOpenURL {
 
     private static func validateLoopbackHTTPURL(_ url: URL) throws {
         guard let host = url.host(percentEncoded: false)?.lowercased(),
-              ["localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1"].contains(host)
+              isLocalhostHost(host)
         else {
             throw AppifyHostError.invalidOpenURL("HTTP(S) URLs must point at localhost or loopback.")
         }
@@ -930,6 +930,14 @@ public enum AppifyHostOpenURL {
         return scheme == readyURL.scheme?.lowercased()
             && url.host(percentEncoded: false)?.lowercased() == readyURL.host(percentEncoded: false)?.lowercased()
             && url.port == readyURL.port
+    }
+
+    private static func isLocalhostHost(_ host: String) -> Bool {
+        host == "localhost"
+            || host.hasSuffix(".localhost")
+            || host == "127.0.0.1"
+            || host == "::1"
+            || host == "0:0:0:0:0:0:0:1"
     }
 
     private static func validateLocalFileURL(_ url: URL, documentURL: URL, bundleURL: URL) throws -> URL {

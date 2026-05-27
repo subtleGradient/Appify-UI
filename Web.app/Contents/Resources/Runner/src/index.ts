@@ -12,9 +12,11 @@ import {
   readFileResponse,
   renderMarkdownResponse,
   createPostedRequestPayload,
+  defaultStableWebSpacePort,
   resolveDocumentPath,
-  resolveLocalStorageFilePath,
+  resolveWebSpaceLocalStorageFilePath,
   resolveServerPort,
+  stableWebSpaceURL,
   resolveUnsupportedLegacyDynamicRequestPath,
   resolveWebSpace,
   resolveWebSpaceRequestPath,
@@ -26,19 +28,21 @@ const documentPath = resolveDocumentPath(process.argv[2] || process.env.APPIFY_H
 const webspace = await resolveWebSpace(documentPath);
 const hmrEnabled = process.env.WEB_APP_HMR !== "0";
 const reloader = createReloadBroadcaster();
-const localStorageFilePath = await resolveLocalStorageFilePath(documentPath);
+const controlToken = crypto.randomUUID();
+const localStorageFilePath = resolveWebSpaceLocalStorageFilePath(webspace);
 const htmlPages = await scanHtmlPages(webspace.activeRootPath);
 const rootEntry = await findRootEntry(webspace.activeRootPath, htmlPages);
 const routes = {
-  ...createLocalStoragePersistenceRoutes(localStorageFilePath, webspace.activeRootPath, webspace.activeBasePath),
+  ...createLocalStoragePersistenceRoutes(localStorageFilePath, webspace, "/", controlToken),
   ...(await buildHtmlRoutes(webspace.activeRootPath, htmlPages, rootEntry, hmrEnabled, {
     localStoragePersistence: true,
-    controlBasePath: webspace.activeBasePath,
+    controlBasePath: "/",
+    controlToken,
     routeBasePath: webspace.activeBasePath,
   })),
 };
-const liveReloadPath = new URL("_web/live-reload", `http://web.local${webspace.activeBasePath}`).pathname;
-const liveReloadVersionPath = new URL("_web/live-reload-version", `http://web.local${webspace.activeBasePath}`).pathname;
+const liveReloadPath = "/_web/live-reload";
+const liveReloadVersionPath = "/_web/live-reload-version";
 
 if (hmrEnabled) {
   try {
@@ -61,7 +65,7 @@ if (hmrEnabled) {
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
-  port: await resolveServerPort(),
+  port: await resolveServerPort(process.env.PORT ?? String(defaultStableWebSpacePort())),
   idleTimeout: 0,
   routes,
   development: hmrEnabled && {
@@ -103,14 +107,15 @@ const server = Bun.serve({
       const isActivePath = isPathInside(webspace.activeRootPath, resolvedPath.path);
       return await createDirectoryListingResponse(webSpaceRouteRootPath(webspace, url.pathname), resolvedPath.path, url.pathname, {
         liveReload: hmrEnabled && isActivePath,
-        localStoragePersistence: isActivePath,
-        controlBasePath: webspace.activeBasePath,
+        localStoragePersistence: true,
+        controlBasePath: "/",
+        controlToken,
       });
     }
 
     const isActivePath = isPathInside(webspace.activeRootPath, resolvedPath.path);
     if (method === "POST") {
-      if (!isActivePath || !isHtmlFile(resolvedPath.path)) {
+      if (!isHtmlFile(resolvedPath.path)) {
         return methodNotAllowedResponse("GET, HEAD");
       }
 
@@ -118,7 +123,8 @@ const server = Bun.serve({
         return await readFileResponse(resolvedPath.path, {
           liveReload: hmrEnabled && isHtmlFile(resolvedPath.path),
           localStoragePersistence: true,
-          controlBasePath: webspace.activeBasePath,
+          controlBasePath: "/",
+          controlToken,
           postedRequest: await createPostedRequestPayload(request),
         });
       } catch (error) {
@@ -133,22 +139,24 @@ const server = Bun.serve({
     if (isMarkdownFile(resolvedPath.path)) {
       return await renderMarkdownResponse(resolvedPath.path, {
         liveReload: hmrEnabled && isActivePath,
-        localStoragePersistence: isActivePath,
-        controlBasePath: webspace.activeBasePath,
+        localStoragePersistence: true,
+        controlBasePath: "/",
+        controlToken,
         title: basename(resolvedPath.path),
       });
     }
 
     return await readFileResponse(resolvedPath.path, {
       liveReload: hmrEnabled && isActivePath && isHtmlFile(resolvedPath.path),
-      localStoragePersistence: isActivePath,
-      controlBasePath: webspace.activeBasePath,
+      localStoragePersistence: isHtmlFile(resolvedPath.path),
+      controlBasePath: "/",
+      controlToken,
     });
   },
 });
 
 console.log(`Web serving ${resolve(webspace.activeRootPath)} from ${resolve(webspace.webspaceRootPath)} (${webspace.webspaceKind})`);
-console.log(`APPIFY_HOST_OPEN_URL=${new URL(webspace.activeBasePath, server.url)}`);
+console.log(`APPIFY_HOST_OPEN_URL=${stableWebSpaceURL(webspace, server.port)}`);
 
 function isPathInside(rootPath: string, candidatePath: string): boolean {
   const relativePath = candidatePath === rootPath ? "" : candidatePath.slice(rootPath.length);
