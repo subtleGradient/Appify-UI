@@ -24,10 +24,12 @@ import {
   resolveWebSpace,
   resolveWebSpaceRequestPath,
   scanHtmlPages,
+  webFileSchemaURLForBuildCommit,
   writeLocalStorageSnapshot,
 } from "../src/webPackage";
 
 let root: string;
+const testBuildCommit = "0123456789abcdef0123456789abcdef01234567";
 
 beforeEach(async () => {
   root = join(import.meta.dir, `.web-test-${crypto.randomUUID()}.web`);
@@ -60,6 +62,148 @@ describe("web package resolution", () => {
   test("resolves non-empty .web packages to their own contents", async () => {
     await writeFile(join(root, "index.html"), "<h1>Home</h1>");
     expect(await resolveServeRoot(root)).toBe(root);
+  });
+
+  test("upgrades empty .web files inside git repos to local JSON5 manifests", async () => {
+    const project = join(root, "project");
+    const apps = join(project, "apps");
+    const site = join(apps, "Dashboard.web");
+    await mkdir(join(project, ".git"), { recursive: true });
+    await mkdir(apps, { recursive: true });
+    await writeFile(site, "");
+
+    const webspace = await resolveWebSpace(site, { buildCommit: testBuildCommit });
+    const manifest = await readFile(site, "utf8");
+
+    expect(manifest).toContain(`"$schema": "${webFileSchemaURLForBuildCommit(testBuildCommit)}"`);
+    expect(manifest).toContain('root: "@/apps"');
+    expect(webspace.activeRootPath).toBe(apps);
+    expect(webspace.webspaceRootPath).toBe(project);
+    expect(webspace.activeBasePath).toBe("/apps/");
+  });
+
+  test("upgrades empty .web files outside git repos to relative local JSON5 manifests", async () => {
+    const standaloneRoot = join("/private/tmp", `web-file-${crypto.randomUUID()}`);
+    try {
+      const site = join(standaloneRoot, "Site.web");
+      await mkdir(standaloneRoot, { recursive: true });
+      await writeFile(site, "");
+
+      const webspace = await resolveWebSpace(site, { buildCommit: testBuildCommit });
+      const manifest = await readFile(site, "utf8");
+
+      expect(manifest).toContain('root: "./"');
+      expect(webspace.activeRootPath).toBe(standaloneRoot);
+      expect(webspace.webspaceKind).toBe("sibling");
+      expect(webspace.activeBasePath).toBe("/");
+    } finally {
+      await rm(standaloneRoot, { recursive: true, force: true });
+    }
+  });
+
+  test("upgrades empty .web bundle folders from the Untitled template", async () => {
+    const webspace = await resolveWebSpace(root, { buildCommit: testBuildCommit });
+
+    expect(existsSync(join(root, "index.html"))).toBe(true);
+    expect(await readFile(join(root, "index.html"), "utf8")).toContain("Untitled Web");
+    expect(webspace.activeRootPath).toBe(root);
+  });
+
+  test("requires non-empty .web files to be valid manifests", async () => {
+    await rm(root, { recursive: true, force: true });
+    await writeFile(root, "{ web: 1, source: { kind: 'local', root: './' } }");
+    await expect(resolveWebSpace(root, { buildCommit: testBuildCommit })).rejects.toThrow("$schema");
+
+    await writeFile(root, `{
+  "$schema": "${webFileSchemaURLForBuildCommit(testBuildCommit)}",
+  web: 1,
+  source: {
+    kind: "git",
+    provider: "github",
+    repo: "owner/repo",
+    commit: "main",
+    path: "packages/ui.web",
+  },
+}`);
+    await expect(resolveWebSpace(root, { buildCommit: testBuildCommit })).rejects.toThrow("full 40-character SHA");
+
+    await writeFile(root, `{
+  "$schema": "${webFileSchemaURLForBuildCommit(testBuildCommit)}",
+  web: 1,
+  source: {
+    kind: "git",
+    provider: "github",
+    repo: "../repo",
+    commit: "0123456789abcdef0123456789abcdef01234567",
+    path: "packages/ui.web",
+  },
+}`);
+    await expect(resolveWebSpace(root, { buildCommit: testBuildCommit })).rejects.toThrow("owner/repo");
+  });
+
+  test("mounts local .web manifest files at their document route", async () => {
+    const project = join(root, "project");
+    const app = join(project, "apps", "dashboard.web");
+    const kitSource = join(project, "src", "ui-kit");
+    const kitManifest = join(project, "packages", "ui-kit.web");
+    await mkdir(join(project, ".git"), { recursive: true });
+    await mkdir(app, { recursive: true });
+    await mkdir(kitSource, { recursive: true });
+    await mkdir(dirname(kitManifest), { recursive: true });
+    await writeFile(join(app, "index.html"), "<h1>Dashboard</h1>");
+    await writeFile(join(kitSource, "button.js"), "export const name = 'button';");
+    await writeFile(kitManifest, `{
+  "$schema": "${webFileSchemaURLForBuildCommit(testBuildCommit)}",
+  web: 1,
+  source: {
+    kind: "local",
+    root: "@/src/ui-kit",
+  },
+}`);
+
+    const webspace = await resolveWebSpace(app, { buildCommit: testBuildCommit });
+    expect(await resolveWebSpaceRequestPath(webspace, "/packages/ui-kit.web/button.js")).toEqual({
+      kind: "file",
+      path: join(kitSource, "button.js"),
+    });
+  });
+
+  test("mounts prepared git .web manifest files at their document route", async () => {
+    const project = join(root, "project");
+    const manifestPath = join(project, "packages", "remote.web");
+    const cacheRoot = join("/private/tmp", `web-remote-cache-${crypto.randomUUID()}`);
+    const cachedBundle = join(cacheRoot, "github", "owner", "repo", testBuildCommit, "packages", "remote.web");
+    try {
+      await mkdir(join(project, ".git"), { recursive: true });
+      await mkdir(dirname(manifestPath), { recursive: true });
+      await mkdir(cachedBundle, { recursive: true });
+      await writeFile(join(cacheRoot, "github", "owner", "repo", testBuildCommit, ".web-ready"), "ready\n");
+      await writeFile(join(cachedBundle, "index.html"), "<h1>Remote</h1>");
+      await writeFile(manifestPath, `{
+  "$schema": "${webFileSchemaURLForBuildCommit(testBuildCommit)}",
+  web: 1,
+  source: {
+    kind: "git",
+    provider: "github",
+    repo: "owner/repo",
+    commit: "${testBuildCommit}",
+    path: "packages/remote.web",
+  },
+}`);
+
+      const webspace = await resolveWebSpace(manifestPath, {
+        buildCommit: testBuildCommit,
+        remoteCacheRootPath: cacheRoot,
+      });
+      expect(webspace.activeRootPath).toBe(cachedBundle);
+      expect(webspace.activeBasePath).toBe("/packages/remote.web/");
+      expect(await resolveWebSpaceRequestPath(webspace, "/packages/remote.web/index.html")).toEqual({
+        kind: "file",
+        path: join(cachedBundle, "index.html"),
+      });
+    } finally {
+      await rm(cacheRoot, { recursive: true, force: true });
+    }
   });
 
   test("uses git roots for URL geometry while serving only .web package contents", async () => {

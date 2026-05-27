@@ -43,6 +43,7 @@
           <li>Use native web imports, CSS links, anchors, and <code>fetch()</code> between packages. Do not invent a custom URL scheme for module loading.</li>
           <li>If the opened package is inside a normal git repo, use the nearest non-home, non-root git worktree root as URL geometry.</li>
           <li>If there is no normal git root, use the opened package's parent directory so sibling <code>.web</code> packages can compose.</li>
+          <li>A <code>.web</code> may be either a directory bundle or a JSON5 file manifest. Empty files and empty folders are valid creation affordances, but Web upgrades them on first open.</li>
           <li>Only contents inside <code>.web</code> packages are readable through the local webspace. Random repo files are not web-addressable.</li>
         </ul>
       </section>
@@ -77,10 +78,21 @@
         </ul>
       </section>
 
+      <section aria-labelledby="manifests">
+        <h2 id="manifests">File Manifests</h2>
+        <ul>
+          <li><code>touch Site.web</code> becomes a JSON5 file manifest with a build-pinned <code>$schema</code>.</li>
+          <li><code>mkdir Site.web</code> becomes a starter static bundle by copying Web's bundled <code>Untitled.web</code> template.</li>
+          <li><code>@/</code> in a manifest means the nearest real git root; without git, generated manifests use <code>./</code>.</li>
+          <li>Commit-pinned GitHub sources can mount a repo subpath at the manifest's normal <code>.web</code> URL route without submodules or a CDN dependency.</li>
+        </ul>
+      </section>
+
       <section aria-labelledby="golf">
         <h2 id="golf">Golf</h2>
         <ul>
           <li>Low badness: this follows normal static web deployment and avoids CORS, registries, custom fetch schemes, and build steps.</li>
+          <li>Manifest files are only for places where convention cannot carry the source location: blank file upgrades, local aliases, and commit-pinned remote repo subpaths.</li>
           <li>The git-root rule is URL geometry only. The opt-in safety boundary is still the <code>.web</code> package.</li>
           <li>Ignoring <code>~/.git</code> and <code>/.git</code> avoids accidental whole-home or whole-disk webspaces without adding a policy framework.</li>
         </ul>

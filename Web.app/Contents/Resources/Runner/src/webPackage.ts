@@ -1,9 +1,9 @@
 import { existsSync } from "node:fs";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 export type ResolvedRequestPath =
   | { kind: "directory"; path: string }
@@ -54,6 +54,48 @@ export type WebSpace = {
   webspaceRootPath: string;
   activeBasePath: string;
   webspaceKind: "git" | "sibling";
+  mounts: WebSpaceMount[];
+};
+
+export type WebSpaceMount = {
+  routeBasePath: string;
+  rootPath: string;
+  sourcePath: string;
+  kind: "local" | "git";
+};
+
+export type ResolveWebSpaceOptions = {
+  buildCommit?: string;
+  remoteCacheRootPath?: string;
+  templateRootPath?: string;
+};
+
+type PreparedWebDocument = {
+  documentPath: string;
+  activeRootPath: string;
+  webspaceRootPath: string;
+  activeBasePath: string;
+  webspaceKind: "git" | "sibling";
+  mounts: WebSpaceMount[];
+};
+
+type WebFileManifest = {
+  $schema: string;
+  web: 1;
+  source: LocalWebFileSource | GitWebFileSource;
+};
+
+type LocalWebFileSource = {
+  kind: "local";
+  root: string;
+};
+
+type GitWebFileSource = {
+  kind: "git";
+  provider: "github";
+  repo: string;
+  commit: string;
+  path: string;
 };
 
 type LocalStorageDiskSnapshot = {
@@ -130,6 +172,10 @@ const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
 const STORAGE_FILE_NAME = "storage.json";
+const WEB_FILE_SCHEMA_PATH = "schema/web-file.schema.json";
+const WEB_FILE_SCHEMA_REPOSITORY = "subtleGradient/Appify-UI";
+const RUNNER_ROOT_PATH = dirname(dirname(fileURLToPath(import.meta.url)));
+const DEFAULT_TEMPLATE_ROOT_PATH = join(RUNNER_ROOT_PATH, "templates", "Untitled.web");
 const LEGACY_DYNAMIC_EXTENSIONS = new Set([".asp", ".aspx", ".cgi", ".jsp", ".php", ".pl"]);
 const MAX_POST_BODY_BYTES = 1024 * 1024;
 const MAX_POST_FIELD_BYTES = 64 * 1024;
@@ -217,18 +263,99 @@ export async function resolveServeRoot(documentPath: string): Promise<string> {
   throw new Error(`${documentPath} must be a .web file or directory.`);
 }
 
-export async function resolveWebSpace(documentPath: string): Promise<WebSpace> {
-  const activeRootPath = await resolveServeRoot(documentPath);
+export async function resolveWebSpace(
+  documentPath: string,
+  options: ResolveWebSpaceOptions = {},
+): Promise<WebSpace> {
+  const preparedDocument = await prepareWebDocument(documentPath, options);
+  const peerMounts = await discoverWebFileMounts(preparedDocument.webspaceRootPath, preparedDocument, options);
+  const mounts = dedupeWebSpaceMounts([...preparedDocument.mounts, ...peerMounts]);
+
+  return {
+    ...preparedDocument,
+    mounts,
+  };
+}
+
+async function prepareWebDocument(
+  documentPath: string,
+  options: ResolveWebSpaceOptions,
+): Promise<PreparedWebDocument> {
+  const stat = await lstat(documentPath);
+  if (stat.isDirectory()) {
+    if (await isEmptyDirectory(documentPath)) {
+      await installUntitledWebTemplate(documentPath, options.templateRootPath ?? DEFAULT_TEMPLATE_ROOT_PATH);
+    }
+    const activeRootPath = await resolveServeRoot(documentPath);
+    return preparedLocalRootDocument(documentPath, activeRootPath);
+  }
+
+  if (!stat.isFile()) {
+    throw new Error(`${documentPath} must be a .web file or directory.`);
+  }
+
+  if (stat.size === 0) {
+    await upgradeEmptyWebFile(documentPath, options);
+  }
+
+  const manifest = await readWebFileManifest(documentPath, options);
+  return await preparedManifestDocument(documentPath, manifest, options);
+}
+
+async function preparedLocalRootDocument(
+  documentPath: string,
+  activeRootPath: string,
+): Promise<PreparedWebDocument> {
   const gitRoot = await nearestProjectGitRoot(activeRootPath);
   const webspaceRootPath = gitRoot ?? fallbackWebspaceRoot(documentPath, activeRootPath);
-  const activeBasePath = directoryRoutePath(webspaceRootPath, activeRootPath);
-
   return {
     documentPath,
     activeRootPath,
     webspaceRootPath,
-    activeBasePath,
+    activeBasePath: directoryRoutePath(webspaceRootPath, activeRootPath),
     webspaceKind: gitRoot === null ? "sibling" : "git",
+    mounts: [],
+  };
+}
+
+async function preparedManifestDocument(
+  documentPath: string,
+  manifest: WebFileManifest,
+  options: ResolveWebSpaceOptions,
+): Promise<PreparedWebDocument> {
+  const documentDirectory = dirname(documentPath);
+  const locationGitRoot = await nearestProjectGitRoot(documentDirectory);
+  const localWebspaceRoot = locationGitRoot ?? documentDirectory;
+  const localWebspaceKind = locationGitRoot === null ? "sibling" : "git";
+
+  if (manifest.source.kind === "local") {
+    const activeRootPath = await resolveLocalManifestRoot(documentPath, manifest.source);
+    const activeGitRoot = await nearestProjectGitRoot(activeRootPath);
+    const webspaceRootPath = activeGitRoot ?? localWebspaceRoot;
+    return {
+      documentPath,
+      activeRootPath,
+      webspaceRootPath,
+      activeBasePath: directoryRoutePath(webspaceRootPath, activeRootPath),
+      webspaceKind: activeGitRoot === null ? localWebspaceKind : "git",
+      mounts: [webFileMountForManifest(webspaceRootPath, documentPath, activeRootPath, "local")],
+    };
+  }
+
+  const activeRootPath = await materializeGitWebSource(manifest.source, options);
+  const activeBasePath = directoryRouteBasePath(routePathFor(localWebspaceRoot, documentPath));
+  return {
+    documentPath,
+    activeRootPath,
+    webspaceRootPath: localWebspaceRoot,
+    activeBasePath,
+    webspaceKind: localWebspaceKind,
+    mounts: [{
+      routeBasePath: activeBasePath,
+      rootPath: activeRootPath,
+      sourcePath: documentPath,
+      kind: "git",
+    }],
   };
 }
 
@@ -258,6 +385,461 @@ function fallbackWebspaceRoot(documentPath: string, activeRootPath: string): str
     return dirname(activeRootPath);
   }
   return activeRootPath;
+}
+
+async function upgradeEmptyWebFile(documentPath: string, options: ResolveWebSpaceOptions): Promise<void> {
+  const buildCommit = await resolveWebBuildCommit(options);
+  const root = await defaultLocalManifestRoot(documentPath);
+  const manifest = `{
+  "$schema": ${JSON.stringify(webFileSchemaURL(buildCommit))},
+  web: 1,
+  source: {
+    kind: "local",
+    root: ${JSON.stringify(root)},
+  },
+}
+`;
+  const tempPath = `${documentPath}.${crypto.randomUUID()}.tmp`;
+  try {
+    await writeFile(tempPath, manifest, { flag: "wx" });
+    await rename(tempPath, documentPath);
+  } catch (error) {
+    await rm(tempPath, { force: true });
+    throw error;
+  }
+}
+
+async function defaultLocalManifestRoot(documentPath: string): Promise<string> {
+  const documentDirectory = dirname(documentPath);
+  const gitRoot = await nearestProjectGitRoot(documentDirectory);
+  if (gitRoot === null) {
+    return "./";
+  }
+
+  const rel = relative(gitRoot, documentDirectory).split(sep).filter(Boolean).join("/");
+  return rel === "" ? "@/" : `@/${rel}`;
+}
+
+async function installUntitledWebTemplate(documentPath: string, templateRootPath: string): Promise<void> {
+  if (!await pathExists(templateRootPath)) {
+    throw new Error(`Web starter template is missing: ${templateRootPath}`);
+  }
+  if (!await isEmptyDirectory(documentPath)) {
+    throw new Error(`${documentPath} is no longer empty.`);
+  }
+
+  await copyTemplateDirectory(templateRootPath, documentPath);
+}
+
+async function copyTemplateDirectory(sourcePath: string, targetPath: string): Promise<void> {
+  const entries = await readdir(sourcePath, { withFileTypes: true });
+  for (const entry of entries) {
+    const sourceEntryPath = join(sourcePath, entry.name);
+    const targetEntryPath = join(targetPath, entry.name);
+    if (entry.isSymbolicLink()) {
+      throw new Error(`Web starter template must not contain symlinks: ${sourceEntryPath}`);
+    }
+    if (entry.isDirectory()) {
+      await mkdir(targetEntryPath, { recursive: false });
+      await copyTemplateDirectory(sourceEntryPath, targetEntryPath);
+      continue;
+    }
+    if (entry.isFile()) {
+      await writeFile(targetEntryPath, await readFile(sourceEntryPath), { flag: "wx" });
+      continue;
+    }
+    throw new Error(`Web starter template contains unsupported entry: ${sourceEntryPath}`);
+  }
+}
+
+async function readWebFileManifest(
+  manifestPath: string,
+  options: ResolveWebSpaceOptions,
+): Promise<WebFileManifest> {
+  const value = await parseJson5File(manifestPath);
+  return await normalizeWebFileManifest(value, options);
+}
+
+async function parseJson5File(filePath: string): Promise<unknown> {
+  const tempRoot = join(tmpdir(), `web-manifest-${crypto.randomUUID()}`);
+  const tempPath = join(tempRoot, "manifest.json5");
+  await mkdir(tempRoot, { recursive: true });
+  try {
+    await writeFile(tempPath, await readFile(filePath, "utf8"));
+    const module = await import(`${pathToFileURL(tempPath).href}?v=${crypto.randomUUID()}`);
+    return module.default;
+  } finally {
+    await rm(tempRoot, { recursive: true, force: true });
+  }
+}
+
+async function normalizeWebFileManifest(
+  value: unknown,
+  options: ResolveWebSpaceOptions,
+): Promise<WebFileManifest> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(".web manifest must be an object.");
+  }
+  const manifest = value as { $schema?: unknown; web?: unknown; source?: unknown };
+  const buildCommit = await resolveWebBuildCommit(options);
+  const expectedSchemaURL = webFileSchemaURL(buildCommit);
+  if (manifest.$schema !== expectedSchemaURL) {
+    throw new Error(`.web manifest $schema must be ${expectedSchemaURL}.`);
+  }
+  if (manifest.web !== 1) {
+    throw new Error(".web manifest web must be 1.");
+  }
+  return {
+    $schema: manifest.$schema,
+    web: 1,
+    source: normalizeWebFileSource(manifest.source),
+  };
+}
+
+function normalizeWebFileSource(value: unknown): LocalWebFileSource | GitWebFileSource {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    throw new Error(".web manifest source must be an object.");
+  }
+  const source = value as {
+    kind?: unknown;
+    root?: unknown;
+    provider?: unknown;
+    repo?: unknown;
+    commit?: unknown;
+    path?: unknown;
+  };
+
+  if (source.kind === "local") {
+    if (typeof source.root !== "string" || !isSafeLocalManifestRoot(source.root)) {
+      throw new Error('.web local source root must start with "@/"; or "./".');
+    }
+    return { kind: "local", root: source.root };
+  }
+
+  if (source.kind === "git") {
+    if (source.provider !== "github") {
+      throw new Error('.web git source provider must be "github".');
+    }
+    if (typeof source.repo !== "string" || !isSafeGitHubRepoSlug(source.repo)) {
+      throw new Error(".web git source repo must be an owner/repo slug.");
+    }
+    if (typeof source.commit !== "string" || !isFullGitCommit(source.commit)) {
+      throw new Error(".web git source commit must be a full 40-character SHA.");
+    }
+    if (typeof source.path !== "string" || !isSafeGitSourcePath(source.path)) {
+      throw new Error(".web git source path must be a safe repository-relative path.");
+    }
+    return {
+      kind: "git",
+      provider: "github",
+      repo: source.repo,
+      commit: source.commit.toLowerCase(),
+      path: source.path,
+    };
+  }
+
+  throw new Error('.web manifest source kind must be "local" or "git".');
+}
+
+function isSafeLocalManifestRoot(value: string): boolean {
+  if (value.includes("\0") || value.includes("\\") || value.includes("//")) {
+    return false;
+  }
+  if (value === "@/" || value.startsWith("@/")) {
+    return safeManifestPathSegments(value.slice(2));
+  }
+  if (value === "./" || value.startsWith("./")) {
+    return safeManifestPathSegments(value.slice(2));
+  }
+  return false;
+}
+
+function isSafeGitSourcePath(value: string): boolean {
+  if (value === ".") {
+    return true;
+  }
+  if (value.length === 0 || value.startsWith("/") || value.includes("\0") || value.includes("\\") || value.includes("//")) {
+    return false;
+  }
+  return safeManifestPathSegments(value);
+}
+
+function isSafeGitHubRepoSlug(value: string): boolean {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(value)) {
+    return false;
+  }
+  return value.split("/").every((part) => (
+    part.length > 0
+    && part !== "."
+    && part !== ".."
+    && !part.startsWith(".")
+  ));
+}
+
+function safeManifestPathSegments(value: string): boolean {
+  if (value === "") {
+    return true;
+  }
+  return value.split("/").every((segment) => (
+    segment.length > 0
+    && segment !== "."
+    && segment !== ".."
+    && !SKIPPED_DIRECTORIES.has(segment)
+  ));
+}
+
+async function resolveLocalManifestRoot(manifestPath: string, source: LocalWebFileSource): Promise<string> {
+  const documentDirectory = dirname(manifestPath);
+  const gitRoot = await nearestProjectGitRoot(documentDirectory);
+  const anchor = source.root.startsWith("@/") ? gitRoot : documentDirectory;
+  if (anchor === null) {
+    throw new Error('.web local source root uses "@/" but no project git root was found.');
+  }
+
+  const suffix = source.root.slice(2);
+  const activeRootPath = suffix === "" ? anchor : resolve(anchor, ...suffix.split("/"));
+  if (!isInsideRoot(anchor, activeRootPath)) {
+    throw new Error(".web local source root must stay inside its anchor.");
+  }
+  if (!await pathExists(activeRootPath) || !await assertNoSymlinkAlongPath(anchor, activeRootPath)) {
+    throw new Error(`.web local source root does not exist or is unsafe: ${source.root}`);
+  }
+  const stat = await lstat(activeRootPath);
+  if (!stat.isDirectory()) {
+    throw new Error(`.web local source root must be a directory: ${source.root}`);
+  }
+  return activeRootPath;
+}
+
+async function materializeGitWebSource(
+  source: GitWebFileSource,
+  options: ResolveWebSpaceOptions,
+): Promise<string> {
+  const checkoutRoot = join(remoteWebCacheRoot(options), "github", ...source.repo.split("/"), source.commit);
+  const readyPath = join(checkoutRoot, ".web-ready");
+  const sourceRoot = source.path === "." ? checkoutRoot : join(checkoutRoot, ...source.path.split("/"));
+  if (await pathExists(readyPath)) {
+    await assertMaterializedGitSource(checkoutRoot, sourceRoot, source);
+    return sourceRoot;
+  }
+
+  await mkdir(dirname(checkoutRoot), { recursive: true });
+  const tempRoot = `${checkoutRoot}.${crypto.randomUUID()}.tmp`;
+  await rm(tempRoot, { recursive: true, force: true });
+  await mkdir(tempRoot, { recursive: true });
+  try {
+    await runGit(["init"], tempRoot);
+    await runGit(["remote", "add", "origin", `https://github.com/${source.repo}.git`], tempRoot);
+    await runGit(["fetch", "--depth=1", "origin", source.commit], tempRoot);
+    await runGit(["checkout", "--detach", "FETCH_HEAD"], tempRoot);
+    const tempSourceRoot = source.path === "." ? tempRoot : join(tempRoot, ...source.path.split("/"));
+    await assertMaterializedGitSource(tempRoot, tempSourceRoot, source);
+    await writeFile(join(tempRoot, ".web-ready"), `${source.repo}\n${source.commit}\n${source.path}\n`);
+    await rm(checkoutRoot, { recursive: true, force: true });
+    await rename(tempRoot, checkoutRoot);
+  } catch (error) {
+    await rm(tempRoot, { recursive: true, force: true });
+    throw error;
+  }
+
+  return sourceRoot;
+}
+
+async function assertMaterializedGitSource(
+  checkoutRoot: string,
+  sourceRoot: string,
+  source: GitWebFileSource,
+): Promise<void> {
+  const checkoutStat = await lstat(checkoutRoot);
+  if (!checkoutStat.isDirectory() || checkoutStat.isSymbolicLink()) {
+    throw new Error(".web git source cache root must be a real directory.");
+  }
+  const stat = await lstat(sourceRoot).catch((error) => {
+    if (isNotFoundError(error)) {
+      throw new Error(`.web git source path does not exist in ${source.repo}@${source.commit}: ${source.path}`);
+    }
+    throw error;
+  });
+  if (!stat.isDirectory()) {
+    throw new Error(`.web git source path must be a directory: ${source.path}`);
+  }
+  if (!await assertNoSymlinkAlongPath(checkoutRoot, sourceRoot)) {
+    throw new Error(`.web git source path must not traverse symlinks: ${source.path}`);
+  }
+}
+
+function remoteWebCacheRoot(options: ResolveWebSpaceOptions): string {
+  return options.remoteCacheRootPath
+    ?? process.env.WEB_APP_REMOTE_CACHE_DIR
+    ?? join(process.env.XDG_CACHE_HOME ?? join(homedir(), "Library", "Caches"), "Appify-UI", "Web", "RemoteWeb");
+}
+
+async function runGit(args: string[], cwd: string): Promise<void> {
+  const process = Bun.spawn(["git", ...args], {
+    cwd,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [exitCode, stderr] = await Promise.all([
+    process.exited,
+    new Response(process.stderr).text(),
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(`git ${args.join(" ")} failed: ${stderr.trim()}`);
+  }
+}
+
+async function resolveWebBuildCommit(options: ResolveWebSpaceOptions = {}): Promise<string> {
+  if (options.buildCommit !== undefined) {
+    return assertFullGitCommit(options.buildCommit, "configured Web.app build commit");
+  }
+  if (process.env.WEB_APP_BUILD_COMMIT !== undefined && process.env.WEB_APP_BUILD_COMMIT.trim() !== "") {
+    return assertFullGitCommit(process.env.WEB_APP_BUILD_COMMIT.trim(), "WEB_APP_BUILD_COMMIT");
+  }
+
+  const buildInfoCommit = await readBuildInfoCommit();
+  if (buildInfoCommit !== null) {
+    return buildInfoCommit;
+  }
+
+  return await gitHeadCommit();
+}
+
+async function readBuildInfoCommit(): Promise<string | null> {
+  try {
+    const value = JSON.parse(await readFile(join(RUNNER_ROOT_PATH, "build-info.json"), "utf8"));
+    if (typeof value?.commit === "string" && value.commit.trim() !== "") {
+      return assertFullGitCommit(value.commit.trim(), "Web.app build-info commit");
+    }
+  } catch (error) {
+    if (!isNotFoundError(error)) {
+      throw error;
+    }
+  }
+  return null;
+}
+
+async function gitHeadCommit(): Promise<string> {
+  const process = Bun.spawn(["git", "rev-parse", "HEAD"], {
+    cwd: RUNNER_ROOT_PATH,
+    stdout: "pipe",
+    stderr: "pipe",
+  });
+  const [exitCode, stdout, stderr] = await Promise.all([
+    process.exited,
+    new Response(process.stdout).text(),
+    new Response(process.stderr).text(),
+  ]);
+  if (exitCode !== 0) {
+    throw new Error(`Could not resolve Web.app build commit: ${stderr.trim() || "git rev-parse failed"}`);
+  }
+  return assertFullGitCommit(stdout.trim(), "local git HEAD");
+}
+
+function webFileSchemaURL(buildCommit: string): string {
+  return `https://cdn.jsdelivr.net/gh/${WEB_FILE_SCHEMA_REPOSITORY}@${buildCommit}/Web.app/Contents/Resources/Runner/${WEB_FILE_SCHEMA_PATH}`;
+}
+
+export function webFileSchemaURLForBuildCommit(buildCommit: string): string {
+  return webFileSchemaURL(assertFullGitCommit(buildCommit, "Web.app build commit"));
+}
+
+function assertFullGitCommit(value: string, label: string): string {
+  if (!isFullGitCommit(value)) {
+    throw new Error(`${label} must be a full 40-character git commit SHA.`);
+  }
+  return value.toLowerCase();
+}
+
+function isFullGitCommit(value: string): boolean {
+  return /^[0-9a-f]{40}$/i.test(value);
+}
+
+function webFileMountForManifest(
+  webspaceRootPath: string,
+  manifestPath: string,
+  rootPath: string,
+  kind: WebSpaceMount["kind"],
+): WebSpaceMount {
+  return {
+    routeBasePath: directoryRouteBasePath(routePathFor(webspaceRootPath, manifestPath)),
+    rootPath,
+    sourcePath: manifestPath,
+    kind,
+  };
+}
+
+async function discoverWebFileMounts(
+  rootPath: string,
+  preparedDocument: PreparedWebDocument,
+  options: ResolveWebSpaceOptions,
+): Promise<WebSpaceMount[]> {
+  if (!await pathExists(rootPath)) {
+    return [];
+  }
+
+  const mounts: WebSpaceMount[] = [];
+  async function walk(directory: string): Promise<void> {
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.name === ".DS_Store") {
+        continue;
+      }
+      const entryPath = join(directory, entry.name);
+      if (entry.isSymbolicLink()) {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (!SKIPPED_DIRECTORIES.has(entry.name)) {
+          await walk(entryPath);
+        }
+        continue;
+      }
+      if (!entry.isFile() || extname(entry.name).toLowerCase() !== ".web") {
+        continue;
+      }
+      if (entryPath === preparedDocument.documentPath) {
+        continue;
+      }
+
+      const stat = await lstat(entryPath);
+      if (stat.size === 0) {
+        continue;
+      }
+      const manifest = await readWebFileManifest(entryPath, options);
+      if (manifest.source.kind === "local") {
+        mounts.push(webFileMountForManifest(
+          rootPath,
+          entryPath,
+          await resolveLocalManifestRoot(entryPath, manifest.source),
+          "local",
+        ));
+      } else {
+        mounts.push(webFileMountForManifest(
+          rootPath,
+          entryPath,
+          await materializeGitWebSource(manifest.source, options),
+          "git",
+        ));
+      }
+    }
+  }
+
+  await walk(rootPath);
+  return mounts.filter((mount) => mount.sourcePath !== preparedDocument.documentPath);
+}
+
+function dedupeWebSpaceMounts(mounts: WebSpaceMount[]): WebSpaceMount[] {
+  const seen = new Set<string>();
+  const result: WebSpaceMount[] = [];
+  for (const mount of mounts) {
+    if (seen.has(mount.routeBasePath)) {
+      continue;
+    }
+    seen.add(mount.routeBasePath);
+    result.push(mount);
+  }
+  return result.sort((left, right) => right.routeBasePath.length - left.routeBasePath.length);
 }
 
 export async function resolveLocalStorageFilePath(documentPath: string): Promise<string> {
@@ -349,6 +931,11 @@ export async function resolveWebSpaceRequestPath(
   webspace: WebSpace,
   requestPath: string,
 ): Promise<ResolvedRequestPath | null> {
+  const mountedPath = await resolveMountedWebSpaceRequestPath(webspace, requestPath);
+  if (mountedPath !== null) {
+    return mountedPath;
+  }
+
   const resolvedPath = await resolveRequestPath(webspace.webspaceRootPath, requestPath);
   if (resolvedPath === null) {
     return null;
@@ -357,6 +944,43 @@ export async function resolveWebSpaceRequestPath(
     return null;
   }
   return resolvedPath;
+}
+
+export function webSpaceRouteRootPath(webspace: WebSpace, requestPath: string): string {
+  return webSpaceMountForRequestPath(webspace, requestPath)?.rootPath ?? webspace.webspaceRootPath;
+}
+
+async function resolveMountedWebSpaceRequestPath(
+  webspace: WebSpace,
+  requestPath: string,
+): Promise<ResolvedRequestPath | null> {
+  const match = webSpaceMountRequestMatch(webspace, requestPath);
+  if (match === null) {
+    return null;
+  }
+  return await resolveRequestPath(match.mount.rootPath, match.mountRequestPath);
+}
+
+function webSpaceMountForRequestPath(webspace: WebSpace, requestPath: string): WebSpaceMount | null {
+  return webSpaceMountRequestMatch(webspace, requestPath)?.mount ?? null;
+}
+
+function webSpaceMountRequestMatch(
+  webspace: WebSpace,
+  requestPath: string,
+): { mount: WebSpaceMount; mountRequestPath: string } | null {
+  const path = requestPath.startsWith("/") ? requestPath : `/${requestPath}`;
+  for (const mount of webspace.mounts) {
+    const routeBasePath = directoryRouteBasePath(mount.routeBasePath);
+    const routeBasePathWithoutSlash = routeBasePath.slice(0, -1);
+    if (path === routeBasePath || path === routeBasePathWithoutSlash) {
+      return { mount, mountRequestPath: "/" };
+    }
+    if (path.startsWith(routeBasePath)) {
+      return { mount, mountRequestPath: `/${path.slice(routeBasePath.length)}` };
+    }
+  }
+  return null;
 }
 
 export async function resolveUnsupportedLegacyDynamicRequestPath(
@@ -1472,8 +2096,11 @@ async function pathExists(path: string): Promise<boolean> {
 }
 
 async function isEmptyDirectory(path: string): Promise<boolean> {
-  const entries = await readdir(path);
-  return entries.every((entry) => entry === ".DS_Store" || entry === LOCAL_DIRECTORY);
+  const entries = await readdir(path, { withFileTypes: true });
+  return entries.every((entry) => (
+    entry.name === ".DS_Store"
+    || (entry.name === LOCAL_DIRECTORY && entry.isDirectory())
+  ));
 }
 
 async function assertNoSymlinkAlongPath(rootPath: string, candidate: string): Promise<boolean> {

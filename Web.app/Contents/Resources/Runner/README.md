@@ -7,6 +7,30 @@ browser-native folders. It adds live reload where possible and renders Markdown
 files as a convenience without making build tooling part of the `.web` package
 contract.
 
+`mkdir Site.web` and `touch Site.web` are both valid authoring shortcuts. On
+first open, an empty directory package is filled from
+`templates/Untitled.web/`, while an empty file is upgraded into a JSON5 `.web`
+manifest with the current Web.app schema URL. Non-empty `.web` files must be
+valid manifests:
+
+```js
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@<commit>/Web.app/Contents/Resources/Runner/schema/web-file.schema.json",
+  web: 1,
+  source: {
+    kind: "local",
+    root: "@/apps"
+  },
+}
+```
+
+In manifest files, `@/` means the nearest non-home, non-root git worktree root.
+Without a git root, generated manifests use `./` relative to the manifest's
+parent directory. Git sources are also supported for commit-pinned public GitHub
+repos with `source.kind: "git"`, `provider: "github"`, `repo`, `commit`, and
+`path`; Web prepares them in a local cache before serving them through the
+manifest file's normal `.web` URL route.
+
 When a real `.web` package is inside a normal git repo, the repo root defines
 the local URL space while only `.web` package contents are readable. For example,
 `apps/dashboard.web` opens at `/apps/dashboard.web/` and can import or fetch from

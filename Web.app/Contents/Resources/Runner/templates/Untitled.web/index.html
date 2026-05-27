@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Untitled Web</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body {
+        margin: 0;
+        min-block-size: 100svh;
+        display: grid;
+        place-items: center;
+        background: Canvas;
+        color: CanvasText;
+        font: 16px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      main {
+        inline-size: min(42rem, calc(100% - 2rem));
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 3.5rem;
+        line-height: 0.95;
+        letter-spacing: 0;
+      }
+      @media (max-width: 44rem) {
+        h1 { font-size: 2.5rem; }
+      }
+      p {
+        margin: 0;
+        color: color-mix(in oklch, CanvasText 68%, transparent);
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Untitled Web</h1>
+      <p>Edit this package like a normal static website.</p>
+    </main>
+  </body>
+</html>

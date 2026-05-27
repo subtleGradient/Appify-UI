@@ -19,6 +19,7 @@ import {
   resolveWebSpace,
   resolveWebSpaceRequestPath,
   scanHtmlPages,
+  webSpaceRouteRootPath,
 } from "./webPackage";
 
 const documentPath = resolveDocumentPath(process.argv[2] || process.env.APPIFY_HOST_DOCUMENT_PATH);
@@ -100,7 +101,7 @@ const server = Bun.serve({
         return Response.redirect(`${url.pathname}/${url.search}`, 308);
       }
       const isActivePath = isPathInside(webspace.activeRootPath, resolvedPath.path);
-      return await createDirectoryListingResponse(webspace.webspaceRootPath, resolvedPath.path, url.pathname, {
+      return await createDirectoryListingResponse(webSpaceRouteRootPath(webspace, url.pathname), resolvedPath.path, url.pathname, {
         liveReload: hmrEnabled && isActivePath,
         localStoragePersistence: isActivePath,
         controlBasePath: webspace.activeBasePath,
