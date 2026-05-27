@@ -2,12 +2,13 @@
 
 function run(argv) {
   if (argv.length < 3) {
-    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH");
+    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH [first-fit|zoom-obedience]");
   }
 
   const appPath = argv[0];
   const expectedBundleIdentifier = argv[1];
   const documentPath = argv[2];
+  const mode = argv[3] || "first-fit";
   const expectedWindowName = documentPath.split("/").pop();
   const app = Application.currentApplication();
   app.includeStandardAdditions = true;
@@ -92,18 +93,41 @@ function run(argv) {
       delaySeconds(0.3);
     } catch (_) {}
   };
-  const clearSavedFrame = () => {
+  const windowFrameAutosaveName = () => {
     const encodedPath = app.doShellScript(
       `/usr/bin/python3 -c 'import base64,sys; print(base64.b64encode(sys.argv[1].encode()).decode().replace("+","-").replace("/","_").rstrip("="))' ${shellQuote(documentPath)}`
     );
-    const autosaveName = `AppifyHost.DocumentWindow.${expectedBundleIdentifier}.${encodedPath}`;
+    return `AppifyHost.DocumentWindow.${expectedBundleIdentifier}.${encodedPath}`;
+  };
+  const clearSavedFrame = () => {
+    const autosaveName = windowFrameAutosaveName();
     for (const domain of [expectedBundleIdentifier, "appify-host"]) {
       app.doShellScript(`/usr/bin/defaults delete ${shellQuote(domain)} ${shellQuote(`NSWindow Frame ${autosaveName}`)} >/dev/null 2>&1 || true`);
+    }
+  };
+  const writeSavedFrame = frameString => {
+    const autosaveName = windowFrameAutosaveName();
+    for (const domain of [expectedBundleIdentifier, "appify-host"]) {
+      app.doShellScript(`/usr/bin/defaults write ${shellQuote(domain)} ${shellQuote(`NSWindow Frame ${autosaveName}`)} ${shellQuote(frameString)}`);
     }
   };
   const windowSize = window => {
     const size = window.size();
     return { width: Number(size[0]), height: Number(size[1]) };
+  };
+  const clickZoom = () => {
+    const process = processWithWindow();
+    if (!process) throw new Error(`Could not find process for ${expectedWindowName}`);
+    process.frontmost = true;
+    delaySeconds(0.2);
+    process.menuBars[0].menuBarItems.byName("Window").menus[0].menuItems.byName("Zoom").click();
+  };
+  const isMeaningfulResize = (before, after) => {
+    const widthDelta = Math.abs(after.width - before.width);
+    const heightDelta = Math.abs(after.height - before.height);
+    const beforeArea = Math.max(1, before.width * before.height);
+    const afterArea = Math.max(1, after.width * after.height);
+    return widthDelta >= 80 || heightDelta >= 80 || Math.abs(afterArea - beforeArea) / beforeArea >= 0.12;
   };
   const visibleScrollBarCount = window => {
     try {
@@ -122,10 +146,48 @@ function run(argv) {
 
   quitApp();
   clearSavedFrame();
+  if (mode === "zoom-obedience") {
+    writeSavedFrame("20 48 1480 780 0 0 4096 2304 ");
+  }
 
   try {
     app.doShellScript(`open -n -a ${shellQuote(appPath)} ${shellQuote(documentPath)}`);
     const window = waitUntil(`Web did not present ${expectedWindowName}`, () => windowByName());
+
+    if (mode === "zoom-obedience") {
+      waitUntil(
+        `${expectedWindowName} did not become ready for Zoom smoke`,
+        () => {
+          const size = windowSize(window);
+          return size.width > 600 && size.height > 400 ? size : null;
+        },
+        15000
+      );
+      const before = waitUntil(
+        `${expectedWindowName} could not be forced to an awkward large frame`,
+        () => {
+          const size = windowSize(window);
+          return size.width >= 1200 ? size : null;
+        },
+        3000
+      );
+      clickZoom();
+      const after = waitUntil(
+        `${expectedWindowName} Zoom did not produce a meaningful resize`,
+        () => {
+          const size = windowSize(window);
+          return isMeaningfulResize(before, size) ? size : null;
+        },
+        8000
+      );
+      if (before.width >= 1100 && after.width >= before.width - 80) {
+        throw new Error(`${expectedWindowName} Zoom did not obey the large-window shrink intent`);
+      }
+
+      quitApp();
+      return `Web window Zoom smoke ok: ${Math.round(before.width)}x${Math.round(before.height)} -> ${Math.round(after.width)}x${Math.round(after.height)}`;
+    }
+
     const fitted = waitUntil(
       `${expectedWindowName} did not fit to document content`,
       () => {

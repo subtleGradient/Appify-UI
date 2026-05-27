@@ -2,6 +2,8 @@ const STORAGE_KEY = "./document.canvas";
 const VIEW_KEY = "example1.canvas.web:view";
 
 const elements = {
+  toolbar: document.querySelector(".toolbar"),
+  inspector: document.querySelector(".inspector"),
   status: document.getElementById("status"),
   canvas: document.getElementById("canvas"),
   edges: document.getElementById("edges"),
@@ -20,6 +22,8 @@ let seedDocument = null;
 let canvasDocument = { nodes: [], edges: [] };
 let selectedId = null;
 let drag = null;
+
+window.AppifyHostPreferredContentSize = preferredContentSize;
 
 init().catch((error) => {
   console.error(error);
@@ -137,6 +141,7 @@ function render() {
   elements.source.value = stableJSON(canvasDocument);
   renderEdges();
   renderNodes();
+  window.AppifyHost?.measureContent?.("canvas-render");
 }
 
 function renderNodes() {
@@ -305,4 +310,40 @@ function uniqueFrom(base, used) {
 
 function stableJSON(value) {
   return `${JSON.stringify(value, null, 2)}\n`;
+}
+
+function preferredContentSize() {
+  const rem = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+  const toolbarHeight = Math.ceil(elements.toolbar?.getBoundingClientRect().height || 4.5 * rem);
+  const bounds = canvasDocumentBounds();
+  const usefulCanvasWidth = clamp(bounds.width * 0.5, 32 * rem, 38 * rem);
+  const usefulCanvasHeight = clamp(bounds.height + 8 * rem, 42 * rem, 46 * rem);
+  return {
+    width: Math.ceil(usefulCanvasWidth + 28 * rem),
+    height: Math.ceil(toolbarHeight + usefulCanvasHeight),
+  };
+}
+
+function canvasDocumentBounds() {
+  if (!canvasDocument.nodes.length) return { width: 0, height: 0 };
+  let left = Infinity;
+  let top = Infinity;
+  let right = -Infinity;
+  let bottom = -Infinity;
+
+  for (const node of canvasDocument.nodes) {
+    left = Math.min(left, node.x);
+    top = Math.min(top, node.y);
+    right = Math.max(right, node.x + node.width);
+    bottom = Math.max(bottom, node.y + node.height);
+  }
+
+  return {
+    width: Math.max(0, right - left),
+    height: Math.max(0, bottom - top),
+  };
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
 }

@@ -15,12 +15,52 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
       const ignoredTags = new Set(["SCRIPT", "STYLE", "LINK", "META", "TITLE", "TEMPLATE", "NOSCRIPT"]);
       const intrinsicallySizedTags = new Set(["CANVAS", "IMG", "VIDEO", "SVG", "IFRAME", "OBJECT", "EMBED", "INPUT", "SELECT", "TEXTAREA"]);
       const number = (value) => Number.isFinite(value) ? value : 0;
-
-      const measure = () => {
+      const viewportSize = () => {
         const root = document.documentElement;
-        const body = document.body;
-        const viewportWidth = number(window.innerWidth || root?.clientWidth || 0);
-        const viewportHeight = number(window.innerHeight || root?.clientHeight || 0);
+        return {
+          viewportWidth: number(window.innerWidth || root?.clientWidth || 0),
+          viewportHeight: number(window.innerHeight || root?.clientHeight || 0)
+        };
+      };
+
+      const finiteSize = (value, source, viewport) => {
+        if (!value || typeof value !== "object") return null;
+        const width = Number(value.width);
+        const height = Number(value.height);
+        if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return null;
+        return {
+          width: Math.ceil(width),
+          height: Math.ceil(height),
+          viewportWidth: viewport.viewportWidth,
+          viewportHeight: viewport.viewportHeight,
+          source
+        };
+      };
+
+      const measureExplicitContent = (viewport) => {
+        const hooks = [
+          window.AppifyHostPreferredContentSize,
+          window.AppifyHost?.preferredContentSize
+        ];
+
+        for (const hook of hooks) {
+          if (!hook) continue;
+          try {
+            const value = typeof hook === "function" ? hook({
+              viewportWidth: viewport.viewportWidth,
+              viewportHeight: viewport.viewportHeight
+            }) : hook;
+            const size = finiteSize(value, "explicit", viewport);
+            if (size) return size;
+          } catch (error) {
+            console.warn("AppifyHost preferred content size hook failed:", error);
+          }
+        }
+
+        return null;
+      };
+
+      const measureElements = (elements, viewport, source, ignoreViewportContainers) => {
         let left = Infinity;
         let top = Infinity;
         let right = -Infinity;
@@ -29,10 +69,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
         const includeRect = (element, rect) => {
           if (!rect || rect.width < 1 || rect.height < 1) return;
-          const isViewportWidthContainer = rect.width >= viewportWidth - 3
+          const isViewportWidthContainer = rect.width >= viewport.viewportWidth - 3
             && element.children.length > 0
             && !intrinsicallySizedTags.has(element.tagName);
-          if (isViewportWidthContainer) return;
+          if (ignoreViewportContainers && isViewportWidthContainer) return;
           left = Math.min(left, rect.left + window.scrollX);
           top = Math.min(top, rect.top + window.scrollY);
           right = Math.max(right, rect.right + window.scrollX);
@@ -49,25 +89,55 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
           }
         };
 
-        if (body) {
-          for (const element of body.querySelectorAll("*")) {
-            includeElement(element);
-          }
+        for (const element of elements) {
+          includeElement(element);
         }
 
-        let width = count > 0 ? Math.ceil(right - left) : 0;
-        let height = count > 0 ? Math.ceil(bottom - top) : 0;
-        if (width <= 0 || height <= 0) {
-          width = Math.ceil(Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0, viewportWidth));
-          height = Math.ceil(Math.max(root?.scrollHeight || 0, body?.scrollHeight || 0, viewportHeight));
-        }
+        if (count <= 0) return null;
 
         return {
-          width,
-          height,
-          viewportWidth,
-          viewportHeight
+          width: Math.ceil(right - left),
+          height: Math.ceil(bottom - top),
+          viewportWidth: viewport.viewportWidth,
+          viewportHeight: viewport.viewportHeight,
+          source
         };
+      };
+
+      const measureMarkedContent = (viewport) => {
+        return measureElements(
+          Array.from(document.querySelectorAll("[data-appify-window-fit], [data-appify-fit-root]")),
+          viewport,
+          "marked",
+          false
+        );
+      };
+
+      const measureAutomaticContent = (viewport) => {
+        const root = document.documentElement;
+        const body = document.body;
+        const measured = measureElements(
+          body ? Array.from(body.querySelectorAll("*")) : [],
+          viewport,
+          "automatic",
+          true
+        );
+        if (measured) return measured;
+
+        return {
+          width: Math.ceil(Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0, viewport.viewportWidth)),
+          height: Math.ceil(Math.max(root?.scrollHeight || 0, body?.scrollHeight || 0, viewport.viewportHeight)),
+          viewportWidth: viewport.viewportWidth,
+          viewportHeight: viewport.viewportHeight,
+          source: "automatic"
+        };
+      };
+
+      const measure = () => {
+        const viewport = viewportSize();
+        return measureExplicitContent(viewport)
+          || measureMarkedContent(viewport)
+          || measureAutomaticContent(viewport);
       };
 
       let timer = 0;
@@ -84,6 +154,13 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
       window.__APPIFY_HOST_MEASURE_CONTENT__ = post;
       window.__APPIFY_HOST_CONTENT_SIZE_OBSERVER__ = true;
+      try {
+        const host = window.AppifyHost && typeof window.AppifyHost === "object" ? window.AppifyHost : {};
+        if (!window.AppifyHost || typeof window.AppifyHost !== "object") window.AppifyHost = host;
+        if (typeof host.measureContent !== "function") {
+          host.measureContent = (reason) => post(String(reason || "app-request"));
+        }
+      } catch (_) {}
 
       try {
         const resizeObserver = new ResizeObserver(() => post("resize-observer"));
@@ -340,14 +417,18 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     func windowWillUseStandardFrame(_ window: NSWindow, defaultFrame newFrame: NSRect) -> NSRect {
-        guard configuration.windowContentSizing == .automatic,
-              let measurement = latestPreferredContentMeasurement,
-              let preferredFrame = preferredContentFrame(for: measurement, in: window, relativeTo: window.frame)
-        else {
+        guard configuration.windowContentSizing == .automatic else {
             return newFrame
         }
 
-        return preferredFrame
+        if let measurement = latestPreferredContentMeasurement,
+           let preferredFrame = preferredContentFrame(for: measurement, in: window, relativeTo: window.frame),
+           isMeaningfulStandardFrame(preferredFrame, from: window.frame)
+        {
+            return preferredFrame
+        }
+
+        return obedientStandardFrame(in: window) ?? newFrame
     }
 
     private enum CloseValidationResult {
@@ -355,9 +436,16 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         case dirty(String)
     }
 
+    private enum PreferredContentMeasurementSource: String {
+        case explicit
+        case marked
+        case automatic
+    }
+
     private struct PreferredContentMeasurement {
         var contentSize: NSSize
         var viewportSize: NSSize
+        var source: PreferredContentMeasurementSource
     }
 
     private struct WebDirtyState {
@@ -965,9 +1053,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
         let viewportWidth = positiveCGFloat(dictionary["viewportWidth"]) ?? 0
         let viewportHeight = positiveCGFloat(dictionary["viewportHeight"]) ?? 0
+        let source = PreferredContentMeasurementSource(rawValue: dictionary["source"] as? String ?? "") ?? .automatic
         latestPreferredContentMeasurement = PreferredContentMeasurement(
             contentSize: NSSize(width: contentWidth, height: contentHeight),
-            viewportSize: NSSize(width: viewportWidth, height: viewportHeight)
+            viewportSize: NSSize(width: viewportWidth, height: viewportHeight),
+            source: source
         )
 
         if isWaitingForInitialContentFit {
@@ -1047,7 +1137,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             return nil
         }
 
-        if isViewportLike(measurement: measurement, targetFrameSize: frameSize, visibleFrame: visibleFrame) {
+        if measurement.source == .automatic,
+           isViewportLike(measurement: measurement, targetFrameSize: frameSize, visibleFrame: visibleFrame) {
             return nil
         }
 
@@ -1059,6 +1150,43 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         )
         frame = constrainedFrame(frame, to: visibleFrame)
         return frame
+    }
+
+    private func isMeaningfulStandardFrame(_ frame: NSRect, from currentFrame: NSRect) -> Bool {
+        let widthDelta = abs(frame.width - currentFrame.width)
+        let heightDelta = abs(frame.height - currentFrame.height)
+        let currentArea = max(currentFrame.width * currentFrame.height, 1)
+        let frameArea = max(frame.width * frame.height, 1)
+        let areaDeltaRatio = abs(frameArea - currentArea) / currentArea
+        return widthDelta >= 48 || heightDelta >= 48 || areaDeltaRatio >= 0.10
+    }
+
+    private func obedientStandardFrame(in window: NSWindow) -> NSRect? {
+        let screen = window.screen ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else {
+            return nil
+        }
+
+        let currentFrame = window.frame
+        let visibleArea = max(visibleFrame.width * visibleFrame.height, 1)
+        let currentAreaRatio = (currentFrame.width * currentFrame.height) / visibleArea
+        let isBig = currentAreaRatio >= 0.72
+            || currentFrame.width >= visibleFrame.width * 0.88
+            || currentFrame.height >= visibleFrame.height * 0.88
+        let widthFactor: CGFloat = isBig ? 0.70 : 0.86
+        let heightFactor: CGFloat = isBig ? 0.72 : 0.86
+        let minFrameSize = window.minSize
+        let frameSize = NSSize(
+            width: min(visibleFrame.width, max(floor(visibleFrame.width * widthFactor), minFrameSize.width)),
+            height: min(visibleFrame.height, max(floor(visibleFrame.height * heightFactor), minFrameSize.height))
+        )
+        let frame = NSRect(
+            x: currentFrame.minX,
+            y: currentFrame.maxY - frameSize.height,
+            width: frameSize.width,
+            height: frameSize.height
+        )
+        return constrainedFrame(frame, to: visibleFrame)
     }
 
     private func isViewportLike(
