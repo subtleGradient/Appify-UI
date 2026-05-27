@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import {
   buildHtmlRoutes,
@@ -32,7 +33,7 @@ let root: string;
 const testBuildCommit = "0123456789abcdef0123456789abcdef01234567";
 
 beforeEach(async () => {
-  root = join(import.meta.dir, `.web-test-${crypto.randomUUID()}.web`);
+  root = join(tmpdir(), `.web-test-${crypto.randomUUID()}.web`);
   await mkdir(root, { recursive: true });
 });
 
@@ -166,6 +167,36 @@ describe("web package resolution", () => {
       kind: "file",
       path: join(kitSource, "button.js"),
     });
+  });
+
+  test("skips invalid peer .web manifests without breaking the active package", async () => {
+    const project = join(root, "project");
+    const app = join(project, "apps", "dashboard.web");
+    const badPeer = join(project, "packages", "bad.web");
+    await mkdir(join(project, ".git"), { recursive: true });
+    await mkdir(app, { recursive: true });
+    await mkdir(dirname(badPeer), { recursive: true });
+    await writeFile(join(app, "index.html"), "<h1>Dashboard</h1>");
+    await writeFile(badPeer, "{ web: 1, source: { kind: 'local', root: './' } }");
+
+    const warnings: string[] = [];
+    const originalWarn = console.warn;
+    console.warn = (...values: unknown[]) => {
+      warnings.push(values.map(String).join(" "));
+    };
+    try {
+      const webspace = await resolveWebSpace(app, { buildCommit: testBuildCommit });
+      expect(webspace.activeRootPath).toBe(app);
+      expect(await resolveWebSpaceRequestPath(webspace, "/apps/dashboard.web/index.html")).toEqual({
+        kind: "file",
+        path: join(app, "index.html"),
+      });
+      expect(await resolveWebSpaceRequestPath(webspace, "/packages/bad.web/index.html")).toBeNull();
+    } finally {
+      console.warn = originalWarn;
+    }
+    expect(warnings.join("\n")).toContain("Skipping .web peer manifest");
+    expect(warnings.join("\n")).toContain("bad.web");
   });
 
   test("mounts prepared git .web manifest files at their document route", async () => {

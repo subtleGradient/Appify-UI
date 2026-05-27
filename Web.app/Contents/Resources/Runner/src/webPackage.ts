@@ -702,7 +702,7 @@ async function resolveWebBuildCommit(options: ResolveWebSpaceOptions = {}): Prom
     return buildInfoCommit;
   }
 
-  return await gitHeadCommit();
+  return await gitSchemaCommit();
 }
 
 async function readBuildInfoCommit(): Promise<string | null> {
@@ -719,8 +719,8 @@ async function readBuildInfoCommit(): Promise<string | null> {
   return null;
 }
 
-async function gitHeadCommit(): Promise<string> {
-  const process = Bun.spawn(["git", "rev-parse", "HEAD"], {
+async function gitSchemaCommit(): Promise<string> {
+  const process = Bun.spawn(["git", "log", "-1", "--format=%H", "--", WEB_FILE_SCHEMA_PATH], {
     cwd: RUNNER_ROOT_PATH,
     stdout: "pipe",
     stderr: "pipe",
@@ -731,9 +731,9 @@ async function gitHeadCommit(): Promise<string> {
     new Response(process.stderr).text(),
   ]);
   if (exitCode !== 0) {
-    throw new Error(`Could not resolve Web.app build commit: ${stderr.trim() || "git rev-parse failed"}`);
+    throw new Error(`Could not resolve Web.app schema commit: ${stderr.trim() || "git log failed"}`);
   }
-  return assertFullGitCommit(stdout.trim(), "local git HEAD");
+  return assertFullGitCommit(stdout.trim(), "local Web.app schema commit");
 }
 
 function webFileSchemaURL(buildCommit: string): string {
@@ -806,21 +806,26 @@ async function discoverWebFileMounts(
       if (stat.size === 0) {
         continue;
       }
-      const manifest = await readWebFileManifest(entryPath, options);
-      if (manifest.source.kind === "local") {
-        mounts.push(webFileMountForManifest(
-          rootPath,
-          entryPath,
-          await resolveLocalManifestRoot(entryPath, manifest.source),
-          "local",
-        ));
-      } else {
-        mounts.push(webFileMountForManifest(
-          rootPath,
-          entryPath,
-          await materializeGitWebSource(manifest.source, options),
-          "git",
-        ));
+      try {
+        const manifest = await readWebFileManifest(entryPath, options);
+        if (manifest.source.kind === "local") {
+          mounts.push(webFileMountForManifest(
+            rootPath,
+            entryPath,
+            await resolveLocalManifestRoot(entryPath, manifest.source),
+            "local",
+          ));
+        } else {
+          mounts.push(webFileMountForManifest(
+            rootPath,
+            entryPath,
+            await materializeGitWebSource(manifest.source, options),
+            "git",
+          ));
+        }
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.warn(`Skipping .web peer manifest ${entryPath}: ${message}`);
       }
     }
   }

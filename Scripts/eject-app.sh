@@ -93,6 +93,12 @@ esac
 source_directory="$(appify_app_source_directory "$SOURCE_APP")"
 source_repository_url="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
 source_commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+schema_build_commit=""
+schema_source_path="$SOURCE_APP/$source_directory/schema/web-file.schema.json"
+if [[ -f "$schema_source_path" && "$SOURCE_APP" == "$ROOT"/* ]]; then
+  schema_relative_path="${schema_source_path#$ROOT/}"
+  schema_build_commit="$(git -C "$ROOT" log -1 --format=%H -- "$schema_relative_path" 2>/dev/null || true)"
+fi
 
 /usr/libexec/PlistBuddy -c "Delete :AppifyHost:SourceReference" "$STAGED_APP/Contents/Info.plist" >/dev/null 2>&1 || true
 /usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference dict" "$STAGED_APP/Contents/Info.plist"
@@ -104,6 +110,13 @@ if [[ -n "$source_commit" ]]; then
 fi
 /usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:AppPath string $source_app_path" "$STAGED_APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:SourceDirectory string $source_directory" "$STAGED_APP/Contents/Info.plist"
+if [[ "$schema_build_commit" =~ ^[0-9a-fA-F]{40}$ ]]; then
+  cat > "$STAGED_APP/$source_directory/build-info.json" <<JSON
+{
+  "commit": "$schema_build_commit"
+}
+JSON
+fi
 plutil -lint "$STAGED_APP/Contents/Info.plist" >/dev/null
 
 if [[ -n "$SIGN_IDENTITY" ]]; then

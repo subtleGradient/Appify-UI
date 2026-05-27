@@ -89,13 +89,5 @@ if ! BUN_PATH="$(resolve_bun)"; then
   exit 1
 fi
 
-if [[ -z "${WEB_APP_BUILD_COMMIT:-}" && -x /usr/libexec/PlistBuddy ]]; then
-  if build_commit="$(/usr/libexec/PlistBuddy -c "Print :AppifyHost:SourceReference:Commit" "$APP/Contents/Info.plist" 2>/dev/null)"; then
-    if [[ "$build_commit" =~ ^[0-9a-fA-F]{40}$ ]]; then
-      export WEB_APP_BUILD_COMMIT="$build_commit"
-    fi
-  fi
-fi
-
 cd "$RUNNER_DIR"
 exec "$BUN_PATH" src/index.ts "$DOCUMENT_PATH" "$@"
