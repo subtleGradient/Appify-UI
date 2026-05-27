@@ -11,6 +11,8 @@ if ! [[ "$SERVER_TIMEOUT_SECONDS" =~ ^[0-9]+$ ]] || [[ "$SERVER_TIMEOUT_SECONDS"
   exit 1
 fi
 
+unset DEVELOPER_DIR SDKROOT
+
 find_tool() {
   local name="$1"
   local candidates=(
@@ -86,7 +88,7 @@ start_with_nix() {
   local port="$2"
   local base_path="$3"
   local command
-  command="exec ttyd --interface 127.0.0.1 --port $(shell_quote "$port") --writable --check-origin --once --max-clients 1 --base-path $(shell_quote "$base_path") --cwd $(shell_quote "$WORKING_DIRECTORY") lazygit --path $(shell_quote "$WORKING_DIRECTORY")"
+  command="unset DEVELOPER_DIR SDKROOT; exec ttyd --interface 127.0.0.1 --port $(shell_quote "$port") --writable --check-origin --once --max-clients 1 --base-path $(shell_quote "$base_path") --cwd $(shell_quote "$WORKING_DIRECTORY") lazygit --path $(shell_quote "$WORKING_DIRECTORY")"
   "$nix_shell" -p ttyd lazygit git git-lfs --run "$command" &
 }
 
@@ -123,15 +125,14 @@ cleanup() {
 }
 trap cleanup TERM INT EXIT
 
-if NIX_SHELL="$(find_tool nix-shell)"; then
+if start_direct "$PORT" "$BASE_PATH"; then
+  CHILD_PID="$!"
+elif NIX_SHELL="$(find_tool nix-shell)"; then
   start_with_nix "$NIX_SHELL" "$PORT" "$BASE_PATH"
   CHILD_PID="$!"
 else
-  if ! start_direct "$PORT" "$BASE_PATH"; then
-    printf '%s requires nix-shell or direct installations of ttyd, lazygit, git, and git-lfs.\n' "$APP_NAME" >&2
-    exit 1
-  fi
-  CHILD_PID="$!"
+  printf '%s requires nix-shell or direct installations of ttyd, lazygit, git, and git-lfs.\n' "$APP_NAME" >&2
+  exit 1
 fi
 
 if ! wait_for_port "$PORT" "$SERVER_TIMEOUT_SECONDS"; then

@@ -354,8 +354,10 @@ final class AppifyHostCoreTests: XCTestCase {
                 "PATH": "/usr/local/bin",
                 "HOME": "/Users/test",
                 "BASH_ENV": "/tmp/payload",
+                "DEVELOPER_DIR": "/nix/store/dead-apple-sdk",
                 "DYLD_INSERT_LIBRARIES": "/tmp/lib.dylib",
                 "LD_PRELOAD": "/tmp/lib.so",
+                "SDKROOT": "/nix/store/dead-apple-sdk/SDKs/MacOSX.sdk",
             ],
             additional: ["APPIFY_HOST_DOCUMENT_PATH": "/tmp/doc"]
         )
@@ -364,8 +366,10 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(environment["HOME"], "/Users/test")
         XCTAssertEqual(environment["APPIFY_HOST_DOCUMENT_PATH"], "/tmp/doc")
         XCTAssertNil(environment["BASH_ENV"])
+        XCTAssertNil(environment["DEVELOPER_DIR"])
         XCTAssertNil(environment["DYLD_INSERT_LIBRARIES"])
         XCTAssertNil(environment["LD_PRELOAD"])
+        XCTAssertNil(environment["SDKROOT"])
     }
 
     func testProcessTreeCollectsDescendants() {

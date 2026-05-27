@@ -681,9 +681,11 @@ public enum ServerEnvironmentBuilder {
     public static let blockedExactKeys: Set<String> = [
         "BASH_ENV",
         "CDPATH",
+        "DEVELOPER_DIR",
         "ENV",
         "GIT_ASKPASS",
         "IFS",
+        "SDKROOT",
         "SSH_ASKPASS",
         "SUDO_ASKPASS",
         "ZDOTDIR",
