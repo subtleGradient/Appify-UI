@@ -175,6 +175,8 @@ const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
 const STORAGE_FILE_NAME = "storage.json5";
+// Visible-origin port only: WebKit should store site state against
+// *.localhost:55555 while AppifyHost routes traffic to an ephemeral backend.
 const DEFAULT_STABLE_WEBSPACE_PORT = 55555;
 const WEB_FILE_SCHEMA_PATH = "schema/web-file.schema.json";
 const WEB_FILE_SCHEMA_REPOSITORY = "subtleGradient/Appify-UI";

@@ -47,6 +47,13 @@ facade remains the Web.app document-storage enhancement: ordinary keys are
 stored in `<webspace-root>/.local/storage.json5`, while strict `/file.ext` and
 `./file.ext` keys can write real files under known writable `.web` routes.
 
+`55555` is the WebKit-visible origin port, not the Runner's required listen
+port. Do not make the Runner depend on binding `55555`; it should listen on an
+ephemeral private loopback port and let AppifyHost route the visible stable
+origin to that backend. For example, WebKit should see
+`http://appify-ui--6e3025a4.localhost:55555/ideas.web/`, while AppifyHost may
+transport the request to `http://127.0.0.1:<ephemeral>/ideas.web/`.
+
 Compatibility behavior is example-driven. Server-ish affordances such as fossil
 CGI URLs, form POST handling, SSI, or old AJAX expectations must start with a
 checked-in red-case `.web` bundle and follow

@@ -65,6 +65,8 @@ if (hmrEnabled) {
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
+  // Temporary direct-bind fallback. The stable design is AppifyHost mapping the
+  // visible *.localhost:55555 origin to an ephemeral private Runner port.
   port: await resolveServerPort(process.env.PORT ?? String(defaultStableWebSpacePort())),
   idleTimeout: 0,
   routes,

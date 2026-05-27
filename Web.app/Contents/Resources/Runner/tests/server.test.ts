@@ -324,6 +324,19 @@ describe("web package resolution", () => {
     expect(stableWebSpaceURL(peerWebspace).pathname).toBe("/apps/peer.web/");
   });
 
+  test("stable webspace URL uses 55555 while backend port may be ephemeral", async () => {
+    const backendPort = await resolveServerPort("0");
+    const webspace = testWebSpace(root);
+    const visibleWebspaceURL = stableWebSpaceURL(webspace);
+    const backendServerURL = new URL(visibleWebspaceURL.pathname, `http://127.0.0.1:${backendPort}`);
+
+    expect(visibleWebspaceURL.hostname).toBe(stableWebSpaceHostname(root));
+    expect(visibleWebspaceURL.port).toBe(String(defaultStableWebSpacePort()));
+    expect(backendServerURL.hostname).toBe("127.0.0.1");
+    expect(backendServerURL.port).toBe(String(backendPort));
+    expect(backendServerURL.pathname).toBe(visibleWebspaceURL.pathname);
+  });
+
   test("rejects path traversal and symlinks", async () => {
     await writeFile(join(root, "index.html"), "<h1>ok</h1>");
     expect(await resolveRequestPath(root, "/index.html")).toEqual({ kind: "file", path: join(root, "index.html") });

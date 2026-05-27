@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Stable Webspace Origins</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 72rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1rem; }
+      section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 3.5rem); line-height: 1; letter-spacing: 0; }
+      a { color: LinkText; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      ul { margin: 0; padding-inline-start: 1.25rem; }
+      .lede { color: color-mix(in oklch, CanvasText 70%, transparent); font-size: 1.08rem; max-inline-size: 60rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>Stable Webspace Origins</h1>
+        <p class="lede">
+          Web.app must separate the browser-visible origin from the private backend transport endpoint.
+        </p>
+      </header>
+
+      <section aria-labelledby="invariant">
+        <h2 id="invariant">Invariant</h2>
+        <p>
+          <strong>WebKit sees the stable origin; the backend uses an ephemeral private port.</strong>
+        </p>
+        <ul>
+          <li><code>http://repo--hash.localhost:55555/...</code> is the URL WebKit, page JavaScript, service workers, and native website storage see.</li>
+          <li><code>http://127.0.0.1:&lt;ephemeral&gt;/...</code> is where the Runner/Bun backend may actually listen.</li>
+          <li><code>55555</code> is origin identity, not the Runner listen-port requirement.</li>
+          <li>AppifyHost should map the visible origin to the hidden backend, preferably through <code>WKWebsiteDataStore.proxyConfigurations</code> on macOS 14 and newer.</li>
+          <li>Directly binding <code>55555</code> is only a temporary diagnostic fallback, not the stable design.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="canonical">
+        <h2 id="canonical">Canonical Working Spec</h2>
+        <p>
+          The fuller implementation spec lives at
+          <a href="../../ideas.web/humane-web-dream.web/StableWebspaceOrigins.SPEC.html"><code>ideas.web/humane-web-dream.web/StableWebspaceOrigins.SPEC.html</code></a>.
+          Keep this SPEC copy aligned whenever the origin/transport contract changes.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

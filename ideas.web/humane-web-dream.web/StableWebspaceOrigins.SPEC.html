@@ -52,12 +52,50 @@
       <section aria-labelledby="decision">
         <h2 id="decision">Decision</h2>
         <ul>
-          <li>Use one fixed AppifyHost broker port: <code>55555</code>.</li>
+          <li>Use one fixed AppifyHost-visible webspace port: <code>55555</code>.</li>
           <li>Derive the visible hostname from the webspace root, not from the opened <code>.web</code> bundle.</li>
           <li>Load Web.app windows from stable origins shaped like <code>http://repo-slug--rootHash.localhost:55555/path/to/a.web/</code>.</li>
-          <li>Keep the current dynamic Bun server as a private backend implementation detail.</li>
+          <li>Keep the actual Runner/Bun server port as a private backend implementation detail.</li>
+          <li>Never require the Runner/Bun process to bind TCP port <code>55555</code> for normal operation.</li>
           <li>Native website-specific storage should persist normally through WebKit's persistent website data store.</li>
           <li>File-backed <code>localStorage</code> remains the intentional Web.app document-storage enhancement.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="visible-vs-backend">
+        <h2 id="visible-vs-backend">Visible Origin vs Transport Endpoint</h2>
+        <p>
+          This is the invariant that should prevent future confusion: <strong>WebKit sees the stable origin; the backend uses an ephemeral private port.</strong>
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Who Sees It</th>
+              <th>Example</th>
+              <th>Contract</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Visible webspace URL</td>
+              <td>WebKit, page JavaScript, service workers, native website storage.</td>
+              <td><code>http://appify-ui--6e3025a4.localhost:55555/ideas.web/</code></td>
+              <td>Stable across restarts; this is the origin used for IndexedDB, CacheStorage, cookies, service workers, OPFS, and native browser policy.</td>
+            </tr>
+            <tr>
+              <td>Hidden backend URL</td>
+              <td>AppifyHost and the local transport layer.</td>
+              <td><code>http://127.0.0.1:49152/ideas.web/</code></td>
+              <td>May change on every launch; this is only where the Bun Runner listens.</td>
+            </tr>
+          </tbody>
+        </table>
+        <ul>
+          <li><code>55555</code> is part of the browser origin contract, not the Bun listen-port contract.</li>
+          <li>AppifyHost should map visible requests to the hidden backend, preferably with <code>WKWebsiteDataStore.proxyConfigurations</code> on macOS 14 and newer.</li>
+          <li>Directly binding <code>55555</code> is only acceptable as an explicitly named diagnostic fallback while the AppifyHost mapping is unavailable.</li>
+          <li>A port conflict on <code>55555</code> should not normally stop Web.app from opening, because the backend should not need that port.</li>
         </ul>
       </section>
 
@@ -112,7 +150,7 @@
             <text x="970" y="190"><tspan class="kind">CONSTRAINT</tspan><tspan class="label" x="970" dy="18">Disk writes need gates</tspan><tspan x="970" dy="16">roots, routes, symlinks</tspan></text>
 
             <rect class="node decision" x="305" y="304" width="230" height="72"></rect>
-            <text x="420" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="420" dy="18">Fixed broker port</tspan><tspan x="420" dy="16">55555</tspan></text>
+            <text x="420" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="420" dy="18">Fixed visible port</tspan><tspan x="420" dy="16">55555</tspan></text>
 
             <rect class="node decision" x="580" y="304" width="230" height="72"></rect>
             <text x="695" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="695" dy="18">Webspace hostname</tspan><tspan x="695" dy="16">root hash, not bundle</tspan></text>
@@ -136,10 +174,10 @@
             Read top to bottom: values select which constraints matter, constraints narrow the choices, decisions produce the implementation contract, and outcomes become acceptance criteria.
           </p>
           <ul>
-            <li>Native web plus origin rules imply a stable broker origin instead of dynamic backend ports.</li>
+            <li>Native web plus origin rules imply a stable visible origin mapped to a hidden dynamic backend port.</li>
             <li>Composition plus existing repo path geometry imply one hostname per webspace root instead of one hostname per bundle.</li>
             <li>Pit-of-success security plus filesystem writes imply strict file-key routing with ordinary-storage fallback.</li>
-            <li>Low bookkeeping plus localhost trust imply fixed port <code>55555</code>, not remembered per-bundle ports or cert plumbing.</li>
+            <li>Low bookkeeping plus localhost trust imply visible port <code>55555</code>, not remembered per-bundle visible ports or cert plumbing.</li>
           </ul>
         </div>
       </section>
@@ -157,7 +195,7 @@
           <tbody>
             <tr>
               <td>Webspace origin</td>
-              <td>Scheme, stable webspace hostname, and fixed port.</td>
+              <td>Scheme, stable webspace hostname, and fixed visible port.</td>
               <td><code>http://repo--a1b2c3d4.localhost:55555</code></td>
             </tr>
             <tr>
@@ -268,9 +306,11 @@ localStorage.setItem(`${scope}:view`, JSON.stringify(view))
       <section aria-labelledby="implementation">
         <h2 id="implementation">Implementation Notes</h2>
         <ul>
-          <li>AppifyHost owns the <code>55555</code> broker port and maps stable webspace hostnames to hidden dynamic backend URLs.</li>
+          <li>AppifyHost owns the visible <code>*.localhost:55555</code> origin and maps stable webspace hostnames to hidden dynamic backend URLs.</li>
+          <li>The Bun Runner should bind an ephemeral loopback port by default; <code>55555</code> is the WebKit origin port, not the Runner listen port.</li>
+          <li>Prefer names such as <code>visibleWebspaceURL</code>, <code>backendServerURL</code>, and <code>routeVisibleOriginThroughBackend</code> so code does not blur the two layers.</li>
           <li>Hostnames are deterministic: <code>&lt;safe-webspace-name&gt;--&lt;short-root-hash&gt;.localhost</code>.</li>
-          <li>If <code>55555</code> is held by the same AppifyHost broker, reuse it; if another process owns it, show a clear startup error.</li>
+          <li>If direct binding of <code>55555</code> remains during migration, mark it as a temporary diagnostic fallback and keep it out of the stable design contract.</li>
           <li>Web.app should use a persistent WebKit website data store for native site-specific persistence.</li>
           <li><code>/_web/*</code> write and control routes should require same-origin checks plus an unguessable per-document control token.</li>
           <li>Do not patch normal web APIs such as <code>fetch</code>, Workers, IndexedDB, CacheStorage, cookies, OPFS, service workers, dialogs, or <code>window.open</code> merely to police native browser behavior.</li>
@@ -281,6 +321,7 @@ localStorage.setItem(`${scope}:view`, JSON.stringify(view))
         <h2 id="tests">Acceptance Tests</h2>
         <ul>
           <li><code>window.location.origin</code> stays stable across backend restarts.</li>
+          <li>The visible URL uses port <code>55555</code> even when the backend Runner listens on an ephemeral loopback port.</li>
           <li><code>window.isSecureContext</code> is true on the stable <code>*.localhost:55555</code> origin.</li>
           <li>IndexedDB, CacheStorage, cookies, service workers, and OPFS persist per webspace origin after reopening Web.app.</li>
           <li>Two different repo roots get isolated origins and cannot read each other's native website storage.</li>

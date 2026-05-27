@@ -753,6 +753,10 @@ public enum ServerCommandBuilder {
 public enum AppifyHostOpenURL {
     public static let outputPrefix = "APPIFY_HOST_OPEN_URL="
 
+    // For Web.app, a ready URL can be the WebKit-visible stable origin
+    // (*.localhost:55555). AppifyHost may route that origin to a separate
+    // ephemeral loopback backend; do not collapse those two URLs into one
+    // ambiguous "server URL" concept.
     public enum UserNavigationDisposition: Equatable, Sendable {
         case allowInHost
         case openExternally
