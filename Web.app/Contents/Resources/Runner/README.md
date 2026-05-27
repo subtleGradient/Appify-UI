@@ -19,6 +19,11 @@ Storage stays per opened document window: imported modules from another `.web`
 package use the current package's duck-punched `localStorage`, and fetched peer
 HTML is served without injected storage or live-reload scripts.
 
+Compatibility behavior is example-driven. Server-ish affordances such as fossil
+CGI URLs, form POST handling, SSI, or old AJAX expectations must start with a
+checked-in red-case `.web` bundle and follow
+[`COMPATIBILITY.md`](COMPATIBILITY.md).
+
 ## Hack On It
 
 1. Run `bun test tests/*.test.ts` from this folder.
