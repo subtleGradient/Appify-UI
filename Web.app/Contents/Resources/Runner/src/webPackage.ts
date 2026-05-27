@@ -1189,21 +1189,50 @@ function localStoragePersistenceClientScript(): string {
   return `<script>
 (() => {
   if (window.__WEB_APP_LOCAL_STORAGE__) return;
-  window.__WEB_APP_LOCAL_STORAGE__ = true;
   const endpoint = "/_web/persistence/local-storage";
   const endpointForPage = () => endpoint + "?page=" + encodeURIComponent(window.location?.pathname || "/");
-  const storage = window.localStorage;
-  const storageMethods = new Set(["clear", "getItem", "key", "length", "removeItem", "setItem"]);
-  const originalSetItem = Storage.prototype.setItem;
-  const originalRemoveItem = Storage.prototype.removeItem;
-  const originalClear = Storage.prototype.clear;
+  const items = new Map();
+  const reservedProperties = new Set(["clear", "getItem", "key", "length", "removeItem", "setItem"]);
   let flushTimer = 0;
+  let facade = null;
+
+  const escapeHTML = (value) => String(value).replace(/[&<>"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+  })[character] || character);
+
+  const failClosed = (message, cause) => {
+    const error = cause instanceof Error ? cause : new Error(message);
+    window.__WEB_APP_LOCAL_STORAGE_ERROR__ = error;
+    try {
+      window.stop();
+    } catch {}
+    try {
+      const document = window.document;
+      document.open();
+      document.write(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8" />'
+        + '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+        + '<title>Web storage error</title>'
+        + '<style>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
+        + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}</style>'
+        + '</head><body><main><h1>Web storage could not start</h1><p>'
+        + escapeHTML(message)
+        + '</p><pre>'
+        + escapeHTML(error.message || String(error))
+        + '</pre></main></body></html>',
+      );
+      document.close();
+    } catch {}
+    throw error;
+  };
 
   const snapshot = () => {
     const entries = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (key !== null) entries.push([key, storage.getItem(key) ?? ""]);
+    for (const [key, value] of items) {
+      entries.push([key, value]);
     }
     entries.sort((left, right) => left[0].localeCompare(right[0]));
     return JSON.stringify({ schema: 1, entries });
@@ -1229,75 +1258,230 @@ function localStoragePersistenceClientScript(): string {
     flushTimer = window.setTimeout(() => flush(false), 120);
   };
 
-  try {
+  const keyAt = (index) => {
+    const numericIndex = Number(index);
+    if (!Number.isFinite(numericIndex) || numericIndex < 0) return null;
+    return Array.from(items.keys())[Math.trunc(numericIndex)] ?? null;
+  };
+
+  const getItem = (key) => items.get(String(key)) ?? null;
+  const setItem = (key, value) => {
+    items.set(String(key), String(value));
+    scheduleFlush();
+  };
+  const removeItem = (key) => {
+    items.delete(String(key));
+    scheduleFlush();
+  };
+  const clear = () => {
+    items.clear();
+    scheduleFlush();
+  };
+
+  const hydrate = () => {
     const request = new XMLHttpRequest();
     request.open("GET", endpointForPage(), false);
     request.setRequestHeader("Accept", "application/json");
     request.send(null);
-    if (request.status >= 200 && request.status < 300 && request.responseText) {
-      const payload = JSON.parse(request.responseText);
-      if (payload?.schema === 1 && Array.isArray(payload.entries)) {
-        originalClear.call(storage);
-        for (const entry of payload.entries) {
-          if (Array.isArray(entry) && entry.length === 2) {
-            originalSetItem.call(storage, String(entry[0]), String(entry[1]));
-          }
-        }
-      }
+    if (request.status < 200 || request.status >= 300) {
+      throw new Error("Storage route returned HTTP " + request.status + ".");
     }
-  } catch (error) {
-    console.warn("Web localStorage hydration failed:", error);
-  }
-
-  Storage.prototype.setItem = function setItem(key, value) {
-    const result = originalSetItem.call(this, key, value);
-    if (this === storage) scheduleFlush();
-    return result;
-  };
-  Storage.prototype.removeItem = function removeItem(key) {
-    const result = originalRemoveItem.call(this, key);
-    if (this === storage) scheduleFlush();
-    return result;
-  };
-  Storage.prototype.clear = function clear() {
-    const result = originalClear.call(this);
-    if (this === storage) scheduleFlush();
-    return result;
+    const payload = JSON.parse(request.responseText || '{"schema":1,"entries":[]}');
+    if (payload?.schema !== 1 || !Array.isArray(payload.entries)) {
+      throw new Error("Storage route returned an invalid snapshot.");
+    }
+    items.clear();
+    for (const entry of payload.entries) {
+      if (!Array.isArray(entry) || entry.length !== 2) {
+        throw new Error("Storage route returned an invalid entry.");
+      }
+      items.set(String(entry[0]), String(entry[1]));
+    }
   };
 
   try {
-    const proxy = new Proxy(storage, {
-      get(target, property) {
-        const value = Reflect.get(target, property, target);
-        return typeof value === "function" ? value.bind(target) : value;
-      },
-      set(target, property, value) {
-        const result = Reflect.set(target, property, value);
-        if (typeof property === "string" && !storageMethods.has(property)) {
-          originalSetItem.call(target, property, String(value));
-          scheduleFlush();
-        }
-        return result;
-      },
-      deleteProperty(target, property) {
-        const result = Reflect.deleteProperty(target, property);
-        if (typeof property === "string" && !storageMethods.has(property)) {
-          originalRemoveItem.call(target, property);
-          scheduleFlush();
-        }
-        return result;
-      },
-    });
-    Object.defineProperty(window, "localStorage", {
-      configurable: true,
-      get() {
-        return proxy;
-      },
-    });
-  } catch {
-    // Some WebKit builds do not allow replacing window.localStorage. Method calls still persist.
+    hydrate();
+  } catch (error) {
+    failClosed("Web.app could not hydrate localStorage from its disk-backed source of truth.", error);
   }
 
+  const target = {};
+  Object.defineProperties(target, {
+    length: {
+      configurable: true,
+      enumerable: false,
+      get() {
+        return items.size;
+      },
+    },
+    key: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value(index) {
+        return keyAt(index);
+      },
+    },
+    getItem: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value(key) {
+        return getItem(key);
+      },
+    },
+    setItem: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value(key, value) {
+        setItem(key, value);
+      },
+    },
+    removeItem: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value(key) {
+        removeItem(key);
+      },
+    },
+    clear: {
+      configurable: true,
+      enumerable: false,
+      writable: false,
+      value() {
+        clear();
+      },
+    },
+  });
+
+  const isFacadeReceiver = (receiver) => receiver === facade || receiver === target;
+
+  try {
+    if (typeof Storage === "function" && Storage.prototype) {
+      Object.setPrototypeOf(target, Storage.prototype);
+    }
+  } catch {}
+
+  facade = new Proxy(target, {
+    get(target, property, receiver) {
+      if (typeof property !== "string") {
+        return Reflect.get(target, property, receiver);
+      }
+      if (Reflect.has(target, property)) {
+        const value = Reflect.get(target, property, receiver);
+        return typeof value === "function" ? value.bind(receiver) : value;
+      }
+      return items.has(property) ? items.get(property) : undefined;
+    },
+    set(target, property, value, receiver) {
+      if (typeof property !== "string") {
+        return Reflect.set(target, property, value, receiver);
+      }
+      if (reservedProperties.has(property) || Reflect.has(target, property)) {
+        return Reflect.set(target, property, value, receiver);
+      }
+      setItem(property, value);
+      return true;
+    },
+    deleteProperty(target, property) {
+      if (typeof property !== "string" || reservedProperties.has(property) || Reflect.has(target, property)) {
+        return false;
+      }
+      removeItem(property);
+      return true;
+    },
+    has(target, property) {
+      return typeof property === "string" && items.has(property) || Reflect.has(target, property);
+    },
+    ownKeys() {
+      return Array.from(items.keys());
+    },
+    getOwnPropertyDescriptor(target, property) {
+      if (typeof property === "string" && items.has(property)) {
+        return {
+          configurable: true,
+          enumerable: true,
+          value: items.get(property),
+          writable: true,
+        };
+      }
+      return Reflect.getOwnPropertyDescriptor(target, property);
+    },
+  });
+
+  try {
+    Object.defineProperty(window, "localStorage", {
+      configurable: true,
+      enumerable: true,
+      get() {
+        return facade;
+      },
+    });
+  } catch (error) {
+    failClosed("Web.app could not install its single-source localStorage facade.", error);
+  }
+
+  const patchStoragePrototype = () => {
+    if (typeof Storage !== "function" || !Storage.prototype) return;
+    const prototype = Storage.prototype;
+    const originals = {
+      clear: prototype.clear,
+      getItem: prototype.getItem,
+      key: prototype.key,
+      removeItem: prototype.removeItem,
+      setItem: prototype.setItem,
+    };
+    const callOriginal = (method, receiver, args) => {
+      if (typeof method !== "function") {
+        throw new TypeError("Illegal invocation");
+      }
+      return Reflect.apply(method, receiver, args);
+    };
+    try {
+      Object.defineProperties(prototype, {
+        getItem: {
+          configurable: true,
+          writable: true,
+          value(key) {
+            return isFacadeReceiver(this) ? getItem(key) : callOriginal(originals.getItem, this, arguments);
+          },
+        },
+        setItem: {
+          configurable: true,
+          writable: true,
+          value(key, value) {
+            return isFacadeReceiver(this) ? setItem(key, value) : callOriginal(originals.setItem, this, arguments);
+          },
+        },
+        removeItem: {
+          configurable: true,
+          writable: true,
+          value(key) {
+            return isFacadeReceiver(this) ? removeItem(key) : callOriginal(originals.removeItem, this, arguments);
+          },
+        },
+        clear: {
+          configurable: true,
+          writable: true,
+          value() {
+            return isFacadeReceiver(this) ? clear() : callOriginal(originals.clear, this, arguments);
+          },
+        },
+        key: {
+          configurable: true,
+          writable: true,
+          value(index) {
+            return isFacadeReceiver(this) ? keyAt(index) : callOriginal(originals.key, this, arguments);
+          },
+        },
+      });
+    } catch {}
+  };
+  patchStoragePrototype();
+
+  window.__WEB_APP_LOCAL_STORAGE__ = true;
   window.addEventListener("pagehide", () => flush(true));
 })();
 </script>`;

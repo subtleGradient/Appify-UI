@@ -464,7 +464,7 @@ const x = 1;
     expect(html.indexOf("__WEB_APP_LOCAL_STORAGE__")).toBeLessThan(html.indexOf("window.pageScriptRan"));
   });
 
-  test("injected localStorage proxy keeps native Storage methods bound", async () => {
+  test("injected localStorage facade avoids native Storage IO", async () => {
     const page = join(root, "stateful.html");
     await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
     const response = await readFileResponse(page, { localStoragePersistence: true });
@@ -472,36 +472,42 @@ const x = 1;
     const script = html.match(/<script>\n([\s\S]*?__WEB_APP_LOCAL_STORAGE__[\s\S]*?)\n<\/script>/)?.[1];
     expect(script).toBeDefined();
 
+    const nativeCalls: string[] = [];
     class FakeStorage {
-      #items = new Map<string, string>();
-
       get length() {
-        return this.#items.size;
+        nativeCalls.push("length");
+        throw new Error("native length should not be read");
       }
 
       getItem(key: string) {
-        return this.#items.get(String(key)) ?? null;
+        nativeCalls.push(`getItem:${key}`);
+        throw new Error("native getItem should not be called");
       }
 
       key(index: number) {
-        return Array.from(this.#items.keys())[index] ?? null;
+        nativeCalls.push(`key:${index}`);
+        throw new Error("native key should not be called");
       }
 
       setItem(key: string, value: string) {
-        this.#items.set(String(key), String(value));
+        nativeCalls.push(`setItem:${key}:${value}`);
+        throw new Error("native setItem should not be called");
       }
 
       removeItem(key: string) {
-        this.#items.delete(String(key));
+        nativeCalls.push(`removeItem:${key}`);
+        throw new Error("native removeItem should not be called");
       }
 
       clear() {
-        this.#items.clear();
+        nativeCalls.push("clear");
+        throw new Error("native clear should not be called");
       }
     }
 
+    const nativeStorage = new FakeStorage();
     const fakeWindow: Record<string, unknown> = {
-      localStorage: new FakeStorage(),
+      localStorage: nativeStorage,
       location: { pathname: "/stateful.html" },
       clearTimeout() {},
       setTimeout(callback: () => void) {
@@ -537,10 +543,105 @@ const x = 1;
 
     const storage = fakeWindow.localStorage as Storage;
     expect(storage.getItem("existing")).toBe("yes");
+    expect(storage.length).toBe(1);
+    expect(storage.key(0)).toBe("existing");
+    expect(storage.key(99)).toBeNull();
+
     storage.setItem("next", "ok");
     expect(storage.getItem("next")).toBe("ok");
+    expect(storage.length).toBe(2);
+    expect(FakeStorage.prototype.getItem.call(storage, "next")).toBe("ok");
+    FakeStorage.prototype.setItem.call(storage, "proto", "call");
+    expect(storage.getItem("proto")).toBe("call");
+
+    (storage as Storage & { answer?: unknown }).answer = 42;
+    expect(storage.getItem("answer")).toBe("42");
+    expect((storage as Storage & { answer?: unknown }).answer).toBe("42");
+    expect(Object.keys(storage)).toEqual(["existing", "next", "proto", "answer"]);
+    expect(delete (storage as Storage & { answer?: unknown }).answer).toBe(true);
+    expect(storage.getItem("answer")).toBeNull();
+
+    storage.removeItem("existing");
+    expect(storage.getItem("existing")).toBeNull();
+    storage.clear();
+    expect(storage.length).toBe(0);
     expect(requests).toContain("/_web/persistence/local-storage?page=%2Fstateful.html");
-    expect(requests.at(-1)).toContain('"next"');
+    expect(requests.at(-1)).toContain('"entries":[]');
+    expect(nativeCalls).toEqual([]);
+    expect(fakeWindow.localStorage).not.toBe(nativeStorage);
+  });
+
+  test("injected localStorage facade fails closed when it cannot replace native storage", async () => {
+    const page = join(root, "stateful.html");
+    await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
+    const response = await readFileResponse(page, { localStoragePersistence: true });
+    const html = await response.text();
+    const script = html.match(/<script>\n([\s\S]*?__WEB_APP_LOCAL_STORAGE__[\s\S]*?)\n<\/script>/)?.[1];
+    expect(script).toBeDefined();
+
+    const nativeCalls: string[] = [];
+    class FakeStorage {
+      getItem(key: string) {
+        nativeCalls.push(`getItem:${key}`);
+        throw new Error("native getItem should not be called");
+      }
+
+      setItem(key: string, value: string) {
+        nativeCalls.push(`setItem:${key}:${value}`);
+        throw new Error("native setItem should not be called");
+      }
+    }
+
+    let stopped = false;
+    let written = "";
+    const nativeStorage = new FakeStorage();
+    const fakeWindow: Record<string, unknown> = {
+      location: { pathname: "/stateful.html" },
+      clearTimeout() {},
+      setTimeout(callback: () => void) {
+        callback();
+        return 1;
+      },
+      addEventListener() {},
+      stop() {
+        stopped = true;
+      },
+      document: {
+        open() {},
+        write(value: string) {
+          written += value;
+        },
+        close() {},
+      },
+    };
+    Object.defineProperty(fakeWindow, "localStorage", {
+      configurable: false,
+      value: nativeStorage,
+    });
+
+    const fakeXHR = class {
+      status = 200;
+      responseText = JSON.stringify({ schema: 1, entries: [["existing", "yes"]] });
+      open() {}
+      setRequestHeader() {}
+      send() {}
+    };
+
+    expect(() => new Function("window", "Storage", "XMLHttpRequest", "Blob", "navigator", "fetch", "console", script!)(
+      fakeWindow,
+      FakeStorage,
+      fakeXHR,
+      Blob,
+      { sendBeacon: undefined },
+      () => Promise.resolve(new Response(null, { status: 204 })),
+      console,
+    )).toThrow();
+
+    expect(stopped).toBe(true);
+    expect(written).toContain("Web storage could not start");
+    expect(written).toContain("single-source localStorage facade");
+    expect(fakeWindow.localStorage).toBe(nativeStorage);
+    expect(nativeCalls).toEqual([]);
   });
 
   test("exposes live reload versions for polling clients", async () => {
