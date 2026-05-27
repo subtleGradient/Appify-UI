@@ -13,12 +13,33 @@ export type RenderOptions = {
   liveReload?: boolean;
   localStoragePersistence?: boolean;
   controlBasePath?: string;
+  postedRequest?: PostedRequestPayload;
   title?: string;
 };
 
 export type LocalStorageSnapshot = {
   schema: 1;
   entries: [string, string][];
+};
+
+export type PostedRequestPayload = {
+  schema: 1;
+  method: "POST";
+  action: string;
+  path: string;
+  query: string;
+  contentType: string;
+  fields: [string, string][];
+  files: PostedRequestFile[];
+  text?: string;
+  json?: unknown;
+};
+
+export type PostedRequestFile = {
+  name: string;
+  filename: string;
+  type: string;
+  size: number;
 };
 
 export type WebSpace = {
@@ -103,6 +124,10 @@ const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
 const STORAGE_FILE_NAME = "storage.json";
+const LEGACY_DYNAMIC_EXTENSIONS = new Set([".asp", ".aspx", ".cgi", ".jsp", ".php", ".pl"]);
+const MAX_POST_BODY_BYTES = 1024 * 1024;
+const MAX_POST_FIELD_BYTES = 64 * 1024;
+const MAX_POST_FIELDS = 200;
 const FILE_STORAGE_CONTROL_SEGMENTS = new Set(["_web", "node_modules"]);
 const FILE_STORAGE_SEGMENT_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._@ -]*$/;
 const BINARY_DATA_URL_MEDIA_TYPES = new Set([
@@ -280,7 +305,10 @@ export async function resolveRequestPath(rootPath: string, requestPath: string):
     return null;
   }
 
-  const candidate = resolve(rootPath, `.${decodedPath}`);
+  const candidate = requestFileCandidate(rootPath, decodedPath);
+  if (candidate === null) {
+    return null;
+  }
   if (!isInsideRoot(rootPath, candidate)) {
     return null;
   }
@@ -297,6 +325,13 @@ export async function resolveRequestPath(rootPath: string, requestPath: string):
     return { kind: "file", path: candidate };
   }
   return null;
+}
+
+function requestFileCandidate(rootPath: string, decodedPath: string): string | null {
+  if (LEGACY_DYNAMIC_EXTENSIONS.has(extname(decodedPath).toLowerCase())) {
+    return resolve(rootPath, `.${decodedPath}.html`);
+  }
+  return resolve(rootPath, `.${decodedPath}`);
 }
 
 export async function resolveWebSpaceRequestPath(
@@ -406,7 +441,7 @@ export async function readFileResponse(filePath: string, options: RenderOptions 
   let body: BodyInit = Bun.file(filePath);
   let contentType = contentTypeFor(filePath);
 
-  if ((options.liveReload || options.localStoragePersistence) && isHtmlFile(filePath)) {
+  if ((options.liveReload || options.localStoragePersistence || options.postedRequest) && isHtmlFile(filePath)) {
     body = injectClientScripts(await Bun.file(filePath).text(), options);
     contentType = "text/html; charset=utf-8";
   }
@@ -666,6 +701,114 @@ export function createLocalStoragePersistenceRoutes(
       },
     },
   };
+}
+
+export async function createPostedRequestPayload(request: Request): Promise<PostedRequestPayload> {
+  const method = request.method.toUpperCase();
+  if (method !== "POST") {
+    throw new Error(`Expected POST, got ${request.method}.`);
+  }
+
+  assertPostContentLength(request);
+  const url = new URL(request.url);
+  assertSameOriginPostRequest(request, url);
+  const contentType = request.headers.get("Content-Type") ?? "";
+  const mediaType = contentType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
+  const payload: PostedRequestPayload = {
+    schema: 1,
+    method: "POST",
+    action: `${url.pathname}${url.search}`,
+    path: url.pathname,
+    query: url.search.startsWith("?") ? url.search.slice(1) : url.search,
+    contentType,
+    fields: [],
+    files: [],
+  };
+
+  if (mediaType === "application/x-www-form-urlencoded" || mediaType === "multipart/form-data") {
+    const formData = await request.formData();
+    for (const [name, value] of formData) {
+      assertPostFieldCount(payload);
+      if (typeof value === "string") {
+        assertPostFieldSize(name, value);
+        payload.fields.push([name, value]);
+        continue;
+      }
+
+      payload.files.push({
+        name,
+        filename: value.name,
+        type: value.type,
+        size: value.size,
+      });
+    }
+    return payload;
+  }
+
+  if (mediaType === "application/json") {
+    const text = await limitedRequestText(request);
+    payload.text = text;
+    try {
+      payload.json = JSON.parse(text);
+    } catch {
+      // Keep malformed JSON visible as text; page code can decide what to do.
+    }
+    return payload;
+  }
+
+  if (mediaType === "" || mediaType.startsWith("text/")) {
+    payload.text = await limitedRequestText(request);
+  }
+  return payload;
+}
+
+function assertSameOriginPostRequest(request: Request, url: URL): void {
+  const origin = request.headers.get("Origin");
+  if (origin !== null && origin !== url.origin) {
+    throw new Error("POST submissions must be same-origin.");
+  }
+
+  const fetchSite = request.headers.get("Sec-Fetch-Site")?.toLowerCase();
+  if (fetchSite === "cross-site") {
+    throw new Error("Cross-site POST submissions are not accepted.");
+  }
+}
+
+function assertPostContentLength(request: Request): void {
+  const value = request.headers.get("Content-Length");
+  if (value === null || value.trim() === "") {
+    return;
+  }
+
+  const length = Number(value);
+  if (!Number.isFinite(length) || length < 0) {
+    throw new Error("POST Content-Length must be a valid non-negative number.");
+  }
+  if (length > MAX_POST_BODY_BYTES) {
+    throw new Error(`POST body is too large. Limit is ${MAX_POST_BODY_BYTES} bytes.`);
+  }
+}
+
+async function limitedRequestText(request: Request): Promise<string> {
+  const buffer = await request.arrayBuffer();
+  if (buffer.byteLength > MAX_POST_BODY_BYTES) {
+    throw new Error(`POST body is too large. Limit is ${MAX_POST_BODY_BYTES} bytes.`);
+  }
+  const text = new TextDecoder().decode(buffer);
+  assertPostFieldSize("text", text);
+  return text;
+}
+
+function assertPostFieldCount(payload: PostedRequestPayload): void {
+  if (payload.fields.length + payload.files.length >= MAX_POST_FIELDS) {
+    throw new Error(`POST form has too many fields. Limit is ${MAX_POST_FIELDS}.`);
+  }
+}
+
+function assertPostFieldSize(name: string, value: string): void {
+  if (new TextEncoder().encode(value).byteLength > MAX_POST_FIELD_BYTES) {
+    throw new Error(`POST field ${JSON.stringify(name)} is too large. Limit is ${MAX_POST_FIELD_BYTES} bytes.`);
+  }
 }
 
 function normalizeLocalStorageSnapshot(value: unknown): LocalStorageSnapshot {
@@ -1203,10 +1346,28 @@ function htmlRouteValue(pagePath: string, htmlImport: unknown, options: RenderOp
       async GET() {
         return await readFileResponse(pagePath, options);
       },
+      async POST(request: Request) {
+        try {
+          return await readFileResponse(pagePath, {
+            ...options,
+            postedRequest: await createPostedRequestPayload(request),
+          });
+        } catch (error) {
+          return postedRequestErrorResponse(error);
+        }
+      },
     };
   }
 
   return htmlImport;
+}
+
+function postedRequestErrorResponse(error: unknown): Response {
+  const message = String(error);
+  return new Response(message, {
+    status: message.includes("too large") ? 413 : 400,
+    headers: { "Content-Type": "text/plain; charset=utf-8" },
+  });
 }
 
 function preferredDirectoryAliasTargets(rootPath: string, htmlPages: string[]): Map<string, string> {
@@ -1289,6 +1450,9 @@ async function assertNoSymlinkAlongPath(rootPath: string, candidate: string): Pr
 
 function injectClientScripts(html: string, options: RenderOptions): string {
   let result = html;
+  if (options.postedRequest) {
+    result = injectHeadScript(result, postedRequestClientScript(options.postedRequest));
+  }
   if (options.localStoragePersistence) {
     result = injectHeadScript(result, localStoragePersistenceClientScript(options.controlBasePath));
   }
@@ -1310,6 +1474,64 @@ function injectBodyScript(html: string, script: string): string {
     return html.replace(/<\/body>/i, `${script}</body>`);
   }
   return `${html}${script}`;
+}
+
+function postedRequestClientScript(postedRequest: PostedRequestPayload): string {
+  const json = jsonForInlineScript(postedRequest);
+  return `<script type="application/json" id="appify-host-request">${json}</script>
+<script>
+(() => {
+  const element = document.getElementById("appify-host-request");
+  if (!element) return;
+  const payload = JSON.parse(element.textContent || "{}");
+  const fields = Array.isArray(payload.fields) ? payload.fields : [];
+  const searchParams = new URLSearchParams();
+  for (const entry of fields) {
+    if (Array.isArray(entry) && entry.length === 2) {
+      searchParams.append(String(entry[0]), String(entry[1]));
+    }
+  }
+  const request = Object.freeze({
+    ...payload,
+    searchParams,
+    field(name) {
+      return searchParams.get(String(name));
+    },
+    fields(name) {
+      return searchParams.getAll(String(name));
+    },
+  });
+  const host = window.AppifyHost && typeof window.AppifyHost === "object" ? window.AppifyHost : {};
+  try {
+    Object.defineProperty(host, "request", {
+      configurable: true,
+      enumerable: true,
+      value: request,
+    });
+    Object.defineProperty(window, "AppifyHost", {
+      configurable: true,
+      enumerable: true,
+      value: host,
+    });
+  } catch {}
+  try {
+    Object.defineProperty(window, "__WEB_APP_REQUEST__", {
+      configurable: true,
+      enumerable: false,
+      value: request,
+    });
+  } catch {}
+})();
+</script>`;
+}
+
+function jsonForInlineScript(value: unknown): string {
+  return JSON.stringify(value)
+    .replaceAll("&", "\\u0026")
+    .replaceAll("<", "\\u003c")
+    .replaceAll(">", "\\u003e")
+    .replaceAll("\u2028", "\\u2028")
+    .replaceAll("\u2029", "\\u2029");
 }
 
 function localStoragePersistenceClientScript(controlBasePath = "/"): string {

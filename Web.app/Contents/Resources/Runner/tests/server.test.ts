@@ -7,6 +7,7 @@ import {
   contentTypeFor,
   createDirectoryListingResponse,
   createLocalStoragePersistenceRoutes,
+  createPostedRequestPayload,
   createReloadBroadcaster,
   findRootEntry,
   isIgnoredReloadPath,
@@ -127,6 +128,64 @@ describe("web package resolution", () => {
     await mkdir(join(root, "_web", "persistence"), { recursive: true });
     await writeFile(join(root, "_web", "persistence", "local-storage"), "not the route");
     expect(await resolveRequestPath(root, "/_web/persistence/local-storage")).toBeNull();
+  });
+
+  test("maps fossil dynamic URLs only to explicit html shadow files", async () => {
+    await mkdir(join(root, "cgi-bin"), { recursive: true });
+    await writeFile(join(root, "cgi-bin", "contact.cgi"), "<h1>not supported</h1>");
+    expect(await resolveRequestPath(root, "/cgi-bin/contact.cgi")).toBeNull();
+
+    await writeFile(join(root, "cgi-bin", "contact.cgi.html"), "<h1>Contact</h1>");
+    expect(await resolveRequestPath(root, "/cgi-bin/contact.cgi")).toEqual({
+      kind: "file",
+      path: join(root, "cgi-bin", "contact.cgi.html"),
+    });
+    expect(await resolveRequestPath(root, "/cgi-bin/contact.cgi.html")).toEqual({
+      kind: "file",
+      path: join(root, "cgi-bin", "contact.cgi.html"),
+    });
+  });
+
+  test("serves fossil dynamic aliases with posted request data", async () => {
+    await mkdir(join(root, "cgi-bin"), { recursive: true });
+    await writeFile(
+      join(root, "cgi-bin", "contact.cgi.html"),
+      "<!doctype html><html><head><script>window.pageScriptRan = true;</script></head><body><h1>Contact</h1></body></html>",
+    );
+    const server = Bun.serve({
+      port: await resolveServerPort(),
+      idleTimeout: 0,
+      async fetch(request) {
+        const url = new URL(request.url);
+        const resolved = await resolveRequestPath(root, url.pathname);
+        if (resolved?.kind !== "file") {
+          return new Response("Not found", { status: 404 });
+        }
+        if (request.method === "POST") {
+          return await readFileResponse(resolved.path, {
+            postedRequest: await createPostedRequestPayload(request),
+          });
+        }
+        return await readFileResponse(resolved.path);
+      },
+    });
+
+    try {
+      const getResponse = await fetch(new URL("/cgi-bin/contact.cgi", server.url));
+      expect(await getResponse.text()).toContain("<h1>Contact</h1>");
+
+      const postResponse = await fetch(new URL("/cgi-bin/contact.cgi", server.url), {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: "name=Tom",
+      });
+      const html = await postResponse.text();
+      expect(html).toContain('"action":"/cgi-bin/contact.cgi"');
+      expect(html).toContain('"fields":[["name","Tom"]]');
+      expect(html.indexOf("appify-host-request")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+    } finally {
+      server.stop(true);
+    }
   });
 
   test("maps common static content types", () => {
@@ -537,6 +596,64 @@ const x = 1;
 
     expect(html).toContain("__WEB_APP_LOCAL_STORAGE__");
     expect(html.indexOf("__WEB_APP_LOCAL_STORAGE__")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+  });
+
+  test("injects posted request data before page scripts", async () => {
+    const page = join(root, "posted.html");
+    await writeFile(page, "<!doctype html><html><head><script>window.pageScriptRan = true;</script></head><body></body></html>");
+    const postedRequest = await createPostedRequestPayload(new Request("http://127.0.0.1/cgi-bin/contact.cgi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "http://127.0.0.1",
+      },
+      body: "name=Tom&topic=Web.app",
+    }));
+    const response = await readFileResponse(page, { postedRequest });
+    const html = await response.text();
+
+    expect(html).toContain('id="appify-host-request"');
+    expect(html).toContain('"action":"/cgi-bin/contact.cgi"');
+    expect(html).toContain('"fields":[["name","Tom"],["topic","Web.app"]]');
+    expect(html).toContain("AppifyHost");
+    expect(html.indexOf("appify-host-request")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+  });
+
+  test("parses posted form, json, and cross-site guards", async () => {
+    const formPayload = await createPostedRequestPayload(new Request("http://127.0.0.1/submit.cgi?ok=1", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "http://127.0.0.1",
+      },
+      body: "name=Tom&name=Web",
+    }));
+    expect(formPayload).toMatchObject({
+      schema: 1,
+      method: "POST",
+      action: "/submit.cgi?ok=1",
+      path: "/submit.cgi",
+      query: "ok=1",
+      fields: [["name", "Tom"], ["name", "Web"]],
+      files: [],
+    });
+
+    const jsonPayload = await createPostedRequestPayload(new Request("http://127.0.0.1/api/items", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ok: true }),
+    }));
+    expect(jsonPayload.text).toBe('{"ok":true}');
+    expect(jsonPayload.json).toEqual({ ok: true });
+
+    await expect(createPostedRequestPayload(new Request("http://127.0.0.1/submit.cgi", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+        "Origin": "https://example.com",
+      },
+      body: "name=bad",
+    }))).rejects.toThrow("same-origin");
   });
 
   test("injected localStorage facade avoids native Storage IO", async () => {

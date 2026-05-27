@@ -11,6 +11,7 @@ import {
   isMarkdownFile,
   readFileResponse,
   renderMarkdownResponse,
+  createPostedRequestPayload,
   resolveDocumentPath,
   resolveLocalStorageFilePath,
   resolveServerPort,
@@ -67,6 +68,7 @@ const server = Bun.serve({
   },
   async fetch(request) {
     const url = new URL(request.url);
+    const method = request.method.toUpperCase();
 
     if (hmrEnabled && url.pathname === liveReloadPath) {
       return reloader.response();
@@ -85,6 +87,9 @@ const server = Bun.serve({
     }
 
     if (resolvedPath.kind === "directory") {
+      if (method === "POST") {
+        return methodNotAllowedResponse("GET, HEAD");
+      }
       if (!url.pathname.endsWith("/")) {
         return Response.redirect(`${url.pathname}/${url.search}`, 308);
       }
@@ -97,6 +102,27 @@ const server = Bun.serve({
     }
 
     const isActivePath = isPathInside(webspace.activeRootPath, resolvedPath.path);
+    if (method === "POST") {
+      if (!isActivePath || !isHtmlFile(resolvedPath.path)) {
+        return methodNotAllowedResponse("GET, HEAD");
+      }
+
+      try {
+        return await readFileResponse(resolvedPath.path, {
+          liveReload: hmrEnabled && isHtmlFile(resolvedPath.path),
+          localStoragePersistence: true,
+          controlBasePath: webspace.activeBasePath,
+          postedRequest: await createPostedRequestPayload(request),
+        });
+      } catch (error) {
+        const message = String(error);
+        return new Response(message, {
+          status: message.includes("too large") ? 413 : 400,
+          headers: { "Content-Type": "text/plain; charset=utf-8" },
+        });
+      }
+    }
+
     if (isMarkdownFile(resolvedPath.path)) {
       return await renderMarkdownResponse(resolvedPath.path, {
         liveReload: hmrEnabled && isActivePath,
@@ -120,4 +146,14 @@ console.log(`APPIFY_HOST_OPEN_URL=${new URL(webspace.activeBasePath, server.url)
 function isPathInside(rootPath: string, candidatePath: string): boolean {
   const relativePath = candidatePath === rootPath ? "" : candidatePath.slice(rootPath.length);
   return relativePath === "" || relativePath.startsWith("/");
+}
+
+function methodNotAllowedResponse(allow: string): Response {
+  return new Response("Method not allowed", {
+    status: 405,
+    headers: {
+      "Allow": allow,
+      "Content-Type": "text/plain; charset=utf-8",
+    },
+  });
 }
