@@ -751,6 +751,9 @@ const x = 1;
 
     expect(html).toContain("__WEB_APP_LOCAL_STORAGE__");
     expect(html.indexOf("__WEB_APP_LOCAL_STORAGE__")).toBeLessThan(html.indexOf("window.pageScriptRan"));
+    const script = html.match(/<script>\n([\s\S]*?__WEB_APP_LOCAL_STORAGE__[\s\S]*?)\n<\/script>/)?.[1] ?? "";
+    expect(script).not.toMatch(/<\/(?:script|style|head|body|html|main|pre|p|h1)>/i);
+    expect(script).toContain("\\x3c/style>");
   });
 
   test("injects posted request data before page scripts", async () => {
@@ -773,6 +776,9 @@ const x = 1;
     expect(html).toContain("AppifyHost");
     expect(html).toContain("__WEB_APP_REQUEST_ERROR__");
     expect(html).toContain("Posted request data could not start");
+    const script = html.match(/<script>\n([\s\S]*?__WEB_APP_REQUEST_ERROR__[\s\S]*?)\n<\/script>/)?.[1] ?? "";
+    expect(script).not.toMatch(/<\/(?:script|style|head|body|html|main|pre|p|h1)>/i);
+    expect(script).toContain("\\x3c/style>");
     expect(html.indexOf("appify-host-request")).toBeLessThan(html.indexOf("window.pageScriptRan"));
   });
 

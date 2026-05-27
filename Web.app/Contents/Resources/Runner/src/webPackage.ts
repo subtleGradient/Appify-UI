@@ -2169,16 +2169,16 @@ function postedRequestClientScript(postedRequest: PostedRequestPayload): string 
     if (typeof window.stop === "function") window.stop();
     document.open();
     document.write(
-      '<!doctype html><html lang="en"><head><meta charset="utf-8" />'
-      + '<meta name="viewport" content="width=device-width, initial-scale=1" />'
-      + '<title>Web request error</title>'
-      + '<style>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
-      + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}</style>'
-      + '</head><body><main><h1>Posted request data could not start</h1><p>'
+      '\\x3c!doctype html>\\x3chtml lang="en">\\x3chead>\\x3cmeta charset="utf-8" />'
+      + '\\x3cmeta name="viewport" content="width=device-width, initial-scale=1" />'
+      + '\\x3ctitle>Web request error\\x3c/title>'
+      + '\\x3cstyle>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
+      + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}\\x3c/style>'
+      + '\\x3c/head>\\x3cbody>\\x3cmain>\\x3ch1>Posted request data could not start\\x3c/h1>\\x3cp>'
       + escapeHTML(message)
-      + '</p><pre>'
+      + '\\x3c/p>\\x3cpre>'
       + escapeHTML(error.message || String(error))
-      + '</pre></main></body></html>',
+      + '\\x3c/pre>\\x3c/main>\\x3c/body>\\x3c/html>',
     );
     document.close();
     throw error;
@@ -2283,16 +2283,16 @@ function localStoragePersistenceClientScript(controlBasePath = "/"): string {
       const document = window.document;
       document.open();
       document.write(
-        '<!doctype html><html lang="en"><head><meta charset="utf-8" />'
-        + '<meta name="viewport" content="width=device-width, initial-scale=1" />'
-        + '<title>Web storage error</title>'
-        + '<style>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
-        + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}</style>'
-        + '</head><body><main><h1>Web storage could not start</h1><p>'
+        '\\x3c!doctype html>\\x3chtml lang="en">\\x3chead>\\x3cmeta charset="utf-8" />'
+        + '\\x3cmeta name="viewport" content="width=device-width, initial-scale=1" />'
+        + '\\x3ctitle>Web storage error\\x3c/title>'
+        + '\\x3cstyle>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
+        + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}\\x3c/style>'
+        + '\\x3c/head>\\x3cbody>\\x3cmain>\\x3ch1>Web storage could not start\\x3c/h1>\\x3cp>'
         + escapeHTML(message)
-        + '</p><pre>'
+        + '\\x3c/p>\\x3cpre>'
         + escapeHTML(error.message || String(error))
-        + '</pre></main></body></html>',
+        + '\\x3c/pre>\\x3c/main>\\x3c/body>\\x3c/html>',
       );
       document.close();
     } catch {}
