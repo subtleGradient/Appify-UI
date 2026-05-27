@@ -1,0 +1,52 @@
+{
+  "suggestions": [
+    {
+      "title": "AJAX",
+      "href": "#ajax",
+      "summary": "Asynchronous JavaScript and XML, here represented by a static JSON file.",
+      "keywords": ["ajax", "xmlhttprequest", "xhr", "dynamic"]
+    },
+    {
+      "title": "RSS",
+      "href": "#rss",
+      "summary": "The feed-shaped heartbeat of weblogs, podcasts, and readers.",
+      "keywords": ["rss", "feed", "reader", "syndication"]
+    },
+    {
+      "title": "Weblog",
+      "href": "#weblog",
+      "summary": "Reverse-chronological publishing for humans with archives.",
+      "keywords": ["blog", "weblog", "post", "archive"]
+    },
+    {
+      "title": "Ruby on Rails",
+      "href": "#rails",
+      "summary": "Convention-over-configuration energy from the early web app boom.",
+      "keywords": ["rails", "ruby", "framework", "crud"]
+    },
+    {
+      "title": "Tagging",
+      "href": "#tagging",
+      "summary": "User-made labels before every sidebar became an algorithmic feed.",
+      "keywords": ["tag", "tags", "folksonomy", "bookmark"]
+    },
+    {
+      "title": "Podcast",
+      "href": "#podcast",
+      "summary": "Audio subscriptions riding around in an RSS sidecar.",
+      "keywords": ["podcast", "audio", "ipod", "rss"]
+    },
+    {
+      "title": "Mashup",
+      "href": "#mashup",
+      "summary": "A single page stitched from several small data sources.",
+      "keywords": ["mashup", "api", "widget", "map"]
+    },
+    {
+      "title": "XML",
+      "href": "#xml",
+      "summary": "The serious-looking data format that made XMLHttpRequest sound official.",
+      "keywords": ["xml", "data", "markup", "angle"]
+    }
+  ]
+}

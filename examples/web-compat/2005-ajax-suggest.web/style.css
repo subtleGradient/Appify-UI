@@ -1,0 +1,182 @@
+:root {
+  color-scheme: light;
+  font-family: Verdana, Arial, Helvetica, sans-serif;
+  color: #223;
+  background: #d9e8f5;
+}
+
+body {
+  margin: 0;
+  padding: 18px;
+  background:
+    linear-gradient(#ffffff 0, #d9e8f5 180px),
+    #d9e8f5;
+}
+
+a {
+  color: #0645ad;
+}
+
+#page {
+  max-width: 780px;
+  margin: 0 auto;
+  border: 1px solid #6b93b5;
+  background: #fffdf1;
+  box-shadow: 4px 4px 0 #9bb8cf;
+}
+
+#masthead {
+  padding: 20px 24px 18px;
+  color: #fff;
+  background: #1f5e9c;
+  border-bottom: 5px solid #f4c542;
+}
+
+.kicker {
+  margin: 0 0 6px;
+  font-size: 0.75rem;
+  font-weight: bold;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+
+h1 {
+  margin-bottom: 8px;
+  font-size: 2rem;
+}
+
+.tagline {
+  margin-bottom: 0;
+}
+
+main {
+  padding: 18px;
+}
+
+.panel {
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid #d2b85a;
+  background: #fff9d8;
+}
+
+.notice {
+  border-color: #b55;
+  background: #ffecec;
+}
+
+label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+}
+
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+input[type="search"] {
+  flex: 1;
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #7a8da1;
+  font: inherit;
+  background: #fff;
+}
+
+button {
+  padding: 8px 14px;
+  border: 1px solid #244f7c;
+  color: #fff;
+  font: inherit;
+  font-weight: bold;
+  background: #2d73b8;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #1f5e9c;
+}
+
+.status {
+  min-height: 1.4em;
+  margin: 10px 0 0;
+  color: #555;
+  font-size: 0.9rem;
+}
+
+.notice-text {
+  color: #8a1f11;
+  font-weight: bold;
+}
+
+.suggestions {
+  margin-top: 10px;
+}
+
+.suggestions ul,
+.directory-list {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.suggestions li,
+.directory-list li {
+  margin: 7px 0;
+}
+
+.suggestions a {
+  font-weight: bold;
+}
+
+.glossary article {
+  margin-top: 14px;
+  padding-top: 10px;
+  border-top: 1px dotted #b4a64a;
+}
+
+footer {
+  padding: 12px 18px;
+  color: #506070;
+  font-size: 0.85rem;
+  background: #edf4fb;
+  border-top: 1px solid #b7d0e5;
+}
+
+footer p {
+  margin: 0;
+}
+
+@media (max-width: 560px) {
+  body {
+    padding: 8px;
+  }
+
+  #masthead,
+  main {
+    padding: 14px;
+  }
+
+  .search-row {
+    display: block;
+  }
+
+  input[type="search"],
+  button {
+    box-sizing: border-box;
+    width: 100%;
+  }
+
+  button {
+    margin-top: 8px;
+  }
+}

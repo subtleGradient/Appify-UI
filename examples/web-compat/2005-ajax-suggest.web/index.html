@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ZipZap AJAX Suggest-O-Matic</title>
+    <link rel="stylesheet" href="./style.css" />
+    <script src="./suggest.js"></script>
+  </head>
+  <body>
+    <div id="page">
+      <header id="masthead">
+        <p class="kicker">New for 2005</p>
+        <h1>ZipZap AJAX Suggest-O-Matic</h1>
+        <p class="tagline">
+          Type a few letters and watch suggestions arrive without a full page
+          refresh.
+        </p>
+      </header>
+
+      <main>
+        <section class="panel">
+          <h2>Search The Directory</h2>
+          <form id="search-form" action="#directory" method="get">
+            <label for="search-box">Find a topic</label>
+            <div class="search-row">
+              <input
+                id="search-box"
+                name="q"
+                type="search"
+                autocomplete="off"
+                placeholder="try ajax, rails, podcast..."
+              />
+              <button type="submit">Search</button>
+            </div>
+            <p id="status" class="status">
+              JavaScript enhances this box with static XMLHttpRequest
+              suggestions.
+            </p>
+            <div id="suggestions" class="suggestions" aria-live="polite"></div>
+          </form>
+        </section>
+
+        <noscript>
+          <section class="panel notice">
+            <h2>Non-JavaScript Fallback</h2>
+            <p>
+              Suggestions are listed below as ordinary links. Use your browser's
+              Find command, just like the old days.
+            </p>
+          </section>
+        </noscript>
+
+        <section id="directory" class="panel">
+          <h2>Static Directory</h2>
+          <p>
+            These links are the baseline content. The AJAX layer only makes them
+            quicker to browse.
+          </p>
+          <ul class="directory-list">
+            <li><a href="#ajax">AJAX</a> - asynchronous page updates</li>
+            <li><a href="#rss">RSS</a> - feeds for everything</li>
+            <li><a href="#weblog">Weblog</a> - posts in reverse order</li>
+            <li><a href="#rails">Ruby on Rails</a> - convention over configuration</li>
+            <li><a href="#tagging">Tagging</a> - folksonomy flavor</li>
+            <li><a href="#podcast">Podcast</a> - portable internet radio</li>
+            <li><a href="#mashup">Mashup</a> - one page, many sources</li>
+            <li><a href="#xml">XML</a> - angle brackets with ambition</li>
+          </ul>
+        </section>
+
+        <section class="panel glossary">
+          <h2>Glossary</h2>
+          <article id="ajax">
+            <h3>AJAX</h3>
+            <p>
+              JavaScript asks the server for a small file and updates the page
+              without reloading.
+            </p>
+          </article>
+          <article id="rss">
+            <h3>RSS</h3>
+            <p>Feeds that made the whole web feel subscribable.</p>
+          </article>
+          <article id="weblog">
+            <h3>Weblog</h3>
+            <p>A homepage that kept changing because people kept posting.</p>
+          </article>
+          <article id="rails">
+            <h3>Ruby on Rails</h3>
+            <p>
+              A framework whose demos made database-backed apps feel oddly
+              casual.
+            </p>
+          </article>
+          <article id="tagging">
+            <h3>Tagging</h3>
+            <p>Names added by users, not handed down by a taxonomy committee.</p>
+          </article>
+          <article id="podcast">
+            <h3>Podcast</h3>
+            <p>Audio delivered through feeds and carried around in your pocket.</p>
+          </article>
+          <article id="mashup">
+            <h3>Mashup</h3>
+            <p>
+              A page that stitched together data from different places and made
+              it feel new.
+            </p>
+          </article>
+          <article id="xml">
+            <h3>XML</h3>
+            <p>Verbose, serious, and everywhere for a while.</p>
+          </article>
+        </section>
+      </main>
+
+      <footer>
+        <p>
+          Static fixture: no external assets, no server mutation, no build step.
+        </p>
+      </footer>
+    </div>
+  </body>
+</html>
