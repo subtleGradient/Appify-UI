@@ -23,6 +23,17 @@
       pre { margin: 0; overflow: auto; padding: 0.75rem; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; }
       .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
       .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+      .dag { display: grid; gap: 0.8rem; }
+      .dag svg { inline-size: 100%; block-size: auto; display: block; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; background: color-mix(in oklch, Canvas 96%, CanvasText 4%); }
+      .dag .node { fill: Canvas; stroke: color-mix(in oklch, CanvasText 24%, transparent); stroke-width: 1.2; rx: 8; }
+      .dag .value { stroke: color-mix(in oklch, LinkText 52%, CanvasText 20%); }
+      .dag .constraint { stroke: color-mix(in oklch, CanvasText 34%, transparent); }
+      .dag .decision { stroke: color-mix(in oklch, Mark 62%, CanvasText 20%); }
+      .dag .outcome { stroke: color-mix(in oklch, LinkText 34%, CanvasText 26%); }
+      .dag .edge { fill: none; stroke: color-mix(in oklch, CanvasText 36%, transparent); stroke-width: 1.6; }
+      .dag text { fill: CanvasText; font: 13px ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: middle; }
+      .dag .label { font-weight: 700; }
+      .dag .kind { fill: color-mix(in oklch, CanvasText 62%, transparent); font: 11px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
     </style>
   </head>
   <body>
@@ -45,6 +56,89 @@
           <li>Native website-specific storage should persist normally through WebKit's persistent website data store.</li>
           <li>File-backed <code>localStorage</code> remains the intentional Web.app document-storage enhancement.</li>
         </ul>
+      </section>
+
+      <section aria-labelledby="reasoning-dag">
+        <h2 id="reasoning-dag">Reasoning DAG</h2>
+        <div class="dag">
+          <svg viewBox="0 0 1120 610" role="img" aria-labelledby="dag-title dag-desc">
+            <title id="dag-title">Values and constraints flowing into implementation decisions.</title>
+            <desc id="dag-desc">A directed acyclic graph from values, to constraints, to decisions, to outcomes for stable Web.app webspace origins.</desc>
+            <defs>
+              <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="color-mix(in oklch, CanvasText 36%, transparent)"></path>
+              </marker>
+            </defs>
+
+            <path class="edge" marker-end="url(#arrow)" d="M145 112 C145 135 145 145 145 168"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M420 112 C345 142 250 142 145 168"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M695 112 C695 135 695 145 695 168"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M970 112 C970 135 970 145 970 168"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M145 240 C145 265 282 280 420 304"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M420 240 C420 262 420 282 420 304"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M695 240 C695 263 695 283 695 304"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M695 240 C620 270 520 278 420 304"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M970 240 C970 264 970 282 970 304"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M420 376 C350 402 260 425 145 448"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M695 376 C620 404 515 426 420 448"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M970 376 C880 408 805 426 695 448"></path>
+            <path class="edge" marker-end="url(#arrow)" d="M970 376 C970 405 970 420 970 448"></path>
+
+            <rect class="node value" x="30" y="40" width="230" height="72"></rect>
+            <text x="145" y="62"><tspan class="kind">VALUE</tspan><tspan class="label" x="145" dy="18">Native web</tspan><tspan x="145" dy="16">should feel native</tspan></text>
+
+            <rect class="node value" x="305" y="40" width="230" height="72"></rect>
+            <text x="420" y="62"><tspan class="kind">VALUE</tspan><tspan class="label" x="420" dy="18">Low bookkeeping</tspan><tspan x="420" dy="16">no remembered ports</tspan></text>
+
+            <rect class="node value" x="580" y="40" width="230" height="72"></rect>
+            <text x="695" y="62"><tspan class="kind">VALUE</tspan><tspan class="label" x="695" dy="18">Composition</tspan><tspan x="695" dy="16">peer bundles just work</tspan></text>
+
+            <rect class="node value" x="855" y="40" width="230" height="72"></rect>
+            <text x="970" y="62"><tspan class="kind">VALUE</tspan><tspan class="label" x="970" dy="18">Pit-of-success</tspan><tspan x="970" dy="16">safe by default</tspan></text>
+
+            <rect class="node constraint" x="30" y="168" width="230" height="72"></rect>
+            <text x="145" y="190"><tspan class="kind">CONSTRAINT</tspan><tspan class="label" x="145" dy="18">Origin includes port</tspan><tspan x="145" dy="16">scheme + host + port</tspan></text>
+
+            <rect class="node constraint" x="305" y="168" width="230" height="72"></rect>
+            <text x="420" y="190"><tspan class="kind">CONSTRAINT</tspan><tspan class="label" x="420" dy="18">Localhost is trusted</tspan><tspan x="420" dy="16">secure-context APIs</tspan></text>
+
+            <rect class="node constraint" x="580" y="168" width="230" height="72"></rect>
+            <text x="695" y="190"><tspan class="kind">CONSTRAINT</tspan><tspan class="label" x="695" dy="18">Repo paths exist</tspan><tspan x="695" dy="16">current webspace model</tspan></text>
+
+            <rect class="node constraint" x="855" y="168" width="230" height="72"></rect>
+            <text x="970" y="190"><tspan class="kind">CONSTRAINT</tspan><tspan class="label" x="970" dy="18">Disk writes need gates</tspan><tspan x="970" dy="16">roots, routes, symlinks</tspan></text>
+
+            <rect class="node decision" x="305" y="304" width="230" height="72"></rect>
+            <text x="420" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="420" dy="18">Fixed broker port</tspan><tspan x="420" dy="16">55555</tspan></text>
+
+            <rect class="node decision" x="580" y="304" width="230" height="72"></rect>
+            <text x="695" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="695" dy="18">Webspace hostname</tspan><tspan x="695" dy="16">root hash, not bundle</tspan></text>
+
+            <rect class="node decision" x="855" y="304" width="230" height="72"></rect>
+            <text x="970" y="326"><tspan class="kind">DECISION</tspan><tspan class="label" x="970" dy="18">Guarded file keys</tspan><tspan x="970" dy="16">fallback on weird input</tspan></text>
+
+            <rect class="node outcome" x="30" y="448" width="230" height="72"></rect>
+            <text x="145" y="470"><tspan class="kind">OUTCOME</tspan><tspan class="label" x="145" dy="18">Stable origin</tspan><tspan x="145" dy="16">native storage persists</tspan></text>
+
+            <rect class="node outcome" x="305" y="448" width="230" height="72"></rect>
+            <text x="420" y="470"><tspan class="kind">OUTCOME</tspan><tspan class="label" x="420" dy="18">Same-origin peers</tspan><tspan x="420" dy="16">composition stays simple</tspan></text>
+
+            <rect class="node outcome" x="580" y="448" width="230" height="72"></rect>
+            <text x="695" y="470"><tspan class="kind">OUTCOME</tspan><tspan class="label" x="695" dy="18">Git-trackable files</tspan><tspan x="695" dy="16">only in writable roots</tspan></text>
+
+            <rect class="node outcome" x="855" y="448" width="230" height="72"></rect>
+            <text x="970" y="470"><tspan class="kind">OUTCOME</tspan><tspan class="label" x="970" dy="18">Shared fallback</tspan><tspan x="970" dy="16">root .local/storage.json5</tspan></text>
+          </svg>
+          <p>
+            Read top to bottom: values select which constraints matter, constraints narrow the choices, decisions produce the implementation contract, and outcomes become acceptance criteria.
+          </p>
+          <ul>
+            <li>Native web plus origin rules imply a stable broker origin instead of dynamic backend ports.</li>
+            <li>Composition plus existing repo path geometry imply one hostname per webspace root instead of one hostname per bundle.</li>
+            <li>Pit-of-success security plus filesystem writes imply strict file-key routing with ordinary-storage fallback.</li>
+            <li>Low bookkeeping plus localhost trust imply fixed port <code>55555</code>, not remembered per-bundle ports or cert plumbing.</li>
+          </ul>
+        </div>
       </section>
 
       <section aria-labelledby="origin-model">
