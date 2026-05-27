@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Hello from script/server</title>
+    <link rel="stylesheet" href="../../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead small">
+        <p class="crumb">GET /posts/1</p>
+        <h1>Hello from script/server</h1>
+      </header>
+
+      <nav class="tabs" aria-label="Primary">
+        <a href="../../index.html">Dashboard</a>
+        <a href="../">/posts</a>
+        <a aria-current="page" href="./">/posts/1</a>
+        <a href="./comments/">/posts/1/comments</a>
+      </nav>
+
+      <main class="grid">
+        <article class="panel span-2 post-body">
+          <div class="flash notice">Post was successfully found.</div>
+          <p>
+            This is a tiny original weblog post wearing the clothes of a 2005
+            scaffold demo. The controller is missing on purpose; Web.app only
+            serves static files and safe POST shadows.
+          </p>
+          <p>
+            The exciting part is not the prose. It is that old resource-shaped
+            links, plain forms, and client-side JavaScript can still compose
+            without a bundler.
+          </p>
+
+          <h2>Comments</h2>
+          <ol class="comments">
+            <li><strong>matz-ish</strong>: Convention is a kindness.</li>
+            <li><strong>prototype fan</strong>: The yellow fade is implied.</li>
+          </ol>
+        </article>
+
+        <aside class="panel">
+          <h2>New comment</h2>
+          <form class="scaffold-form" action="./comments/create.cgi" method="post">
+            <input name="comment[post_id]" type="hidden" value="1" />
+            <p>
+              <label for="comment_author">Author</label>
+              <input id="comment_author" name="comment[author]" value="anonymous" />
+            </p>
+            <p>
+              <label for="comment_body">Body</label>
+              <textarea id="comment_body" name="comment[body]" rows="6">This feels suspiciously productive.</textarea>
+            </p>
+            <p class="checkbox">
+              <input id="comment_notify" name="comment[notify]" type="checkbox" value="1" />
+              <label for="comment_notify">Notify me</label>
+            </p>
+            <p class="actions">
+              <button class="button primary" type="submit">Create comment</button>
+            </p>
+          </form>
+        </aside>
+      </main>
+    </div>
+  </body>
+</html>

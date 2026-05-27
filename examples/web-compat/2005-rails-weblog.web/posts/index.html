@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Listing posts</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead small">
+        <p class="crumb">GET /posts</p>
+        <h1>Listing posts</h1>
+      </header>
+
+      <nav class="tabs" aria-label="Primary">
+        <a href="../index.html">Dashboard</a>
+        <a aria-current="page" href="./">/posts</a>
+        <a href="./1/">/posts/1</a>
+        <a href="./1/comments/">/posts/1/comments</a>
+      </nav>
+
+      <main class="panel">
+        <table class="scaffold">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Permalink</th>
+              <th>Published</th>
+              <th colspan="3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Hello from script/server</td>
+              <td>hello-from-script-server</td>
+              <td>2005-07-24</td>
+              <td><a href="./1/">Show</a></td>
+              <td><a href="./1/edit.html">Edit</a></td>
+              <td><a href="./1/destroy.html">Destroy</a></td>
+            </tr>
+            <tr>
+              <td>Prototype made me do it</td>
+              <td>prototype-made-me-do-it</td>
+              <td>2005-09-08</td>
+              <td><a href="./2.html">Show</a></td>
+              <td><a href="./2.html">Edit</a></td>
+              <td><a href="./2.html">Destroy</a></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <p class="actions">
+          <a class="button primary" href="./new.html">New post</a>
+          <a class="button" href="../index.html">Back</a>
+        </p>
+      </main>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Listing comments</title>
+    <link rel="stylesheet" href="../../../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead small">
+        <p class="crumb">GET /posts/1/comments</p>
+        <h1>Listing comments</h1>
+      </header>
+
+      <main class="panel">
+        <table class="scaffold">
+          <thead>
+            <tr>
+              <th>Author</th>
+              <th>Body</th>
+              <th colspan="3">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>matz-ish</td>
+              <td>Convention is a kindness.</td>
+              <td><a href="../">Show</a></td>
+              <td><a href="../">Edit</a></td>
+              <td><a href="../">Destroy</a></td>
+            </tr>
+            <tr>
+              <td>prototype fan</td>
+              <td>The yellow fade is implied.</td>
+              <td><a href="../">Show</a></td>
+              <td><a href="../">Edit</a></td>
+              <td><a href="../">Destroy</a></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <form class="scaffold-form inline-form" action="./create.cgi" method="post">
+          <input name="comment[post_id]" type="hidden" value="1" />
+          <p>
+            <label for="comment_author">Author</label>
+            <input id="comment_author" name="comment[author]" value="reader" />
+          </p>
+          <p>
+            <label for="comment_body">Body</label>
+            <textarea id="comment_body" name="comment[body]" rows="4">Generated from the comments collection.</textarea>
+          </p>
+          <p class="actions">
+            <button class="button primary" type="submit">Create comment</button>
+            <a class="button" href="../">Back to post</a>
+          </p>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>

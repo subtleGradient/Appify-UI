@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>New post</title>
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead small">
+        <p class="crumb">GET /posts/new</p>
+        <h1>New post</h1>
+      </header>
+
+      <main class="panel narrow">
+        <form class="scaffold-form" action="./create.cgi" method="post">
+          <p>
+            <label for="post_title">Title</label>
+            <input id="post_title" name="post[title]" value="My first generated scaffold" />
+          </p>
+          <p>
+            <label for="post_author">Author</label>
+            <input id="post_author" name="post[author]" value="dhh-ish" />
+          </p>
+          <p>
+            <label for="post_category">Category</label>
+            <select id="post_category" name="post[category]">
+              <option>dispatches</option>
+              <option>ajax</option>
+              <option>deployment</option>
+            </select>
+          </p>
+          <p>
+            <label for="post_body">Body</label>
+            <textarea id="post_body" name="post[body]" rows="9">Look ma, no build step. The scaffold is static, but the POST request still gets a proper little landing page.</textarea>
+          </p>
+          <p class="checkbox">
+            <input id="post_published" name="post[published]" type="checkbox" value="1" checked />
+            <label for="post_published">Published</label>
+          </p>
+          <p class="actions">
+            <button class="button primary" type="submit">Create</button>
+            <a class="button" href="./">Back</a>
+          </p>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>

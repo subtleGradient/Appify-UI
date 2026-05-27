@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Editing post</title>
+    <link rel="stylesheet" href="../../style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead small">
+        <p class="crumb">GET /posts/1/edit</p>
+        <h1>Editing post</h1>
+      </header>
+
+      <main class="panel narrow">
+        <form class="scaffold-form" action="../create.cgi" method="post">
+          <input name="_method" type="hidden" value="put" />
+          <p>
+            <label for="post_title">Title</label>
+            <input id="post_title" name="post[title]" value="Hello from script/server" />
+          </p>
+          <p>
+            <label for="post_author">Author</label>
+            <input id="post_author" name="post[author]" value="david" />
+          </p>
+          <p>
+            <label for="post_body">Body</label>
+            <textarea id="post_body" name="post[body]" rows="8">A static edit form that submits to the same safe shadow page as create.</textarea>
+          </p>
+          <p class="actions">
+            <button class="button primary" type="submit">Update</button>
+            <a class="button" href="./">Show</a>
+            <a class="button" href="../">Back</a>
+          </p>
+        </form>
+      </main>
+    </div>
+  </body>
+</html>

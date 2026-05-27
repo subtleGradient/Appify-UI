@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Rails Weblog 2005</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="page">
+      <header class="masthead">
+        <p class="crumb">script/console &gt; Weblog</p>
+        <h1>Rails Weblog 2005</h1>
+        <p class="tagline">An original scaffold-shaped weblog for Web.app compatibility.</p>
+      </header>
+
+      <nav class="tabs" aria-label="Primary">
+        <a aria-current="page" href="./index.html">Dashboard</a>
+        <a href="./posts/">/posts</a>
+        <a href="./posts/1/">/posts/1</a>
+        <a href="./posts/1/comments/">/posts/1/comments</a>
+      </nav>
+
+      <main class="grid">
+        <section class="panel span-2">
+          <div class="flash notice">Booted WeblogController in nostalgic development mode.</div>
+          <h2>Latest Posts</h2>
+          <table class="scaffold">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Author</th>
+                <th>Comments</th>
+                <th colspan="3">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Hello from script/server</td>
+                <td>david</td>
+                <td>2</td>
+                <td><a href="./posts/1/">Show</a></td>
+                <td><a href="./posts/1/edit.html">Edit</a></td>
+                <td><a href="./posts/1/destroy.html">Destroy</a></td>
+              </tr>
+              <tr>
+                <td>Prototype made me do it</td>
+                <td>sam</td>
+                <td>5</td>
+                <td><a href="./posts/2.html">Show</a></td>
+                <td><a href="./posts/2.html">Edit</a></td>
+                <td><a href="./posts/2.html">Destroy</a></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="actions">
+            <a class="button primary" href="./posts/new.html">New post</a>
+            <a class="button" href="./posts/">List posts</a>
+          </p>
+        </section>
+
+        <aside class="panel">
+          <h2>Local Submissions</h2>
+          <ul class="compact-list" data-recent-submissions></ul>
+        </aside>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>
