@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Starflower's Guestbook Zone</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body bgcolor="#000066" text="#ffffcc" link="#00ffff" vlink="#ff99ff" alink="#ffff00">
+    <center>
+      <table width="760" cellpadding="8" cellspacing="0" border="3" bgcolor="#000000">
+        <tr>
+          <td bgcolor="#ff00cc" align="center">
+            <font face="Comic Sans MS, Arial, sans-serif" size="6" color="#ffff00">
+              Starflower's Guestbook Zone
+            </font>
+            <br />
+            <font face="Verdana, Arial, sans-serif" size="2" color="#ffffff">
+              Best viewed with a monitor, a mouse, and a feeling of wonder.
+            </font>
+          </td>
+        </tr>
+        <tr>
+          <td bgcolor="#000033">
+            <table width="100%" cellpadding="10" cellspacing="0" border="0">
+              <tr>
+                <td width="190" valign="top" bgcolor="#003399">
+                  <font face="Arial, sans-serif" size="3">
+                    <b>Site Map</b>
+                    <hr />
+                    <a href="./index.html">Home</a><br />
+                    <a href="#sign">Sign Guestbook</a><br />
+                    <a href="./cgi-bin/sign.cgi.html">View Shadow Page</a><br />
+                    <a href="./PROVENANCE.md">Provenance</a><br />
+                  </font>
+                  <p>
+                    <font face="Courier New, monospace" size="2" color="#ccffcc">
+                      Visitors since 1999:<br />
+                      <b>000042</b>
+                    </font>
+                  </p>
+                </td>
+                <td valign="top" bgcolor="#ffffcc">
+                  <font face="Georgia, Times New Roman, serif" color="#000000">
+                    <h1>Welcome, Web Traveler!</h1>
+                    <p>
+                      This original nostalgia fixture is here to exercise a classic
+                      guestbook flow: a simple HTML form posts to something that looks
+                      like old CGI, while Web.app safely serves a static shadow page.
+                    </p>
+                    <p>
+                      No scripts run on the server. No network calls leave the bundle.
+                      The magic is only that Web.app can hand the posted form fields to
+                      the next client-side page.
+                    </p>
+                  </font>
+
+                  <table width="100%" cellpadding="6" cellspacing="0" border="2" bgcolor="#ffffff">
+                    <tr bgcolor="#000099">
+                      <th align="left">
+                        <font face="Arial, sans-serif" color="#ffffff">Recent Guestbook Entries</font>
+                      </th>
+                    </tr>
+                    <tr>
+                      <td>
+                        <font face="Arial, sans-serif" color="#000000">
+                          <b>Jamie from Geocities</b> wrote:
+                          <blockquote>
+                            Your animated divider technique is extremely powerful.
+                          </blockquote>
+                          <b>Morgan from the LAN party</b> wrote:
+                          <blockquote>
+                            Signed your guestbook. Please sign mine.
+                          </blockquote>
+                        </font>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <p>
+                    <a id="sign"></a>
+                    <font face="Arial, sans-serif" color="#000000" size="4">
+                      <b>Sign the Guestbook</b>
+                    </font>
+                  </p>
+                  <form action="./cgi-bin/sign.cgi" method="post">
+                    <table cellpadding="5" cellspacing="0" border="1" bgcolor="#eeeeff">
+                      <tr>
+                        <td><font face="Arial, sans-serif" color="#000000">Name</font></td>
+                        <td><input name="name" size="34" maxlength="80" /></td>
+                      </tr>
+                      <tr>
+                        <td><font face="Arial, sans-serif" color="#000000">Homepage</font></td>
+                        <td><input name="homepage" size="34" maxlength="160" /></td>
+                      </tr>
+                      <tr>
+                        <td><font face="Arial, sans-serif" color="#000000">Favorite era</font></td>
+                        <td>
+                          <select name="favorite_era">
+                            <option>1999 table layout</option>
+                            <option>2005 AJAX sparkle</option>
+                            <option>2010 rounded corners</option>
+                          </select>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td valign="top"><font face="Arial, sans-serif" color="#000000">Message</font></td>
+                        <td>
+                          <textarea name="message" rows="5" cols="36">This site rules.</textarea>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td>&nbsp;</td>
+                        <td>
+                          <input type="submit" value="Sign My Guestbook!" />
+                          <input type="reset" value="Start Over" />
+                        </td>
+                      </tr>
+                    </table>
+                  </form>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td align="center" bgcolor="#330066">
+            <font face="Courier New, monospace" size="2" color="#ccffff">
+              This page is proudly handcrafted HTML. Last updated: forever ago.
+            </font>
+          </td>
+        </tr>
+      </table>
+    </center>
+  </body>
+</html>

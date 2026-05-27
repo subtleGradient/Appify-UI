@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Guestbook Signed!</title>
+    <link rel="stylesheet" href="../style.css" />
+    <script>
+      (function () {
+        function text(value) {
+          return value == null || value === "" ? "(blank)" : String(value);
+        }
+
+        function field(request, name) {
+          if (!request) return "";
+          if (typeof request.field === "function") return request.field(name);
+          if (request.searchParams && typeof request.searchParams.get === "function") {
+            return request.searchParams.get(name);
+          }
+          if (Array.isArray(request.fields)) {
+            for (var index = 0; index < request.fields.length; index += 1) {
+              var pair = request.fields[index];
+              if (pair && pair[0] === name) return pair[1];
+            }
+          }
+          return "";
+        }
+
+        function fill(id, value) {
+          var element = document.getElementById(id);
+          if (element) element.textContent = text(value);
+        }
+
+        window.addEventListener("DOMContentLoaded", function () {
+          var request = window.AppifyHost && window.AppifyHost.request;
+          var hasPostedData = request && request.method === "POST";
+
+          document.documentElement.className = hasPostedData ? "has-post" : "no-post";
+          fill("method", request && request.method);
+          fill("path", request && request.path);
+          fill("name", field(request, "name"));
+          fill("homepage", field(request, "homepage"));
+          fill("favorite-era", field(request, "favorite_era"));
+          fill("message", field(request, "message"));
+        });
+      })();
+    </script>
+  </head>
+  <body bgcolor="#000066" text="#ffffcc" link="#00ffff" vlink="#ff99ff" alink="#ffff00">
+    <center>
+      <table width="760" cellpadding="8" cellspacing="0" border="3" bgcolor="#000000">
+        <tr>
+          <td bgcolor="#00aa00" align="center">
+            <font face="Comic Sans MS, Arial, sans-serif" size="6" color="#ffff00">
+              Guestbook Signed!
+            </font>
+            <br />
+            <font face="Verdana, Arial, sans-serif" size="2" color="#ffffff">
+              Web.app handed this static page the POSTed form fields.
+            </font>
+          </td>
+        </tr>
+        <tr>
+          <td bgcolor="#ffffcc">
+            <font face="Arial, sans-serif" color="#000000">
+              <div class="no-post-message">
+                <h1>No POST data was provided.</h1>
+                <p>
+                  In a normal browser this file is only a static HTML page, so there is
+                  no server request object to read. In Web.app, submit the guestbook
+                  form on <a href="../index.html">the home page</a> and this same page
+                  will receive <code>window.AppifyHost.request</code>.
+                </p>
+              </div>
+
+              <div class="post-message">
+                <h1>Thank you for signing!</h1>
+                <p>
+                  This is not CGI execution. The on-disk file is
+                  <code>sign.cgi.html</code>, and Web.app treats
+                  <code>sign.cgi</code> as a safe shadow route.
+                </p>
+                <table width="100%" cellpadding="6" cellspacing="0" border="2" bgcolor="#ffffff">
+                  <tr bgcolor="#000099">
+                    <th align="left" colspan="2">
+                      <font face="Arial, sans-serif" color="#ffffff">Posted Request</font>
+                    </th>
+                  </tr>
+                  <tr>
+                    <td width="160"><b>Method</b></td>
+                    <td><span id="method">(blank)</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>Path</b></td>
+                    <td><span id="path">(blank)</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>Name</b></td>
+                    <td><span id="name">(blank)</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>Homepage</b></td>
+                    <td><span id="homepage">(blank)</span></td>
+                  </tr>
+                  <tr>
+                    <td><b>Favorite era</b></td>
+                    <td><span id="favorite-era">(blank)</span></td>
+                  </tr>
+                  <tr>
+                    <td valign="top"><b>Message</b></td>
+                    <td><span id="message">(blank)</span></td>
+                  </tr>
+                </table>
+              </div>
+
+              <p align="center">
+                <a href="../index.html">Return to Starflower's Guestbook Zone</a>
+              </p>
+            </font>
+          </td>
+        </tr>
+      </table>
+    </center>
+  </body>
+</html>

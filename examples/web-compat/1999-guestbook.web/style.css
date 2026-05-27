@@ -1,0 +1,55 @@
+body {
+  margin: 0;
+  background:
+    repeating-linear-gradient(
+      45deg,
+      #000066 0,
+      #000066 12px,
+      #001188 12px,
+      #001188 24px
+    );
+}
+
+table {
+  border-color: #ffff00;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  border: 2px inset #cccccc;
+  color: #000000;
+  font: 14px "Courier New", monospace;
+}
+
+input[type="submit"],
+input[type="reset"] {
+  background: #dddddd;
+  border: 3px outset #eeeeee;
+  cursor: pointer;
+  font: bold 13px Arial, sans-serif;
+}
+
+a {
+  font-weight: bold;
+}
+
+blockquote {
+  background: #ffff99;
+  border-left: 6px solid #ff00cc;
+  margin: 8px 0 14px;
+  padding: 8px;
+}
+
+.post-message {
+  display: none;
+}
+
+.has-post .post-message {
+  display: block;
+}
+
+.has-post .no-post-message {
+  display: none;
+}
