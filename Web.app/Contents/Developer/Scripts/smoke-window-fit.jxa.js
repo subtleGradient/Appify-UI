@@ -2,7 +2,7 @@
 
 function run(argv) {
   if (argv.length < 3) {
-    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH [first-fit|zoom-obedience|zoom-height-obedience]");
+    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH [first-fit|first-fit-compact-no-scroll|zoom-obedience|zoom-height-obedience]");
   }
 
   const appPath = argv[0];
@@ -33,7 +33,7 @@ function run(argv) {
   const candidateProcesses = () => {
     const seen = {};
     const result = [];
-    for (const processes of [bundleProcesses(), namedProcesses("Web"), namedProcesses("appify-host")]) {
+    for (const processes of [bundleProcesses(), namedProcesses("Web")]) {
       for (let index = 0; index < processes.length; index++) {
         const process = processes[index];
         try {
@@ -81,15 +81,11 @@ function run(argv) {
       if (value) return value;
       delaySeconds(0.1);
     }
-    throw new Error(message);
+    throw new Error(typeof message === "function" ? message() : message);
   };
   const quitApp = () => {
     try {
       Application(expectedBundleIdentifier).quit();
-      delaySeconds(0.3);
-    } catch (_) {}
-    try {
-      Application("appify-host").quit();
       delaySeconds(0.3);
     } catch (_) {}
   };
@@ -225,6 +221,29 @@ function run(argv) {
 
       quitApp();
       return `Web window height Zoom smoke ok: ${Math.round(before.width)}x${Math.round(before.height)} -> ${Math.round(after.width)}x${Math.round(after.height)}`;
+    }
+
+    if (mode === "first-fit-compact-no-scroll") {
+      let lastSize = null;
+      const fitted = waitUntil(
+        () => {
+          const suffix = lastSize ? `; last size was ${Math.round(lastSize.width)}x${Math.round(lastSize.height)}` : "";
+          return `${expectedWindowName} did not compact-fit to document content${suffix}`;
+        },
+        () => {
+          const size = windowSize(window);
+          lastSize = size;
+          return size.width >= 620 && size.width <= 760 && size.height >= 560 && size.height <= 760 ? size : null;
+        },
+        15000
+      );
+      const scrollBarCount = visibleScrollBarCount(window);
+      if (scrollBarCount > 0) {
+        throw new Error(`${expectedWindowName} still had ${scrollBarCount} visible scroll bars after compact fitting at ${Math.round(fitted.width)}x${Math.round(fitted.height)}`);
+      }
+
+      quitApp();
+      return `Web compact window fit smoke ok: ${Math.round(fitted.width)}x${Math.round(fitted.height)}`;
     }
 
     const fitted = waitUntil(

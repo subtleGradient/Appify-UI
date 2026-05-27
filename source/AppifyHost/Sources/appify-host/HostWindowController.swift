@@ -15,6 +15,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
       const ignoredTags = new Set(["SCRIPT", "STYLE", "LINK", "META", "TITLE", "TEMPLATE", "NOSCRIPT"]);
       const intrinsicallySizedTags = new Set(["CANVAS", "IMG", "VIDEO", "SVG", "IFRAME", "OBJECT", "EMBED", "INPUT", "SELECT", "TEXTAREA"]);
       const number = (value) => Number.isFinite(value) ? value : 0;
+      const cssPixels = (value) => {
+        const parsed = Number.parseFloat(value);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+      const positiveCssPixels = (value) => Math.max(0, cssPixels(value));
       const viewportSize = () => {
         const root = document.documentElement;
         return {
@@ -67,16 +72,20 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         let bottom = -Infinity;
         let count = 0;
 
-        const includeRect = (element, rect) => {
+        const includeRect = (element, rect, style) => {
           if (!rect || rect.width < 1 || rect.height < 1) return;
           const isViewportWidthContainer = rect.width >= viewport.viewportWidth - 3
             && element.children.length > 0
             && !intrinsicallySizedTags.has(element.tagName);
           if (ignoreViewportContainers && isViewportWidthContainer) return;
-          left = Math.min(left, rect.left + window.scrollX);
-          top = Math.min(top, rect.top + window.scrollY);
-          right = Math.max(right, rect.right + window.scrollX);
-          bottom = Math.max(bottom, rect.bottom + window.scrollY);
+          const marginLeft = positiveCssPixels(style.marginLeft);
+          const marginTop = positiveCssPixels(style.marginTop);
+          const marginRight = positiveCssPixels(style.marginRight);
+          const marginBottom = positiveCssPixels(style.marginBottom);
+          left = Math.min(left, rect.left + window.scrollX - marginLeft);
+          top = Math.min(top, rect.top + window.scrollY - marginTop);
+          right = Math.max(right, rect.right + window.scrollX + marginRight);
+          bottom = Math.max(bottom, rect.bottom + window.scrollY + marginBottom);
           count += 1;
         };
 
@@ -85,7 +94,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
           const style = window.getComputedStyle(element);
           if (style.display === "none" || style.visibility === "hidden" || style.contentVisibility === "hidden") return;
           for (const rect of element.getClientRects()) {
-            includeRect(element, rect);
+            includeRect(element, rect, style);
           }
         };
 
