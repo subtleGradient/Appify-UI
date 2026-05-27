@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Portable Web Trust</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / exploratory idea / not approved / 2026-05-27</p>
+        <h1>Portable Web Trust</h1>
+        <p class="lede">
+          This is a research note, not an approved proposal. The question is how Web.app can support
+          decentralized storage, identity, provenance, and offline-first sharing without adopting
+          finance-coded wallet language or pretending that "Web3" is a native browser-platform era.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="010-values.html">values</a> /
+        <a href="040-decisions.html">decisions</a> /
+        <a href="100-portability.html">portability</a> /
+        <a href="110-uncertainties.html">uncertainties</a> /
+        <a href="120-next-probes.html">next probes</a>
+      </nav>
+
+      <section aria-labelledby="stance" class="mark">
+        <h2 id="stance">Current Stance</h2>
+        <ul>
+          <li>Avoid the term <code>Web3</code> in product language; use portable web, verifiable webspace, or decentralized web only when the technical mechanism matters.</li>
+          <li>Respect pro-crypto and anti-crypto users by not forcing the argument into the interface.</li>
+          <li>Do not add <code>window.ethereum</code>, wallet prompts, chain RPC, smart contracts, tokens, or transaction signing to Web.app core.</li>
+          <li>Do not block authored bundles from using ordinary JavaScript libraries, remote RPC, WalletConnect-style flows, or chain-specific integrations when the author chooses them.</li>
+          <li>Put durable value in web-native affordances: stable origins, service workers, CacheStorage, IndexedDB, OPFS, Web Crypto, relative links, static files, and visible provenance.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="terrain">
+        <h2 id="terrain">Standards Terrain</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Layer</th>
+              <th>Status</th>
+              <th>Web.app Implication</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Browser platform</td>
+              <td><a href="https://spec.whatwg.org/">WHATWG standards</a> cover HTML, DOM, URL, Fetch, Streams, Storage-related platform pieces, and other living web foundations. There is no WHATWG "Web 3.0" platform version.</td>
+              <td>Keep Web.app boringly compatible with normal browser APIs. Do not invent Appify-only page globals for decentralized features.</td>
+            </tr>
+            <tr>
+              <td>Decentralized identity</td>
+              <td><a href="https://www.w3.org/TR/did-core/">DID Core</a> is a W3C Recommendation; <a href="https://www.w3.org/TR/vc-data-model/">Verifiable Credentials Data Model v2.0</a> is also a W3C Recommendation.</td>
+              <td>Treat identity and credentials as optional provenance and verification metadata, not as wallet login by default.</td>
+            </tr>
+            <tr>
+              <td>Browser-mediated credentials</td>
+              <td><a href="https://www.w3.org/TR/digital-credentials/">Digital Credentials API</a> is draft-stage web standards work.</td>
+              <td>Feature-detect later. Do not make current Web.app behavior depend on it.</td>
+            </tr>
+            <tr>
+              <td>Content addressing</td>
+              <td><a href="https://docs.ipfs.tech/concepts/content-addressing/">IPFS CIDs</a>, <a href="https://ipld.io/specs/transport/car/">CAR files</a>, and <a href="https://docs.ipfs.tech/concepts/ipns/">IPNS</a> are real decentralized-web conventions, not WHATWG browser APIs.</td>
+              <td>Useful as import/export and source-materialization formats if Web.app keeps normal local HTTP origins and verifies bytes before serving them.</td>
+            </tr>
+            <tr>
+              <td>Wallet providers</td>
+              <td><a href="https://eips.ethereum.org/EIPS/eip-1193">EIP-1193</a> defines an Ethereum provider interface; browser injection such as <code>window.ethereum</code> is ecosystem convention, not native web law.</td>
+              <td>Keep this out of core. If needed, make it an explicit Web.app extension or separate chain-oriented host.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="fit">
+        <h2 id="fit">Fit With Existing Decisions</h2>
+        <ul>
+          <li><a href="NativeWebCompatibility.SPEC.html">Native Web Compatibility</a> already says real service workers, normal <code>Request</code>/<code>Response</code>, and persistent browser state are the foundation.</li>
+          <li><a href="StableWebspaceOrigins.SPEC.html">Stable Webspace Origins</a> already gives each webspace a secure, persistent, same-origin place to run browser-native decentralized libraries.</li>
+          <li><a href="100-portability.html">Portability</a> already says the same bytes should work as a local document, static website, emailed zip, removable-media archive, or future mobile bundle.</li>
+          <li><a href="040-decisions.html">Decisions</a> currently says no decentralized identity protocol, registry, or sync layer yet; this note keeps those as open research, not hidden commitments.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="candidate-surfaces">
+        <h2 id="candidate-surfaces">Candidate Surfaces</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Surface</th>
+              <th>Smallest Useful Shape</th>
+              <th>Failure Mode To Avoid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Content-addressed source</td>
+              <td>Add a future <code>.web</code> manifest source kind that materializes a verified CAR/CID into a read-only local cache, then serves it through the normal stable webspace origin.</td>
+              <td>Letting a remote resolver become a hidden runtime dependency for core document behavior.</td>
+            </tr>
+            <tr>
+              <td>Signed provenance</td>
+              <td>Allow an optional manifest or sidecar that says which bytes were verified, who signed them, and which key or DID document was used.</td>
+              <td>Implying real-world trust from a cryptographic signature alone.</td>
+            </tr>
+            <tr>
+              <td>Mutable names</td>
+              <td>Resolve IPNS, DNSLink, DID documents, or other mutable pointers only into pinned immutable content before opening.</td>
+              <td>Serving moving remote content as though it were the durable local artifact.</td>
+            </tr>
+            <tr>
+              <td>Capability sharing</td>
+              <td>Explore UCAN-like or capability-token grants for document sharing, scoped to a webspace and readable as plain metadata.</td>
+              <td>Creating an invisible account system or authority service that users cannot inspect.</td>
+            </tr>
+            <tr>
+              <td>Chain-specific affordances</td>
+              <td>Leave room for an explicit extension that can provide EIP-1193 or other wallet/provider APIs to opted-in bundles.</td>
+              <td>Making Web.app feel like a crypto wallet or requiring every user to understand accounts, gas, tokens, or chains.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="probe">
+        <h2 id="probe">Suggested Probe</h2>
+        <p>
+          Build a tiny read-only fixture: a <code>.web</code> manifest that points at a content-addressed
+          static bundle, materializes the bytes into a read-only cache, verifies the expected root
+          address or digest, and opens the result at a normal <code>*.localhost:55555</code> Web.app URL.
+          No wallet, no account, no chain, no token, no live remote requirement after materialization.
+        </p>
+      </section>
+
+      <section aria-labelledby="golf">
+        <h2 id="golf">Golf Read</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Technical / Story Liability</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Portable web trust</td>
+              <td>Low translation tax: the story is "these are the same verified files, opened locally." It extends existing source materialization and persistence decisions.</td>
+              <td>Best first lane.</td>
+            </tr>
+            <tr>
+              <td>Wallet provider in Web.app core</td>
+              <td>High trust burden and identity threat. It makes a static document host look like it has taken a side in crypto culture.</td>
+              <td>Reject for core.</td>
+            </tr>
+            <tr>
+              <td>Optional chain extension</td>
+              <td>Technically allowed, but should be explicit, removable, and separate from the normal document-hosting path.</td>
+              <td>Defer until a real fixture needs it.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
