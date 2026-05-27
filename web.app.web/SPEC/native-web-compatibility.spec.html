@@ -28,7 +28,7 @@
   <body>
     <main>
       <header>
-        <p class="tag">humane-web-dream.web / compatibility and native web APIs</p>
+        <p class="tag">web.app.web / SPEC / compatibility and native web APIs</p>
         <h1>Native Web Compatibility</h1>
         <p class="lede">
           <code>.web</code> bundles should be ordinary client-side web sites: HTML, CSS, JavaScript, forms, workers, storage, and service workers. Web.app may provide local hosting and safe filesystem affordances, but compatibility should come from web-native APIs that degrade naturally in a normal browser.
@@ -38,7 +38,7 @@
       <section aria-labelledby="decision">
         <h2 id="decision">Decision</h2>
         <ul>
-          <li>Make <a href="StableWebspaceOrigins.SPEC.html">stable webspace origins</a> the foundation for persistent native browser state.</li>
+          <li>Make <a href="stable-webspace-origins.spec.html">stable webspace origins</a> the foundation for persistent native browser state.</li>
           <li>Support real service workers first-class; do not emulate service workers with window globals.</li>
           <li>Support <a href="https://developer.mozilla.org/en-US/docs/Web/API/NavigateEvent/formData"><code>NavigateEvent.formData</code></a> where WebKit exposes the Navigation API.</li>
           <li>Use normal <a href="https://developer.mozilla.org/en-US/docs/Web/API/Request"><code>Request</code></a>, <code>Response</code>, <code>FormData</code>, <code>URLSearchParams</code>, and <code>location</code> objects for form and request compatibility.</li>

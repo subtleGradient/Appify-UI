@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web Interface Injection</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; margin-block-start: 0.8rem; }
+      a { color: LinkText; }
+      nav { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+      ul, ol { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre { margin: 0; overflow: auto; padding: 0.75rem; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">web.app.web / SPEC / composition and dependency injection</p>
+        <h1>Web Interface Injection</h1>
+        <p class="lede">
+          Web.app should let <code>.web</code> bundles depend on stable interfaces instead of specific
+          component implementations. The first version is static, manifest-declared, and import-map
+          friendly: it chooses web-native files, not npm packages, install scripts, or framework adapters.
+        </p>
+        <p class="lede">
+          This builds on <a href="stable-webspace-origins.spec.html">Stable Webspace Origins</a> and
+          <a href="native-web-compatibility.spec.html">Native Web Compatibility</a>: peer bundles already
+          share a same-origin URL space, so the missing piece is a small, inspectable matching convention.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="../../ideas.web/humane-web-dream.web/000-start-here.html">start</a> /
+        <a href="../../ideas.web/humane-web-dream.web/080-component-kits.html">component kits</a> /
+        <a href="../../ideas.web/humane-web-dream.web/100-portability.html">portability</a> /
+        <a href="../../ideas.web/humane-web-dream.web/110-uncertainties.html">uncertainties</a> /
+        <a href="../../ideas.web/humane-web-dream.web/120-next-probes.html">next probes</a>
+      </nav>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li>Use manifest-declared interfaces and providers for the first dependency-injection surface.</li>
+          <li>Resolve interface dependencies into a normal browser import map before page modules run.</li>
+          <li>Keep interface matching separate from npm, JSR, TypeScript compilation, lifecycle scripts, and build steps.</li>
+          <li>Define JSON Schema documents for static descriptor validation; allow Standard Schema as optional executable conformance metadata later.</li>
+          <li>Model the built-in matchmaker as a virtual <code>/_web/matchmaker.web/</code> bundle that is also mirrored as static public web files.</li>
+          <li>Support multiple providers for one interface so a consumer can select by theme, behavior, provenance, or local availability.</li>
+          <li>Fail loudly when no provider satisfies a required interface; never silently fetch or install a replacement.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="shape">
+        <h2 id="shape">Portable Shape</h2>
+        <pre><code>project/
+  app.web/
+    index.html
+    app.js
+    web-requires.json
+  interfaces.web/
+    ui-controls.interface.json
+    web-requires.schema.json
+    web-provider.schema.json
+  base-controls.web/
+    web-provides.json
+    define.js
+    theme.css
+  shadcn-controls.web/
+    web-provides.json
+    define.js
+    theme.css</code></pre>
+        <p>
+          The consumer imports a logical module specifier such as
+          <code>@web/ui-controls/define.js</code>. The matchmaker chooses one provider and emits the
+          import-map binding for that page.
+        </p>
+      </section>
+
+      <section aria-labelledby="descriptors">
+        <h2 id="descriptors">Descriptors</h2>
+        <h3>Consumer</h3>
+        <pre><code>{
+  "$schema": "../interfaces.web/web-requires.schema.json",
+  "webRequires": 1,
+  "imports": {
+    "@web/ui-controls/": {
+      "interface": "../interfaces.web/ui-controls.interface.json",
+      "version": "^1.0.0",
+      "preferences": {
+        "theme": "neutral",
+        "behavior": "form-native"
+      }
+    }
+  }
+}</code></pre>
+        <h3>Provider</h3>
+        <pre><code>{
+  "$schema": "../interfaces.web/web-provider.schema.json",
+  "webProvider": 1,
+  "name": "shadcn-controls",
+  "implements": [
+    {
+      "interface": "../interfaces.web/ui-controls.interface.json",
+      "version": "1.0.0"
+    }
+  ],
+  "bindings": {
+    "@web/ui-controls/": "./"
+  },
+  "features": {
+    "theme": "neutral",
+    "behavior": "form-native"
+  }
+}</code></pre>
+        <h3>Interface</h3>
+        <pre><code>{
+  "webInterface": 1,
+  "id": "https://appify.dev/interfaces/ui-controls",
+  "version": "1.0.0",
+  "imports": {
+    "@web/ui-controls/": {
+      "required": ["define.js"]
+    }
+  },
+  "customElements": {
+    "web-button": {
+      "events": {
+        "web:press": {
+          "detailSchema": { "type": "object" }
+        }
+      }
+    },
+    "web-switch": {
+      "attributes": ["checked", "disabled"],
+      "events": {
+        "web:checked-change": {
+          "detailSchema": {
+            "type": "object",
+            "required": ["checked"],
+            "properties": { "checked": { "type": "boolean" } }
+          }
+        }
+      }
+    }
+  }
+}</code></pre>
+      </section>
+
+      <section aria-labelledby="matchmaker">
+        <h2 id="matchmaker">Virtual Matchmaker Bundle</h2>
+        <ul>
+          <li><code>/_web/matchmaker.web/</code> is a built-in static bundle served by Web.app, not a hidden native page global.</li>
+          <li>The same files should be publishable at a public URL so normal static hosting can validate and resolve the same descriptor shapes.</li>
+          <li>The matchmaker reads consumer requirements and provider descriptors that are already visible web files.</li>
+          <li>The primary output is a concrete import map plus optional diagnostics, not a bespoke module loader.</li>
+          <li>The public mirror may recommend CDN URLs, but local Web.app resolution should prefer same-webspace providers when they exist.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="resolution">
+        <h2 id="resolution">Resolution Rules</h2>
+        <ol>
+          <li>Read the consumer's declared import requirements.</li>
+          <li>Find provider descriptors in same-webspace <code>.web</code> peers, then explicit remote catalogs if the consumer names them.</li>
+          <li>Reject providers whose interface id or version is incompatible.</li>
+          <li>Rank compatible providers by explicit consumer preference, same-webspace locality, pinned provenance, and deterministic name order.</li>
+          <li>Emit an import-map prefix for each logical specifier.</li>
+          <li>Show a human-readable failure page or diagnostic if any required interface is unresolved.</li>
+        </ol>
+        <p>
+          Import-map generation may be a host feature later. The first fixture can hand-write the
+          resolved import maps to prove the interface boundary before adding host machinery.
+        </p>
+      </section>
+
+      <section aria-labelledby="security">
+        <h2 id="security">Security And Portability</h2>
+        <ul>
+          <li>No package install happens when a <code>.web</code> opens.</li>
+          <li>No lifecycle script runs as part of dependency resolution.</li>
+          <li>No moving remote dependency is required for a local package to open once its providers are present.</li>
+          <li>Remote providers should be commit-pinned Git sources, content-addressed materializations, or explicit static URLs.</li>
+          <li>Provider descriptors are promises about shape, not proof of trust. Provenance and signatures can be layered later.</li>
+          <li>Consumers should depend on custom element names, DOM attributes, events, CSS variables, and ESM exports that work in normal browsers.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="tests">
+        <h2 id="tests">Acceptance Tests</h2>
+        <ul>
+          <li>A consumer imports <code>@web/ui-controls/define.js</code> without knowing which provider implements it.</li>
+          <li>Two provider entrypoints render the same consumer app with different visual behavior or theme.</li>
+          <li>Both providers dispatch the same standardized DOM events with compatible detail shapes.</li>
+          <li>Switching providers changes only the import map and provider stylesheet.</li>
+          <li>A missing provider fails visibly instead of reaching for npm or a default CDN.</li>
+          <li>The same descriptor files can be served as ordinary static web files outside Web.app.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="golf">
+        <h2 id="golf">Golf Rationale</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Liability</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Descriptor-to-import-map matching</td>
+              <td>Small new convention, keeps browser-native ESM and static hosting.</td>
+              <td>Default.</td>
+            </tr>
+            <tr>
+              <td>Runtime broker API</td>
+              <td>More dynamic, but teaches pages to depend on a Web.app-only service.</td>
+              <td>Defer.</td>
+            </tr>
+            <tr>
+              <td>Service-worker module rewriting</td>
+              <td>Powerful but harder to inspect, cache, and debug.</td>
+              <td>Only if static maps cannot carry real examples.</td>
+            </tr>
+            <tr>
+              <td>npm-style registry</td>
+              <td>Imports install-time scripts, account incentives, and supply-chain pressure.</td>
+              <td>Reject for <code>.web</code>.</td>
+            </tr>
+            <tr>
+              <td>TypeScript-first package identity</td>
+              <td>Good developer tooling, but couples static web packages to a compile-time ecosystem.</td>
+              <td>Use as optional authoring aid only.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
