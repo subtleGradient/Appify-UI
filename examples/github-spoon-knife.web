@@ -1,0 +1,11 @@
+{
+  "$schema": "https://cdn.jsdelivr.net/gh/subtleGradient/Appify-UI@d6efccc11af0abbf5aa046cef22b5bcdb15ae29d/Web.app/Contents/Resources/Runner/schema/web-file.schema.json",
+  web: 1,
+  source: {
+    kind: "git",
+    provider: "github",
+    repo: "octocat/Spoon-Knife",
+    commit: "d0dd1f61b33d64e29d8bc1372a94ef6a2fee76a9",
+    path: ".",
+  },
+}
