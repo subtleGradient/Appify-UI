@@ -20,6 +20,7 @@ import {
   resolveRequestPath,
   resolveServerPort,
   resolveServeRoot,
+  resolveUnsupportedLegacyDynamicRequestPath,
   resolveWebSpace,
   resolveWebSpaceRequestPath,
   scanHtmlPages,
@@ -134,6 +135,16 @@ describe("web package resolution", () => {
     await mkdir(join(root, "cgi-bin"), { recursive: true });
     await writeFile(join(root, "cgi-bin", "contact.cgi"), "<h1>not supported</h1>");
     expect(await resolveRequestPath(root, "/cgi-bin/contact.cgi")).toBeNull();
+
+    const webspace = await resolveWebSpace(root);
+    expect(await resolveUnsupportedLegacyDynamicRequestPath(
+      webspace,
+      `${webspace.activeBasePath}cgi-bin/contact.cgi`,
+    )).toEqual({
+      path: join(root, "cgi-bin", "contact.cgi"),
+      extension: ".cgi",
+      shadowPath: join(root, "cgi-bin", "contact.cgi.html"),
+    });
 
     await writeFile(join(root, "cgi-bin", "contact.cgi.html"), "<h1>Contact</h1>");
     expect(await resolveRequestPath(root, "/cgi-bin/contact.cgi")).toEqual({
@@ -616,6 +627,8 @@ const x = 1;
     expect(html).toContain('"action":"/cgi-bin/contact.cgi"');
     expect(html).toContain('"fields":[["name","Tom"],["topic","Web.app"]]');
     expect(html).toContain("AppifyHost");
+    expect(html).toContain("__WEB_APP_REQUEST_ERROR__");
+    expect(html).toContain("Posted request data could not start");
     expect(html.indexOf("appify-host-request")).toBeLessThan(html.indexOf("window.pageScriptRan"));
   });
 

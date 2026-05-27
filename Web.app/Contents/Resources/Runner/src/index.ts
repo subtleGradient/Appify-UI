@@ -15,6 +15,7 @@ import {
   resolveDocumentPath,
   resolveLocalStorageFilePath,
   resolveServerPort,
+  resolveUnsupportedLegacyDynamicRequestPath,
   resolveWebSpace,
   resolveWebSpaceRequestPath,
   scanHtmlPages,
@@ -80,6 +81,11 @@ const server = Bun.serve({
 
     const resolvedPath = await resolveWebSpaceRequestPath(webspace, url.pathname);
     if (resolvedPath === null) {
+      const unsupportedDynamicPath = await resolveUnsupportedLegacyDynamicRequestPath(webspace, url.pathname);
+      if (unsupportedDynamicPath !== null) {
+        return unsupportedLegacyDynamicResponse(url.pathname, unsupportedDynamicPath.extension);
+      }
+
       return new Response("Not found", {
         status: 404,
         headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -156,4 +162,22 @@ function methodNotAllowedResponse(allow: string): Response {
       "Content-Type": "text/plain; charset=utf-8",
     },
   });
+}
+
+function unsupportedLegacyDynamicResponse(requestPath: string, extension: string): Response {
+  const shadowPath = `${requestPath}.html`;
+  return new Response(
+    [
+      `Web.app does not run ${extension} server files.`,
+      "",
+      "On-disk file extensions are respected and feared. This local web runtime never executes bundle-provided server code.",
+      `To serve a static compatibility page at this URL, create ${shadowPath}.`,
+    ].join("\n"),
+    {
+      status: 501,
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+    },
+  );
 }

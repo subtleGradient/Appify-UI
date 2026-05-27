@@ -9,6 +9,12 @@ export type ResolvedRequestPath =
   | { kind: "directory"; path: string }
   | { kind: "file"; path: string };
 
+export type UnsupportedLegacyDynamicRequestPath = {
+  path: string;
+  extension: string;
+  shadowPath: string;
+};
+
 export type RenderOptions = {
   liveReload?: boolean;
   localStoragePersistence?: boolean;
@@ -291,24 +297,12 @@ export function isMarkdownFile(filePath: string): boolean {
 }
 
 export async function resolveRequestPath(rootPath: string, requestPath: string): Promise<ResolvedRequestPath | null> {
-  let decodedPath: string;
-  try {
-    decodedPath = decodeURIComponent(requestPath);
-  } catch {
-    return null;
-  }
-
-  if (!decodedPath.startsWith("/") || decodedPath.includes("\0") || decodedPath.includes("\\")) {
-    return null;
-  }
-  if (decodedPath.split("/").some((part) => SKIPPED_DIRECTORIES.has(part))) {
+  const decodedPath = safeDecodedRequestPath(requestPath);
+  if (decodedPath === null) {
     return null;
   }
 
   const candidate = requestFileCandidate(rootPath, decodedPath);
-  if (candidate === null) {
-    return null;
-  }
   if (!isInsideRoot(rootPath, candidate)) {
     return null;
   }
@@ -327,11 +321,28 @@ export async function resolveRequestPath(rootPath: string, requestPath: string):
   return null;
 }
 
-function requestFileCandidate(rootPath: string, decodedPath: string): string | null {
+function requestFileCandidate(rootPath: string, decodedPath: string): string {
   if (LEGACY_DYNAMIC_EXTENSIONS.has(extname(decodedPath).toLowerCase())) {
     return resolve(rootPath, `.${decodedPath}.html`);
   }
   return resolve(rootPath, `.${decodedPath}`);
+}
+
+function safeDecodedRequestPath(requestPath: string): string | null {
+  let decodedPath: string;
+  try {
+    decodedPath = decodeURIComponent(requestPath);
+  } catch {
+    return null;
+  }
+
+  if (!decodedPath.startsWith("/") || decodedPath.includes("\0") || decodedPath.includes("\\")) {
+    return null;
+  }
+  if (decodedPath.split("/").some((part) => SKIPPED_DIRECTORIES.has(part))) {
+    return null;
+  }
+  return decodedPath;
 }
 
 export async function resolveWebSpaceRequestPath(
@@ -346,6 +357,43 @@ export async function resolveWebSpaceRequestPath(
     return null;
   }
   return resolvedPath;
+}
+
+export async function resolveUnsupportedLegacyDynamicRequestPath(
+  webspace: WebSpace,
+  requestPath: string,
+): Promise<UnsupportedLegacyDynamicRequestPath | null> {
+  const decodedPath = safeDecodedRequestPath(requestPath);
+  if (decodedPath === null) {
+    return null;
+  }
+
+  const extension = extname(decodedPath).toLowerCase();
+  if (!LEGACY_DYNAMIC_EXTENSIONS.has(extension)) {
+    return null;
+  }
+
+  const candidate = resolve(webspace.webspaceRootPath, `.${decodedPath}`);
+  if (!isInsideRoot(webspace.webspaceRootPath, candidate)) {
+    return null;
+  }
+  if (!(await pathExists(candidate)) || !(await assertNoSymlinkAlongPath(webspace.webspaceRootPath, candidate))) {
+    return null;
+  }
+  if (!isReadableWebSpacePath(webspace, candidate)) {
+    return null;
+  }
+
+  const stat = await lstat(candidate);
+  if (!stat.isFile()) {
+    return null;
+  }
+
+  return {
+    path: candidate,
+    extension,
+    shadowPath: resolve(webspace.webspaceRootPath, `.${decodedPath}.html`),
+  };
 }
 
 function isReadableWebSpacePath(webspace: WebSpace, filePath: string): boolean {
@@ -1481,9 +1529,41 @@ function postedRequestClientScript(postedRequest: PostedRequestPayload): string 
   return `<script type="application/json" id="appify-host-request">${json}</script>
 <script>
 (() => {
+  const escapeHTML = (value) => String(value).replace(/[&<>"]/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+  })[character] || character);
+  const failLoud = (message, cause) => {
+    const error = cause instanceof Error ? cause : new Error(message);
+    window.__WEB_APP_REQUEST_ERROR__ = error;
+    console.error(message, error);
+    if (typeof window.stop === "function") window.stop();
+    document.open();
+    document.write(
+      '<!doctype html><html lang="en"><head><meta charset="utf-8" />'
+      + '<meta name="viewport" content="width=device-width, initial-scale=1" />'
+      + '<title>Web request error</title>'
+      + '<style>body{margin:0;padding:2rem;font:14px system-ui,sans-serif;background:Canvas;color:CanvasText}'
+      + 'main{max-width:48rem}pre{white-space:pre-wrap;border:1px solid color-mix(in oklch,CanvasText 18%,transparent);padding:1rem}</style>'
+      + '</head><body><main><h1>Posted request data could not start</h1><p>'
+      + escapeHTML(message)
+      + '</p><pre>'
+      + escapeHTML(error.message || String(error))
+      + '</pre></main></body></html>',
+    );
+    document.close();
+    throw error;
+  };
   const element = document.getElementById("appify-host-request");
-  if (!element) return;
-  const payload = JSON.parse(element.textContent || "{}");
+  if (!element) failLoud("Web.app could not find its posted request payload.");
+  let payload;
+  try {
+    payload = JSON.parse(element.textContent || "{}");
+  } catch (error) {
+    failLoud("Web.app could not parse its posted request payload.", error);
+  }
   const fields = Array.isArray(payload.fields) ? payload.fields : [];
   const searchParams = new URLSearchParams();
   for (const entry of fields) {
@@ -1513,14 +1593,18 @@ function postedRequestClientScript(postedRequest: PostedRequestPayload): string 
       enumerable: true,
       value: host,
     });
-  } catch {}
+  } catch (error) {
+    failLoud("Web.app could not expose posted request data on window.AppifyHost.request.", error);
+  }
   try {
     Object.defineProperty(window, "__WEB_APP_REQUEST__", {
       configurable: true,
       enumerable: false,
       value: request,
     });
-  } catch {}
+  } catch (error) {
+    failLoud("Web.app could not expose posted request data on window.__WEB_APP_REQUEST__.", error);
+  }
 })();
 </script>`;
 }
