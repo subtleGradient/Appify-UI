@@ -1,0 +1,15 @@
+{
+  "$schema": "../interfaces.web/web-requires.schema.json",
+  "webRequires": 1,
+  "imports": {
+    "@web/ui-controls/": {
+      "interface": "../interfaces.web/ui-controls.interface.json",
+      "version": "^1.0.0",
+      "preferences": {
+        "theme": "neutral",
+        "behavior": "dom-events"
+      }
+    }
+  }
+}
+

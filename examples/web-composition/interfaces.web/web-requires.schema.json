@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Web Interface Injection consumer requirements",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["webRequires", "imports"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "webRequires": { "const": 1 },
+    "imports": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["interface", "version"],
+        "properties": {
+          "interface": { "type": "string" },
+          "version": { "type": "string" },
+          "preferences": {
+            "type": "object",
+            "additionalProperties": { "type": ["string", "number", "boolean"] }
+          }
+        }
+      }
+    }
+  }
+}
+

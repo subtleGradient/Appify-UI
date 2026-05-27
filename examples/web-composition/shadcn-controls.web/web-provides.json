@@ -1,0 +1,23 @@
+{
+  "$schema": "../interfaces.web/web-provider.schema.json",
+  "webProvider": 1,
+  "name": "shadcn-controls",
+  "implements": [
+    {
+      "interface": "../interfaces.web/ui-controls.interface.json",
+      "version": "1.0.0"
+    }
+  ],
+  "bindings": {
+    "@web/ui-controls/": "./"
+  },
+  "features": {
+    "theme": "neutral",
+    "behavior": "dom-events"
+  },
+  "exports": {
+    "define": "./define.js",
+    "theme": "./theme.css"
+  }
+}
+

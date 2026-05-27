@@ -1,0 +1,47 @@
+{
+  "webInterface": 1,
+  "id": "https://appify.dev/interfaces/ui-controls",
+  "version": "1.0.0",
+  "description": "Small button and switch controls for interface-injection fixtures.",
+  "imports": {
+    "@web/ui-controls/": {
+      "required": ["define.js"]
+    }
+  },
+  "customElements": {
+    "web-button": {
+      "description": "A button-like custom element that dispatches a standardized press event.",
+      "attributes": ["disabled"],
+      "events": {
+        "web:press": {
+          "detailSchema": {
+            "type": "object",
+            "required": ["source"],
+            "properties": {
+              "source": { "const": "web-button" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "web-switch": {
+      "description": "A switch-like custom element with a reflected checked state.",
+      "attributes": ["checked", "disabled"],
+      "events": {
+        "web:checked-change": {
+          "detailSchema": {
+            "type": "object",
+            "required": ["checked", "source"],
+            "properties": {
+              "checked": { "type": "boolean" },
+              "source": { "const": "web-switch" }
+            },
+            "additionalProperties": false
+          }
+        }
+      }
+    }
+  }
+}
+

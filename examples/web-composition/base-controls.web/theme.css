@@ -1,0 +1,32 @@
+:root {
+  --web-page: #f7fafc;
+  --web-panel: #ffffff;
+  --web-text: #111827;
+  --web-muted: #5b6472;
+  --web-border: #cbd5e1;
+  --web-link: #2457a6;
+  --web-radius: 0.35rem;
+  --web-control-radius: 0.35rem;
+  --web-control-accent: #2457a6;
+  --web-control-accent-text: #ffffff;
+  --web-switch-track: #d8dee8;
+  --web-switch-thumb: #ffffff;
+  --web-focus: #2457a6;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --web-page: #10151f;
+    --web-panel: #151c29;
+    --web-text: #f8fafc;
+    --web-muted: #aab4c3;
+    --web-border: #334155;
+    --web-link: #8ab4ff;
+    --web-control-accent: #8ab4ff;
+    --web-control-accent-text: #08111f;
+    --web-switch-track: #334155;
+    --web-switch-thumb: #f8fafc;
+    --web-focus: #8ab4ff;
+  }
+}
+

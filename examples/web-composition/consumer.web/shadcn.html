@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en" data-provider="shadcn-controls">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Interface Injection Consumer - Shadcn</title>
+    <link rel="stylesheet" href="../shadcn-controls.web/theme.css" />
+    <link rel="stylesheet" href="./app.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "@web/ui-controls/": "../shadcn-controls.web/"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <main class="shell">
+      <p class="eyebrow">consumer.web + shadcn-controls.web</p>
+      <h1>Interface-bound controls</h1>
+      <p class="lede">
+        This page binds <code>@web/ui-controls/</code> to <code>../shadcn-controls.web/</code>.
+      </p>
+
+      <section class="panel" aria-labelledby="demo-title">
+        <div>
+          <h2 id="demo-title">Standard surface</h2>
+          <p id="requirement" class="muted">Loading requirements...</p>
+        </div>
+        <div class="controls">
+          <web-button id="primary-action">Add item</web-button>
+          <label class="switch-row">
+            <web-switch id="density-switch" aria-label="Compact density"></web-switch>
+            <span>Compact density</span>
+          </label>
+        </div>
+        <output id="activity" aria-live="polite">Ready</output>
+      </section>
+
+      <nav class="actions" aria-label="Alternative provider">
+        <a href="./base.html">Open with base provider</a>
+      </nav>
+    </main>
+  </body>
+</html>
+

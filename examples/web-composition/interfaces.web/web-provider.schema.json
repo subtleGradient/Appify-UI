@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Web Interface Injection provider descriptor",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["webProvider", "name", "implements", "bindings", "features"],
+  "properties": {
+    "$schema": { "type": "string" },
+    "webProvider": { "const": 1 },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]*$"
+    },
+    "implements": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["interface", "version"],
+        "properties": {
+          "interface": { "type": "string" },
+          "version": { "type": "string" }
+        }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^\\./"
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": { "type": ["string", "number", "boolean"] }
+    },
+    "exports": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^\\./"
+      }
+    }
+  }
+}
+

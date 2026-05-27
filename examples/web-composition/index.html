@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web Composition Fixture</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.5;
+      }
+
+      body {
+        margin: 0;
+        background: Canvas;
+        color: CanvasText;
+      }
+
+      main {
+        display: grid;
+        gap: 1rem;
+        margin-inline: auto;
+        max-inline-size: 52rem;
+        padding: clamp(1rem, 4vw, 3rem);
+      }
+
+      h1,
+      p {
+        margin: 0;
+      }
+
+      ul {
+        margin-block: 0;
+        padding-inline-start: 1.25rem;
+      }
+
+      a {
+        color: LinkText;
+      }
+
+      code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Web Composition Fixture</h1>
+      <p>
+        One consumer app imports <code>@web/ui-controls/define.js</code>. Two entrypoints bind that
+        logical interface to different provider bundles with normal import maps.
+      </p>
+      <ul>
+        <li><a href="./consumer.web/base.html">Base controls provider</a></li>
+        <li><a href="./consumer.web/shadcn.html">Shadcn-flavored controls provider</a></li>
+      </ul>
+      <p>
+        See <a href="./interfaces.web/ui-controls.interface.json">the interface descriptor</a>,
+        <a href="./consumer.web/web-requires.json">the consumer declaration</a>, and each provider's
+        <code>web-provides.json</code>.
+      </p>
+    </main>
+  </body>
+</html>
+
