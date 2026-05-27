@@ -422,7 +422,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         }
 
         if let measurement = latestPreferredContentMeasurement,
-           let preferredFrame = preferredContentFrame(for: measurement, in: window, relativeTo: window.frame),
+           let preferredFrame = standardContentFrame(for: measurement, in: window, relativeTo: window.frame),
            isMeaningfulStandardFrame(preferredFrame, from: window.frame)
         {
             return preferredFrame
@@ -1101,26 +1101,9 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         in window: NSWindow,
         relativeTo referenceFrame: NSRect
     ) -> NSRect? {
-        let contentSize = NSSize(
-            width: ceil(measurement.contentSize.width) + 2,
-            height: ceil(measurement.contentSize.height) + 2
-        )
-        guard contentSize.width.isFinite,
-              contentSize.height.isFinite,
-              contentSize.width > 0,
-              contentSize.height > 0
-        else {
+        guard let frameSize = measuredFrameSize(for: measurement, in: window) else {
             return nil
         }
-
-        let targetFrameSize = window.frameRect(
-            forContentRect: NSRect(origin: .zero, size: contentSize)
-        ).size
-        let minFrameSize = window.minSize
-        let frameSize = NSSize(
-            width: max(targetFrameSize.width, minFrameSize.width),
-            height: max(targetFrameSize.height, minFrameSize.height)
-        )
 
         let screen = window.screen ?? NSScreen.main
         guard let visibleFrame = screen?.visibleFrame else {
@@ -1142,14 +1125,48 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             return nil
         }
 
-        var frame = NSRect(
-            x: referenceFrame.minX,
-            y: referenceFrame.maxY - frameSize.height,
-            width: frameSize.width,
-            height: frameSize.height
-        )
-        frame = constrainedFrame(frame, to: visibleFrame)
-        return frame
+        return frame(size: frameSize, relativeTo: referenceFrame, visibleFrame: visibleFrame)
+    }
+
+    private func standardContentFrame(
+        for measurement: PreferredContentMeasurement,
+        in window: NSWindow,
+        relativeTo referenceFrame: NSRect
+    ) -> NSRect? {
+        guard let measuredFrameSize = measuredFrameSize(for: measurement, in: window) else {
+            return nil
+        }
+
+        let screen = window.screen ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else {
+            return nil
+        }
+
+        if measurement.source == .automatic,
+           isViewportLike(measurement: measurement, targetFrameSize: measuredFrameSize, visibleFrame: visibleFrame) {
+            return nil
+        }
+
+        let minFrameSize = window.minSize
+        let maximumUsefulWidth = floor(visibleFrame.width * 0.92)
+        let width: CGFloat
+        switch measurement.source {
+        case .explicit, .marked:
+            width = min(max(measuredFrameSize.width, minFrameSize.width), maximumUsefulWidth)
+
+        case .automatic:
+            if referenceFrame.width >= visibleFrame.width * 0.94 {
+                width = min(max(referenceFrame.width, minFrameSize.width), visibleFrame.width)
+            } else if measuredFrameSize.width < referenceFrame.width - 64 {
+                width = max(measuredFrameSize.width, minFrameSize.width)
+            } else {
+                width = min(max(referenceFrame.width, minFrameSize.width), visibleFrame.width)
+            }
+        }
+
+        let height = min(max(measuredFrameSize.height, minFrameSize.height), visibleFrame.height)
+        let frameSize = NSSize(width: width, height: height)
+        return frame(size: frameSize, relativeTo: referenceFrame, visibleFrame: visibleFrame)
     }
 
     private func isMeaningfulStandardFrame(_ frame: NSRect, from currentFrame: NSRect) -> Bool {
@@ -1161,6 +1178,29 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         return widthDelta >= 48 || heightDelta >= 48 || areaDeltaRatio >= 0.10
     }
 
+    private func measuredFrameSize(for measurement: PreferredContentMeasurement, in window: NSWindow) -> NSSize? {
+        let contentSize = NSSize(
+            width: ceil(measurement.contentSize.width) + 2,
+            height: ceil(measurement.contentSize.height) + 2
+        )
+        guard contentSize.width.isFinite,
+              contentSize.height.isFinite,
+              contentSize.width > 0,
+              contentSize.height > 0
+        else {
+            return nil
+        }
+
+        let targetFrameSize = window.frameRect(
+            forContentRect: NSRect(origin: .zero, size: contentSize)
+        ).size
+        let minFrameSize = window.minSize
+        return NSSize(
+            width: max(targetFrameSize.width, minFrameSize.width),
+            height: max(targetFrameSize.height, minFrameSize.height)
+        )
+    }
+
     private func obedientStandardFrame(in window: NSWindow) -> NSRect? {
         let screen = window.screen ?? NSScreen.main
         guard let visibleFrame = screen?.visibleFrame else {
@@ -1168,21 +1208,28 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         }
 
         let currentFrame = window.frame
-        let visibleArea = max(visibleFrame.width * visibleFrame.height, 1)
-        let currentAreaRatio = (currentFrame.width * currentFrame.height) / visibleArea
-        let isBig = currentAreaRatio >= 0.72
-            || currentFrame.width >= visibleFrame.width * 0.88
-            || currentFrame.height >= visibleFrame.height * 0.88
-        let widthFactor: CGFloat = isBig ? 0.70 : 0.86
-        let heightFactor: CGFloat = isBig ? 0.72 : 0.86
         let minFrameSize = window.minSize
         let frameSize = NSSize(
-            width: min(visibleFrame.width, max(floor(visibleFrame.width * widthFactor), minFrameSize.width)),
-            height: min(visibleFrame.height, max(floor(visibleFrame.height * heightFactor), minFrameSize.height))
+            width: obedientLength(current: currentFrame.width, available: visibleFrame.width, minimum: minFrameSize.width),
+            height: obedientLength(current: currentFrame.height, available: visibleFrame.height, minimum: minFrameSize.height)
         )
+        return frame(size: frameSize, relativeTo: currentFrame, visibleFrame: visibleFrame)
+    }
+
+    private func obedientLength(current: CGFloat, available: CGFloat, minimum: CGFloat) -> CGFloat {
+        if current >= available * 0.86 {
+            return max(floor(available * 0.72), minimum)
+        }
+        if current <= available * 0.64 {
+            return max(floor(available * 0.86), minimum)
+        }
+        return min(max(current, minimum), available)
+    }
+
+    private func frame(size frameSize: NSSize, relativeTo referenceFrame: NSRect, visibleFrame: NSRect) -> NSRect {
         let frame = NSRect(
-            x: currentFrame.minX,
-            y: currentFrame.maxY - frameSize.height,
+            x: referenceFrame.minX,
+            y: referenceFrame.maxY - frameSize.height,
             width: frameSize.width,
             height: frameSize.height
         )

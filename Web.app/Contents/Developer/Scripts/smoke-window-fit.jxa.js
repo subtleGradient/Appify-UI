@@ -2,7 +2,7 @@
 
 function run(argv) {
   if (argv.length < 3) {
-    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH [first-fit|zoom-obedience]");
+    throw new Error("usage: smoke-window-fit.jxa.js APP_PATH BUNDLE_IDENTIFIER DOCUMENT_PATH [first-fit|zoom-obedience|zoom-height-obedience]");
   }
 
   const appPath = argv[0];
@@ -148,6 +148,8 @@ function run(argv) {
   clearSavedFrame();
   if (mode === "zoom-obedience") {
     writeSavedFrame("20 48 1480 780 0 0 4096 2304 ");
+  } else if (mode === "zoom-height-obedience") {
+    writeSavedFrame("0 48 4096 620 0 0 4096 2304 ");
   }
 
   try {
@@ -186,6 +188,43 @@ function run(argv) {
 
       quitApp();
       return `Web window Zoom smoke ok: ${Math.round(before.width)}x${Math.round(before.height)} -> ${Math.round(after.width)}x${Math.round(after.height)}`;
+    }
+
+    if (mode === "zoom-height-obedience") {
+      waitUntil(
+        `${expectedWindowName} did not become ready for height Zoom smoke`,
+        () => {
+          const size = windowSize(window);
+          return size.width > 600 && size.height > 400 ? size : null;
+        },
+        15000
+      );
+      const before = waitUntil(
+        `${expectedWindowName} could not be forced to a wide short frame`,
+        () => {
+          const size = windowSize(window);
+          return size.width >= 1200 && size.height <= 700 ? size : null;
+        },
+        3000
+      );
+      clickZoom();
+      const after = waitUntil(
+        `${expectedWindowName} Zoom did not expand height meaningfully`,
+        () => {
+          const size = windowSize(window);
+          return size.height >= before.height + 80 ? size : null;
+        },
+        8000
+      );
+      if (after.width > before.width + 40) {
+        throw new Error(`${expectedWindowName} Zoom grew width when the height was the obvious missing axis`);
+      }
+      if (after.width < before.width - 80) {
+        throw new Error(`${expectedWindowName} Zoom shrank width when the window was already at the screen edge`);
+      }
+
+      quitApp();
+      return `Web window height Zoom smoke ok: ${Math.round(before.width)}x${Math.round(before.height)} -> ${Math.round(after.width)}x${Math.round(after.height)}`;
     }
 
     const fitted = waitUntil(
