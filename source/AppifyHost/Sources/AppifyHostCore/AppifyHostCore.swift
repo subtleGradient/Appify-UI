@@ -18,6 +18,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var windowTitlePrefix: String
     public var startupTimeoutSeconds: TimeInterval
     public var webViewDataStore: AppifyHostWebViewDataStore
+    public var windowContentSizing: AppifyHostWindowContentSizing
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
     public var firstLaunchHelp: AppifyHostFirstLaunchHelp?
@@ -41,6 +42,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         windowTitlePrefix: String,
         startupTimeoutSeconds: TimeInterval,
         webViewDataStore: AppifyHostWebViewDataStore,
+        windowContentSizing: AppifyHostWindowContentSizing,
         restrictNavigationToReadyURLScope: Bool,
         aboutNotice: AppifyHostAboutNotice?,
         firstLaunchHelp: AppifyHostFirstLaunchHelp?,
@@ -63,6 +65,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.windowTitlePrefix = windowTitlePrefix
         self.startupTimeoutSeconds = startupTimeoutSeconds
         self.webViewDataStore = webViewDataStore
+        self.windowContentSizing = windowContentSizing
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
         self.firstLaunchHelp = firstLaunchHelp
@@ -96,6 +99,11 @@ public enum AppifyHostDocumentMode: String, Equatable, Sendable {
 public enum AppifyHostWebViewDataStore: String, Equatable, Sendable {
     case persistent
     case nonPersistent
+}
+
+public enum AppifyHostWindowContentSizing: String, Equatable, Sendable {
+    case automatic
+    case disabled
 }
 
 public enum AppifyHostDeepLinkCommand: String, Equatable, Sendable {
@@ -302,6 +310,10 @@ public enum AppifyHostConfigurationLoader {
         guard let webViewDataStore = AppifyHostWebViewDataStore(rawValue: webViewDataStoreValue) else {
             throw AppifyHostError.invalidInfoPlist("Unsupported AppifyHost:WebViewDataStore: \(webViewDataStoreValue).")
         }
+        let windowContentSizingValue = stringValue(hostSettings["WindowContentSizing"]) ?? AppifyHostWindowContentSizing.automatic.rawValue
+        guard let windowContentSizing = AppifyHostWindowContentSizing(rawValue: windowContentSizingValue) else {
+            throw AppifyHostError.invalidInfoPlist("Unsupported AppifyHost:WindowContentSizing: \(windowContentSizingValue).")
+        }
 
         let documentContentTypes = parseDocumentContentTypes(from: infoDictionary)
         let documentExtensions = parseDocumentExtensions(from: infoDictionary)
@@ -357,6 +369,7 @@ public enum AppifyHostConfigurationLoader {
             windowTitlePrefix: windowTitlePrefix,
             startupTimeoutSeconds: startupTimeoutSeconds,
             webViewDataStore: webViewDataStore,
+            windowContentSizing: windowContentSizing,
             restrictNavigationToReadyURLScope: restrictNavigation,
             aboutNotice: aboutNotice,
             firstLaunchHelp: firstLaunchHelp,

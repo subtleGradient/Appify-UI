@@ -23,6 +23,7 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.windowTitlePrefix, "SketchPad")
         XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
+        XCTAssertEqual(config.windowContentSizing, .automatic)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
         XCTAssertEqual(config.aboutNotice?.links, [
             AppifyHostAboutLink(title: "Example Project", url: "https://example.com"),
@@ -99,6 +100,20 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.sourceReference?.sourceDirectory, "Contents/Resources/Runner")
     }
 
+    func testLoadsDisabledWindowContentSizing() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["WindowContentSizing"] = "disabled"
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/SketchPad.app")
+        )
+
+        XCTAssertEqual(config.windowContentSizing, .disabled)
+    }
+
     func testRejectsInvalidFirstLaunchHelpURL() throws {
         var plist = sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite")
         var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
@@ -168,6 +183,18 @@ final class AppifyHostCoreTests: XCTestCase {
             "ServerExecutable": "main.sh",
             "StartupTimeoutSeconds": 0,
         ]
+
+        XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/tmp/SketchPad.app")
+        ))
+    }
+
+    func testRejectsInvalidWindowContentSizing() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["WindowContentSizing"] = "terminalGrid"
+        plist["AppifyHost"] = hostSettings
 
         XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
             infoDictionary: plist,

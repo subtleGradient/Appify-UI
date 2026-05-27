@@ -3,7 +3,117 @@ import AppifyHostCore
 import Darwin
 import WebKit
 
-final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
+final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NSWindowDelegate {
+    private static let preferredContentSizeMessageName = "appifyPreferredContentSize"
+    private static let preferredContentSizeScript = """
+    (() => {
+      if (window.__APPIFY_HOST_CONTENT_SIZE_OBSERVER__) return;
+
+      const handler = window.webkit?.messageHandlers?.appifyPreferredContentSize;
+      if (!handler || typeof handler.postMessage !== "function") return;
+
+      const ignoredTags = new Set(["SCRIPT", "STYLE", "LINK", "META", "TITLE", "TEMPLATE", "NOSCRIPT"]);
+      const intrinsicallySizedTags = new Set(["CANVAS", "IMG", "VIDEO", "SVG", "IFRAME", "OBJECT", "EMBED", "INPUT", "SELECT", "TEXTAREA"]);
+      const number = (value) => Number.isFinite(value) ? value : 0;
+
+      const measure = () => {
+        const root = document.documentElement;
+        const body = document.body;
+        const viewportWidth = number(window.innerWidth || root?.clientWidth || 0);
+        const viewportHeight = number(window.innerHeight || root?.clientHeight || 0);
+        let left = Infinity;
+        let top = Infinity;
+        let right = -Infinity;
+        let bottom = -Infinity;
+        let count = 0;
+
+        const includeRect = (element, rect) => {
+          if (!rect || rect.width < 1 || rect.height < 1) return;
+          const isViewportWidthContainer = rect.width >= viewportWidth - 3
+            && element.children.length > 0
+            && !intrinsicallySizedTags.has(element.tagName);
+          if (isViewportWidthContainer) return;
+          left = Math.min(left, rect.left + window.scrollX);
+          top = Math.min(top, rect.top + window.scrollY);
+          right = Math.max(right, rect.right + window.scrollX);
+          bottom = Math.max(bottom, rect.bottom + window.scrollY);
+          count += 1;
+        };
+
+        const includeElement = (element) => {
+          if (!(element instanceof Element) || ignoredTags.has(element.tagName)) return;
+          const style = window.getComputedStyle(element);
+          if (style.display === "none" || style.visibility === "hidden" || style.contentVisibility === "hidden") return;
+          for (const rect of element.getClientRects()) {
+            includeRect(element, rect);
+          }
+        };
+
+        if (body) {
+          for (const element of body.querySelectorAll("*")) {
+            includeElement(element);
+          }
+        }
+
+        let width = count > 0 ? Math.ceil(right - left) : 0;
+        let height = count > 0 ? Math.ceil(bottom - top) : 0;
+        if (width <= 0 || height <= 0) {
+          width = Math.ceil(Math.max(root?.scrollWidth || 0, body?.scrollWidth || 0, viewportWidth));
+          height = Math.ceil(Math.max(root?.scrollHeight || 0, body?.scrollHeight || 0, viewportHeight));
+        }
+
+        return {
+          width,
+          height,
+          viewportWidth,
+          viewportHeight
+        };
+      };
+
+      let timer = 0;
+      const post = (reason) => {
+        window.clearTimeout(timer);
+        timer = window.setTimeout(() => {
+          try {
+            handler.postMessage({ ...measure(), reason: String(reason || "measure") });
+          } catch (error) {
+            console.warn("AppifyHost preferred content size measurement failed:", error);
+          }
+        }, 60);
+      };
+
+      window.__APPIFY_HOST_MEASURE_CONTENT__ = post;
+      window.__APPIFY_HOST_CONTENT_SIZE_OBSERVER__ = true;
+
+      try {
+        const resizeObserver = new ResizeObserver(() => post("resize-observer"));
+        if (document.documentElement) resizeObserver.observe(document.documentElement);
+        if (document.body) resizeObserver.observe(document.body);
+      } catch (_) {}
+
+      try {
+        const mutationObserver = new MutationObserver(() => post("mutation-observer"));
+        mutationObserver.observe(document.documentElement || document, {
+          attributes: true,
+          childList: true,
+          subtree: true,
+          characterData: true
+        });
+      } catch (_) {}
+
+      window.addEventListener("load", () => post("load"), { once: true });
+      window.addEventListener("resize", () => post("window-resize"));
+      document.fonts?.ready?.then(() => post("fonts-ready")).catch(() => {});
+      for (const image of Array.from(document.images || [])) {
+        if (!image.complete) {
+          image.addEventListener("load", () => post("image-load"), { once: true });
+          image.addEventListener("error", () => post("image-error"), { once: true });
+        }
+      }
+      post("install");
+    })();
+    """
+
     private let configuration: AppifyHostConfiguration
     private var hostDocument: AppifyHostDocument?
     private var webView: WKWebView?
@@ -21,6 +131,12 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private var closeValidationInProgress = false
     private var logHandle: FileHandle?
     private var closeObserver: NSObjectProtocol?
+    private var currentWindowFrameAutosaveName: NSWindow.FrameAutosaveName = ""
+    private var currentDocumentHasSavedWindowFrame = false
+    private var latestPreferredContentMeasurement: PreferredContentMeasurement?
+    private var isWaitingForInitialContentFit = false
+    private var initialContentFitTimeout: DispatchWorkItem?
+    private var didRevealCurrentWebView = false
 
     init(configuration: AppifyHostConfiguration, document: AppifyHostDocument) {
         self.configuration = configuration
@@ -37,6 +153,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         window.isRestorable = false
 
         super.init(window: window)
+        shouldCascadeWindows = true
         window.delegate = self
         self.document = document
         updateWindowDocumentIdentity()
@@ -68,15 +185,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         activeDocumentURL = resolvedDocumentURL(documentURL)
         pendingDeepLinkRoute = initialRoute
         updateWindowDocumentIdentity()
-        showWindow(nil)
-        window?.center()
-        window?.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
-
         loadStatusPage(
             title: "Opening \(documentURL.lastPathComponent)",
             message: "Starting \(configuration.appName)'s app-local server."
         )
+        showWindow(nil)
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+
         startServer()
     }
 
@@ -223,9 +339,25 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         return false
     }
 
+    func windowWillUseStandardFrame(_ window: NSWindow, defaultFrame newFrame: NSRect) -> NSRect {
+        guard configuration.windowContentSizing == .automatic,
+              let measurement = latestPreferredContentMeasurement,
+              let preferredFrame = preferredContentFrame(for: measurement, in: window, relativeTo: window.frame)
+        else {
+            return newFrame
+        }
+
+        return preferredFrame
+    }
+
     private enum CloseValidationResult {
         case clean
         case dirty(String)
+    }
+
+    private struct PreferredContentMeasurement {
+        var contentSize: NSSize
+        var viewportSize: NSSize
     }
 
     private struct WebDirtyState {
@@ -355,8 +487,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         guard let documentURL = hostDocument?.activeDocumentURL ?? activeDocumentURL else {
             window?.representedURL = nil
             window?.title = "Untitled"
+            updateWindowFrameAutosaveName(nil)
             return
         }
+
+        updateWindowFrameAutosaveName(documentURL)
 
         switch configuration.documentMode {
         case .contentPackage, .contentPackageOrFile:
@@ -381,6 +516,41 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
                 window?.title = "\(configuration.windowTitlePrefix) - \(documentURL.lastPathComponent)"
             }
         }
+    }
+
+    private func updateWindowFrameAutosaveName(_ documentURL: URL?) {
+        guard let documentURL else {
+            currentWindowFrameAutosaveName = ""
+            currentDocumentHasSavedWindowFrame = false
+            windowFrameAutosaveName = ""
+            return
+        }
+
+        let autosaveName = windowFrameAutosaveName(for: documentURL)
+        guard currentWindowFrameAutosaveName != autosaveName else {
+            return
+        }
+
+        currentWindowFrameAutosaveName = autosaveName
+        currentDocumentHasSavedWindowFrame = hasSavedWindowFrame(named: autosaveName)
+        windowFrameAutosaveName = autosaveName
+    }
+
+    private func windowFrameAutosaveName(for documentURL: URL) -> NSWindow.FrameAutosaveName {
+        let path = documentURL.standardizedFileURL.path
+        let encodedPath = Data(path.utf8).base64EncodedString()
+            .replacingOccurrences(of: "+", with: "-")
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: "=", with: "")
+        return NSWindow.FrameAutosaveName("AppifyHost.DocumentWindow.\(configuration.bundleIdentifier).\(encodedPath)")
+    }
+
+    private func hasSavedWindowFrame(named autosaveName: NSWindow.FrameAutosaveName) -> Bool {
+        guard !autosaveName.isEmpty else {
+            return false
+        }
+
+        return UserDefaults.standard.object(forKey: "NSWindow Frame \(autosaveName)") != nil
     }
 
     private func startServer() {
@@ -702,6 +872,15 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             webViewConfiguration.websiteDataStore = .nonPersistent()
         }
         webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
+        if configuration.windowContentSizing == .automatic {
+            let userContentController = WKUserContentController()
+            userContentController.addUserScript(preferredContentSizeUserScript())
+            userContentController.add(
+                WeakScriptMessageHandler(delegate: self),
+                name: Self.preferredContentSizeMessageName
+            )
+            webViewConfiguration.userContentController = userContentController
+        }
 
         let webView = WKWebView(frame: window?.contentView?.bounds ?? .zero, configuration: webViewConfiguration)
         webView.isInspectable = true
@@ -710,40 +889,206 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         webView.navigationDelegate = self
         webView.uiDelegate = self
         self.webView = webView
+        latestPreferredContentMeasurement = nil
+        didRevealCurrentWebView = false
+        isWaitingForInitialContentFit = shouldWaitForInitialContentFit
+        if isWaitingForInitialContentFit {
+            webView.isHidden = true
+            scheduleInitialContentFitTimeout(for: webView)
+        }
         window?.contentView = webView
         window?.initialFirstResponder = webView
-        window?.makeFirstResponder(webView)
+        if !webView.isHidden {
+            window?.makeFirstResponder(webView)
+        }
         webView.load(URLRequest(url: url))
     }
 
-    private func scheduleWebViewResizeNudge(for webView: WKWebView) {
-        for delay in [0.0, 0.1, 0.3, 0.7] {
-            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self, weak webView] in
-                guard let self,
-                      let webView,
-                      self.webView === webView
-                else {
-                    return
-                }
+    private var shouldWaitForInitialContentFit: Bool {
+        configuration.windowContentSizing == .automatic && !currentDocumentHasSavedWindowFrame
+    }
 
-                self.dispatchWebViewResizeEvent(webView)
+    private func preferredContentSizeUserScript() -> WKUserScript {
+        WKUserScript(
+            source: Self.preferredContentSizeScript,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+    }
+
+    private func scheduleInitialContentFitTimeout(for webView: WKWebView) {
+        initialContentFitTimeout?.cancel()
+
+        let item = DispatchWorkItem { [weak self, weak webView] in
+            guard let self,
+                  let webView,
+                  self.webView === webView,
+                  self.isWaitingForInitialContentFit
+            else {
+                return
+            }
+
+            self.writeLog("WARN: preferred content size was not ready before first reveal.\n")
+            self.revealWebView(webView)
+        }
+        initialContentFitTimeout = item
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: item)
+    }
+
+    private func requestPreferredContentSizeMeasurement(for webView: WKWebView, reason: String) {
+        guard configuration.windowContentSizing == .automatic else {
+            revealWebView(webView)
+            return
+        }
+
+        let escapedReason = reason.replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "'", with: "\\'")
+        webView.evaluateJavaScript(
+            "window.__APPIFY_HOST_MEASURE_CONTENT__ && window.__APPIFY_HOST_MEASURE_CONTENT__('\(escapedReason)');"
+        ) { [weak self] _, error in
+            if let error {
+                self?.writeLog("WARN: preferred content size measurement request failed: \(String(describing: error))\n")
             }
         }
     }
 
-    private func dispatchWebViewResizeEvent(_ webView: WKWebView) {
-        webView.evaluateJavaScript(
-            """
-            (() => {
-              window.dispatchEvent(new Event("resize"));
-              window.visualViewport?.dispatchEvent(new Event("resize"));
-            })();
-            """
-        ) { [weak self] _, error in
-            if let error {
-                self?.writeLog("WARN: WebView resize event failed: \(String(describing: error))\n")
-            }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == Self.preferredContentSizeMessageName,
+              let webView,
+              configuration.windowContentSizing == .automatic,
+              let dictionary = message.body as? [String: Any],
+              let contentWidth = positiveCGFloat(dictionary["width"]),
+              let contentHeight = positiveCGFloat(dictionary["height"])
+        else {
+            return
         }
+
+        let viewportWidth = positiveCGFloat(dictionary["viewportWidth"]) ?? 0
+        let viewportHeight = positiveCGFloat(dictionary["viewportHeight"]) ?? 0
+        latestPreferredContentMeasurement = PreferredContentMeasurement(
+            contentSize: NSSize(width: contentWidth, height: contentHeight),
+            viewportSize: NSSize(width: viewportWidth, height: viewportHeight)
+        )
+
+        if isWaitingForInitialContentFit {
+            applyInitialContentFitIfAppropriate(to: webView)
+            revealWebView(webView)
+        }
+    }
+
+    private func applyInitialContentFitIfAppropriate(to webView: WKWebView) {
+        guard let window,
+              self.webView === webView,
+              let measurement = latestPreferredContentMeasurement,
+              let targetFrame = preferredContentFrame(for: measurement, in: window, relativeTo: window.frame)
+        else {
+            return
+        }
+
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            window.setFrame(targetFrame, display: true, animate: false)
+        }
+    }
+
+    private func revealWebView(_ webView: WKWebView) {
+        guard self.webView === webView,
+              !didRevealCurrentWebView
+        else {
+            return
+        }
+
+        initialContentFitTimeout?.cancel()
+        initialContentFitTimeout = nil
+        isWaitingForInitialContentFit = false
+        didRevealCurrentWebView = true
+        webView.isHidden = false
+        window?.makeFirstResponder(webView)
+    }
+
+    private func preferredContentFrame(
+        for measurement: PreferredContentMeasurement,
+        in window: NSWindow,
+        relativeTo referenceFrame: NSRect
+    ) -> NSRect? {
+        let contentSize = NSSize(
+            width: ceil(measurement.contentSize.width) + 2,
+            height: ceil(measurement.contentSize.height) + 2
+        )
+        guard contentSize.width.isFinite,
+              contentSize.height.isFinite,
+              contentSize.width > 0,
+              contentSize.height > 0
+        else {
+            return nil
+        }
+
+        let targetFrameSize = window.frameRect(
+            forContentRect: NSRect(origin: .zero, size: contentSize)
+        ).size
+        let minFrameSize = window.minSize
+        let frameSize = NSSize(
+            width: max(targetFrameSize.width, minFrameSize.width),
+            height: max(targetFrameSize.height, minFrameSize.height)
+        )
+
+        let screen = window.screen ?? NSScreen.main
+        guard let visibleFrame = screen?.visibleFrame else {
+            return nil
+        }
+
+        let maximumFitFrame = NSSize(
+            width: floor(visibleFrame.width * 0.92),
+            height: floor(visibleFrame.height * 0.92)
+        )
+        guard frameSize.width < maximumFitFrame.width,
+              frameSize.height < maximumFitFrame.height
+        else {
+            return nil
+        }
+
+        if isViewportLike(measurement: measurement, targetFrameSize: frameSize, visibleFrame: visibleFrame) {
+            return nil
+        }
+
+        var frame = NSRect(
+            x: referenceFrame.minX,
+            y: referenceFrame.maxY - frameSize.height,
+            width: frameSize.width,
+            height: frameSize.height
+        )
+        frame = constrainedFrame(frame, to: visibleFrame)
+        return frame
+    }
+
+    private func isViewportLike(
+        measurement: PreferredContentMeasurement,
+        targetFrameSize: NSSize,
+        visibleFrame: NSRect
+    ) -> Bool {
+        let widthDelta = abs(measurement.contentSize.width - measurement.viewportSize.width)
+        let heightDelta = abs(measurement.contentSize.height - measurement.viewportSize.height)
+        let nearlyViewportSized = widthDelta <= 3 && heightDelta <= 3
+        let consumesMostScreen = targetFrameSize.width > visibleFrame.width * 0.85
+            || targetFrameSize.height > visibleFrame.height * 0.85
+        return nearlyViewportSized && consumesMostScreen
+    }
+
+    private func constrainedFrame(_ frame: NSRect, to visibleFrame: NSRect) -> NSRect {
+        var constrained = frame
+        if constrained.maxX > visibleFrame.maxX {
+            constrained.origin.x = visibleFrame.maxX - constrained.width
+        }
+        if constrained.minX < visibleFrame.minX {
+            constrained.origin.x = visibleFrame.minX
+        }
+        if constrained.maxY > visibleFrame.maxY {
+            constrained.origin.y = visibleFrame.maxY - constrained.height
+        }
+        if constrained.minY < visibleFrame.minY {
+            constrained.origin.y = visibleFrame.minY
+        }
+        return constrained
     }
 
     private func openLinkedWebPackageIfPossible(_ url: URL) -> Bool {
@@ -1023,8 +1368,13 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        window?.makeFirstResponder(webView)
-        scheduleWebViewResizeNudge(for: webView)
+        if !webView.isHidden {
+            window?.makeFirstResponder(webView)
+        }
+        requestPreferredContentSizeMeasurement(for: webView, reason: "didFinish")
+        if configuration.windowContentSizing == .disabled {
+            revealWebView(webView)
+        }
     }
 }
 
@@ -1087,6 +1437,18 @@ private enum PrivateWebKitInspector {
         }
 
         return true
+    }
+}
+
+private final class WeakScriptMessageHandler: NSObject, WKScriptMessageHandler {
+    weak var delegate: WKScriptMessageHandler?
+
+    init(delegate: WKScriptMessageHandler) {
+        self.delegate = delegate
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        delegate?.userContentController(userContentController, didReceive: message)
     }
 }
 
@@ -1170,6 +1532,28 @@ private func intValue(_ value: Any?) -> Int {
         return value.intValue
     }
     return 0
+}
+
+private func positiveCGFloat(_ value: Any?) -> CGFloat? {
+    let number: Double?
+    if let value = value as? Double {
+        number = value
+    } else if let value = value as? Int {
+        number = Double(value)
+    } else if let value = value as? NSNumber {
+        number = value.doubleValue
+    } else {
+        number = nil
+    }
+
+    guard let number,
+          number.isFinite,
+          number > 0
+    else {
+        return nil
+    }
+
+    return CGFloat(number)
 }
 
 private func webDocumentSaveError(_ message: String) -> NSError {
