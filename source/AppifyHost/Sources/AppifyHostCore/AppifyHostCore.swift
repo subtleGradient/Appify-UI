@@ -740,6 +740,13 @@ public enum ServerCommandBuilder {
 public enum AppifyHostOpenURL {
     public static let outputPrefix = "APPIFY_HOST_OPEN_URL="
 
+    public enum UserNavigationDisposition: Equatable, Sendable {
+        case allowInHost
+        case openExternally
+        case askBeforeOpeningExternally
+        case block
+    }
+
     public static func extract(from line: String) -> URL? {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix(outputPrefix) {
@@ -845,6 +852,47 @@ public enum AppifyHostOpenURL {
         }
     }
 
+    public static func userNavigationDisposition(
+        for url: URL,
+        readyURL: URL,
+        documentURL: URL,
+        bundleURL: URL,
+        restrictToReadyURLScope: Bool
+    ) -> UserNavigationDisposition {
+        if isAllowedNavigation(
+            url,
+            readyURL: readyURL,
+            documentURL: documentURL,
+            bundleURL: bundleURL,
+            restrictToReadyURLScope: restrictToReadyURLScope
+        ) {
+            return .allowInHost
+        }
+
+        guard let scheme = url.scheme?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
+              !scheme.isEmpty
+        else {
+            return .block
+        }
+
+        switch scheme {
+        case "http", "https":
+            if isSameHTTPOrigin(url, readyURL) {
+                return .block
+            }
+            if url.user != nil || url.password != nil {
+                return .block
+            }
+            return .openExternally
+
+        case "javascript", "data", "blob", "about":
+            return .block
+
+        default:
+            return .askBeforeOpeningExternally
+        }
+    }
+
     private static func validateLoopbackHTTPURL(_ url: URL) throws {
         guard let host = url.host(percentEncoded: false)?.lowercased(),
               ["localhost", "127.0.0.1", "::1", "0:0:0:0:0:0:0:1"].contains(host)
@@ -857,6 +905,18 @@ public enum AppifyHostOpenURL {
         if hasUnsafePath(url) {
             throw AppifyHostError.invalidOpenURL("Dot segments, encoded separators, and backslashes are not allowed in URL paths.")
         }
+    }
+
+    private static func isSameHTTPOrigin(_ url: URL, _ readyURL: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            return false
+        }
+
+        return scheme == readyURL.scheme?.lowercased()
+            && url.host(percentEncoded: false)?.lowercased() == readyURL.host(percentEncoded: false)?.lowercased()
+            && url.port == readyURL.port
     }
 
     private static func validateLocalFileURL(_ url: URL, documentURL: URL, bundleURL: URL) throws -> URL {

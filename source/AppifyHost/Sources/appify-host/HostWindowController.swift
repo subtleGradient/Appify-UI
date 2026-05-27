@@ -3,7 +3,7 @@ import AppifyHostCore
 import Darwin
 import WebKit
 
-final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWindowDelegate {
+final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, NSWindowDelegate {
     private let configuration: AppifyHostConfiguration
     private var hostDocument: AppifyHostDocument?
     private var webView: WKWebView?
@@ -708,6 +708,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         webView.allowsMagnification = true
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
+        webView.uiDelegate = self
         self.webView = webView
         window?.contentView = webView
         window?.initialFirstResponder = webView
@@ -887,43 +888,138 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         }
     }
 
-    func webView(
-        _ webView: WKWebView,
-        decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
-    ) {
-        guard let url = navigationAction.request.url,
-              let activeReadyURL,
+    private func isAllowedInHostNavigation(_ url: URL) -> Bool {
+        guard let activeReadyURL,
               let activeDocumentURL
         else {
-            decisionHandler(.cancel)
-            return
+            return false
         }
 
-        if AppifyHostDeepLink.hasAllowedScheme(url, schemes: configuration.deepLinkSchemes) {
-            if navigationAction.navigationType == .linkActivated {
-                NSWorkspace.shared.open(url)
-            }
-            decisionHandler(.cancel)
-            return
-        }
-
-        let allowed = AppifyHostOpenURL.isAllowedNavigation(
+        return AppifyHostOpenURL.isAllowedNavigation(
             url,
             readyURL: activeReadyURL,
             documentURL: activeDocumentURL,
             bundleURL: configuration.bundleURL,
             restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
         )
-        if !allowed,
-           navigationAction.navigationType == .linkActivated,
-           openLinkedWebPackageIfPossible(url)
+    }
+
+    private func handleUserRequestedNavigation(to url: URL) -> Bool {
+        guard let activeReadyURL,
+              let activeDocumentURL
+        else {
+            return false
+        }
+
+        if AppifyHostDeepLink.hasAllowedScheme(url, schemes: configuration.deepLinkSchemes) {
+            openExternalURL(url)
+            return true
+        }
+
+        let disposition = AppifyHostOpenURL.userNavigationDisposition(
+            for: url,
+            readyURL: activeReadyURL,
+            documentURL: activeDocumentURL,
+            bundleURL: configuration.bundleURL,
+            restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
+        )
+
+        guard disposition != .allowInHost else {
+            return false
+        }
+
+        if openLinkedWebPackageIfPossible(url) {
+            return true
+        }
+
+        switch disposition {
+        case .allowInHost:
+            return false
+
+        case .openExternally:
+            openExternalURL(url)
+            return true
+
+        case .askBeforeOpeningExternally:
+            if confirmExternalURLOpen(url) {
+                openExternalURL(url)
+            }
+            return true
+
+        case .block:
+            writeLog("WARN: blocked user-requested navigation to \(url.absoluteString)\n")
+            return true
+        }
+    }
+
+    @discardableResult
+    private func openExternalURL(_ url: URL) -> Bool {
+        let opened = NSWorkspace.shared.open(url)
+        if !opened {
+            writeLog("WARN: macOS refused to open external URL: \(url.absoluteString)\n")
+        }
+        return opened
+    }
+
+    private func confirmExternalURLOpen(_ url: URL) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Open External Link?"
+        alert.informativeText = """
+        \(configuration.appName) wants to open this link in another app:
+
+        \(url.absoluteString)
+        """
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = navigationAction.request.url,
+              activeReadyURL != nil,
+              activeDocumentURL != nil
+        else {
+            decisionHandler(.cancel)
+            return
+        }
+
+        if navigationAction.navigationType == .linkActivated,
+           handleUserRequestedNavigation(to: url)
         {
             decisionHandler(.cancel)
             return
         }
 
-        decisionHandler(allowed ? .allow : .cancel)
+        decisionHandler(isAllowedInHostNavigation(url) ? .allow : .cancel)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        createWebViewWith configuration: WKWebViewConfiguration,
+        for navigationAction: WKNavigationAction,
+        windowFeatures: WKWindowFeatures
+    ) -> WKWebView? {
+        guard navigationAction.targetFrame == nil,
+              let url = navigationAction.request.url
+        else {
+            return nil
+        }
+
+        if handleUserRequestedNavigation(to: url) {
+            return nil
+        }
+
+        if isAllowedInHostNavigation(url) {
+            webView.load(navigationAction.request)
+        } else {
+            writeLog("WARN: blocked new-window navigation to \(url.absoluteString)\n")
+        }
+        return nil
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

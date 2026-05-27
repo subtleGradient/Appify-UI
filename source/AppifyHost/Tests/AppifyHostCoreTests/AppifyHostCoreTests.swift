@@ -433,6 +433,79 @@ final class AppifyHostCoreTests: XCTestCase {
         ))
     }
 
+    func testClassifiesClickedExternalHTTPNavigation() throws {
+        let context = sampleNavigationContext()
+
+        XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+            for: URL(string: "https://jsoncanvas.org/spec/1.0")!,
+            readyURL: context.readyURL,
+            documentURL: context.documentURL,
+            bundleURL: context.bundleURL,
+            restrictToReadyURLScope: true
+        ), .openExternally)
+
+        XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+            for: URL(string: "http://example.com/docs")!,
+            readyURL: context.readyURL,
+            documentURL: context.documentURL,
+            bundleURL: context.bundleURL,
+            restrictToReadyURLScope: true
+        ), .openExternally)
+    }
+
+    func testClassifiesClickedPromptedExternalSchemes() throws {
+        let context = sampleNavigationContext()
+
+        XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+            for: URL(string: "mailto:hello@example.com")!,
+            readyURL: context.readyURL,
+            documentURL: context.documentURL,
+            bundleURL: context.bundleURL,
+            restrictToReadyURLScope: true
+        ), .askBeforeOpeningExternally)
+
+        XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+            for: URL(string: "x-example://open/item")!,
+            readyURL: context.readyURL,
+            documentURL: context.documentURL,
+            bundleURL: context.bundleURL,
+            restrictToReadyURLScope: true
+        ), .askBeforeOpeningExternally)
+    }
+
+    func testBlocksClickedPseudoSchemesAndSameOriginEscapes() throws {
+        let context = sampleNavigationContext()
+
+        for url in [
+            URL(string: "javascript:alert(1)")!,
+            URL(string: "data:text/html,%3Ch1%3Ebad%3C/h1%3E")!,
+            URL(string: "blob:https://example.com/id")!,
+            URL(string: "about:srcdoc")!,
+            URL(string: "http://127.0.0.1:49152/server-secret/../other")!,
+            URL(string: "http://127.0.0.1:49152/other")!,
+        ] {
+            XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+                for: url,
+                readyURL: context.readyURL,
+                documentURL: context.documentURL,
+                bundleURL: context.bundleURL,
+                restrictToReadyURLScope: true
+            ), .block)
+        }
+    }
+
+    func testAllowsClickedInHostNavigation() throws {
+        let context = sampleNavigationContext()
+
+        XCTAssertEqual(AppifyHostOpenURL.userNavigationDisposition(
+            for: URL(string: "http://127.0.0.1:49152/server-secret/ws")!,
+            readyURL: context.readyURL,
+            documentURL: context.documentURL,
+            bundleURL: context.bundleURL,
+            restrictToReadyURLScope: true
+        ), .allowInHost)
+    }
+
     func testServerEnvironmentSanitizesLoaderHooks() {
         let environment = ServerEnvironmentBuilder.build(
             base: [
@@ -467,6 +540,20 @@ final class AppifyHostCoreTests: XCTestCase {
         """)
 
         XCTAssertEqual(ProcessTree.descendantPIDs(rootPID: 10, entries: entries), [12, 11, 13])
+    }
+
+    private struct NavigationContext {
+        var readyURL: URL
+        var documentURL: URL
+        var bundleURL: URL
+    }
+
+    private func sampleNavigationContext() -> NavigationContext {
+        NavigationContext(
+            readyURL: URL(string: "http://127.0.0.1:49152/server-secret/")!,
+            documentURL: URL(fileURLWithPath: "/tmp/repo/repo.worktree"),
+            bundleURL: URL(fileURLWithPath: "/Applications/RepoTool.app")
+        )
     }
 
     private func sampleConfig() throws -> AppifyHostConfiguration {
