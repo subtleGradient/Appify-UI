@@ -1481,6 +1481,152 @@ function localStoragePersistenceClientScript(): string {
   };
   patchStoragePrototype();
 
+  const unsupportedStorageWarningKey = "appify:web:unsupported-storage-warning-seen";
+  const warnUnsupportedStorage = (apiName) => {
+    if (getItem(unsupportedStorageWarningKey) === "1") return;
+    setItem(unsupportedStorageWarningKey, "1");
+    flush(false);
+    console.warn(
+      "Web.app does not support " + apiName + " as document storage. "
+      + "Use localStorage so Web.app can keep one disk-backed source of truth. "
+      + "This warning is shown once per .web bundle.",
+    );
+  };
+
+  const patchMethod = (prototype, methodName, apiName) => {
+    if (!prototype || typeof prototype[methodName] !== "function") return;
+    const original = prototype[methodName];
+    try {
+      Object.defineProperty(prototype, methodName, {
+        configurable: true,
+        writable: true,
+        value(...args) {
+          warnUnsupportedStorage(apiName);
+          return Reflect.apply(original, this, args);
+        },
+      });
+    } catch {}
+  };
+
+  const patchGetter = (prototype, propertyName, apiName) => {
+    if (!prototype) return;
+    const descriptor = Object.getOwnPropertyDescriptor(prototype, propertyName);
+    if (!descriptor || !descriptor.configurable || typeof descriptor.get !== "function") return;
+    try {
+      Object.defineProperty(prototype, propertyName, {
+        configurable: true,
+        enumerable: descriptor.enumerable,
+        get() {
+          warnUnsupportedStorage(apiName);
+          return descriptor.get.call(this);
+        },
+        set: typeof descriptor.set === "function"
+          ? function setUnsupportedStorageProperty(value) {
+            warnUnsupportedStorage(apiName);
+            return descriptor.set.call(this, value);
+          }
+          : undefined,
+      });
+    } catch {}
+  };
+
+  const patchCookieAccess = () => {
+    const patched = new Set();
+    let prototype = window.document ? Object.getPrototypeOf(window.document) : null;
+    while (prototype && prototype !== Object.prototype) {
+      if (!patched.has(prototype)) {
+        patchGetter(prototype, "cookie", "cookies");
+        patched.add(prototype);
+      }
+      prototype = Object.getPrototypeOf(prototype);
+    }
+    if (typeof Document === "function") patchGetter(Document.prototype, "cookie", "cookies");
+    if (typeof HTMLDocument === "function") patchGetter(HTMLDocument.prototype, "cookie", "cookies");
+    if (typeof CookieStore === "function") {
+      for (const methodName of ["delete", "get", "getAll", "set"]) {
+        patchMethod(CookieStore.prototype, methodName, "cookies");
+      }
+    }
+  };
+
+  const patchUnsupportedStorageWarnings = () => {
+    let nativeSessionStorage = null;
+    try {
+      nativeSessionStorage = window.sessionStorage;
+    } catch {}
+    patchGetter(window.Window?.prototype, "sessionStorage", "sessionStorage");
+    if (typeof Storage === "function" && Storage.prototype) {
+      for (const methodName of ["clear", "getItem", "key", "removeItem", "setItem"]) {
+        const original = Storage.prototype[methodName];
+        if (typeof original !== "function") continue;
+        try {
+          Object.defineProperty(Storage.prototype, methodName, {
+            configurable: true,
+            writable: true,
+            value(...args) {
+              if (nativeSessionStorage !== null && this === nativeSessionStorage) {
+                warnUnsupportedStorage("sessionStorage");
+              }
+              return Reflect.apply(original, this, args);
+            },
+          });
+        } catch {}
+      }
+    }
+
+    if (typeof IDBFactory === "function") {
+      for (const methodName of ["cmp", "databases", "deleteDatabase", "open"]) {
+        patchMethod(IDBFactory.prototype, methodName, "IndexedDB");
+      }
+    }
+    if (typeof IDBDatabase === "function") {
+      for (const methodName of ["createObjectStore", "deleteObjectStore", "transaction"]) {
+        patchMethod(IDBDatabase.prototype, methodName, "IndexedDB");
+      }
+    }
+    if (typeof IDBObjectStore === "function") {
+      for (const methodName of ["add", "clear", "delete", "put"]) {
+        patchMethod(IDBObjectStore.prototype, methodName, "IndexedDB");
+      }
+    }
+
+    if (typeof CacheStorage === "function") {
+      for (const methodName of ["delete", "has", "keys", "match", "open"]) {
+        patchMethod(CacheStorage.prototype, methodName, "CacheStorage");
+      }
+    }
+    if (typeof Cache === "function") {
+      for (const methodName of ["add", "addAll", "delete", "keys", "match", "matchAll", "put"]) {
+        patchMethod(Cache.prototype, methodName, "CacheStorage");
+      }
+    }
+
+    patchCookieAccess();
+
+    patchGetter(window.Navigator?.prototype, "serviceWorker", "service worker storage");
+    if (typeof ServiceWorkerContainer === "function") {
+      for (const methodName of ["getRegistration", "getRegistrations", "register"]) {
+        patchMethod(ServiceWorkerContainer.prototype, methodName, "service worker storage");
+      }
+    }
+
+    patchGetter(window.Navigator?.prototype, "storage", "OPFS");
+    if (typeof StorageManager === "function") {
+      patchMethod(StorageManager.prototype, "getDirectory", "OPFS");
+    }
+    if (typeof FileSystemDirectoryHandle === "function") {
+      for (const methodName of ["getDirectoryHandle", "getFileHandle", "removeEntry", "resolve"]) {
+        patchMethod(FileSystemDirectoryHandle.prototype, methodName, "OPFS");
+      }
+    }
+    if (typeof FileSystemFileHandle === "function") {
+      for (const methodName of ["createSyncAccessHandle", "createWritable", "getFile"]) {
+        patchMethod(FileSystemFileHandle.prototype, methodName, "OPFS");
+      }
+    }
+  };
+  patchUnsupportedStorageWarnings();
+
   window.__WEB_APP_LOCAL_STORAGE__ = true;
   window.addEventListener("pagehide", () => flush(true));
 })();

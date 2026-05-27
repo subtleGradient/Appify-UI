@@ -571,6 +571,211 @@ const x = 1;
     expect(fakeWindow.localStorage).not.toBe(nativeStorage);
   });
 
+  test("injected storage warnings fire once and persist through localStorage", async () => {
+    const page = join(root, "stateful.html");
+    await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
+    const response = await readFileResponse(page, { localStoragePersistence: true });
+    const html = await response.text();
+    const script = html.match(/<script>\n([\s\S]*?__WEB_APP_LOCAL_STORAGE__[\s\S]*?)\n<\/script>/)?.[1];
+    expect(script).toBeDefined();
+
+    class FakeStorage {
+      #items = new Map<string, string>();
+
+      get length() {
+        return this.#items.size;
+      }
+
+      getItem(key: string) {
+        return this.#items.get(String(key)) ?? null;
+      }
+
+      key(index: number) {
+        return Array.from(this.#items.keys())[index] ?? null;
+      }
+
+      setItem(key: string, value: string) {
+        this.#items.set(String(key), String(value));
+      }
+
+      removeItem(key: string) {
+        this.#items.delete(String(key));
+      }
+
+      clear() {
+        this.#items.clear();
+      }
+    }
+
+    class FakeIDBFactory {
+      open(name: string) {
+        return { name };
+      }
+    }
+    class FakeIDBDatabase {
+      createObjectStore(name: string) {
+        return { name };
+      }
+    }
+    class FakeIDBObjectStore {
+      put(value: unknown) {
+        return value;
+      }
+    }
+    class FakeCacheStorage {
+      open(name: string) {
+        return Promise.resolve({ name });
+      }
+    }
+    class FakeCache {
+      put(request: unknown, value: unknown) {
+        return Promise.resolve([request, value]);
+      }
+    }
+    class FakeCookieStore {
+      set(name: string, value: string) {
+        return Promise.resolve([name, value]);
+      }
+    }
+    class FakeServiceWorkerContainer {
+      register(scriptURL: string) {
+        return Promise.resolve({ scriptURL });
+      }
+    }
+    class FakeStorageManager {
+      getDirectory() {
+        return Promise.resolve({});
+      }
+    }
+    class FakeFileSystemDirectoryHandle {
+      getFileHandle(name: string) {
+        return Promise.resolve({ name });
+      }
+    }
+    class FakeFileSystemFileHandle {
+      createWritable() {
+        return Promise.resolve({});
+      }
+    }
+
+    const serviceWorkerContainer = new FakeServiceWorkerContainer();
+    const storageManager = new FakeStorageManager();
+    class FakeNavigator {
+      get serviceWorker() {
+        return serviceWorkerContainer;
+      }
+
+      get storage() {
+        return storageManager;
+      }
+    }
+
+    class FakeDocument {
+      #cookie = "";
+
+      get cookie() {
+        return this.#cookie;
+      }
+
+      set cookie(value: string) {
+        this.#cookie = String(value);
+      }
+    }
+
+    const fakeNavigator = new FakeNavigator();
+    const fakeWindow: Record<string, unknown> = {
+      localStorage: new FakeStorage(),
+      sessionStorage: new FakeStorage(),
+      indexedDB: new FakeIDBFactory(),
+      caches: new FakeCacheStorage(),
+      cookieStore: new FakeCookieStore(),
+      Navigator: FakeNavigator,
+      document: new FakeDocument(),
+      location: { pathname: "/stateful.html" },
+      clearTimeout() {},
+      setTimeout(callback: () => void) {
+        callback();
+        return 1;
+      },
+      addEventListener() {},
+    };
+    const requests: string[] = [];
+    const warnings: string[] = [];
+    const fakeXHR = class {
+      status = 200;
+      responseText = JSON.stringify({ schema: 1, entries: [] });
+      open() {}
+      setRequestHeader() {}
+      send() {}
+    };
+
+    new Function(
+      "window",
+      "Storage",
+      "XMLHttpRequest",
+      "Blob",
+      "navigator",
+      "fetch",
+      "console",
+      "IDBFactory",
+      "IDBDatabase",
+      "IDBObjectStore",
+      "CacheStorage",
+      "Cache",
+      "Document",
+      "HTMLDocument",
+      "CookieStore",
+      "ServiceWorkerContainer",
+      "StorageManager",
+      "FileSystemDirectoryHandle",
+      "FileSystemFileHandle",
+      script!,
+    )(
+      fakeWindow,
+      FakeStorage,
+      fakeXHR,
+      Blob,
+      fakeNavigator,
+      (_url: string, init: RequestInit) => {
+        requests.push(String(init.body));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      },
+      { warn: (message: string) => warnings.push(message) },
+      FakeIDBFactory,
+      FakeIDBDatabase,
+      FakeIDBObjectStore,
+      FakeCacheStorage,
+      FakeCache,
+      FakeDocument,
+      FakeDocument,
+      FakeCookieStore,
+      FakeServiceWorkerContainer,
+      FakeStorageManager,
+      FakeFileSystemDirectoryHandle,
+      FakeFileSystemFileHandle,
+    );
+
+    (fakeWindow.sessionStorage as Storage).setItem("session", "value");
+    (fakeWindow.indexedDB as FakeIDBFactory).open("db");
+    new FakeIDBDatabase().createObjectStore("store");
+    new FakeIDBObjectStore().put({ ok: true });
+    (fakeWindow.caches as FakeCacheStorage).open("cache");
+    new FakeCache().put("/asset", new Response("ok"));
+    (fakeWindow.document as FakeDocument).cookie = "a=b";
+    (fakeWindow.cookieStore as FakeCookieStore).set("a", "b");
+    fakeNavigator.serviceWorker.register("/sw.js");
+    fakeNavigator.storage.getDirectory();
+    new FakeFileSystemDirectoryHandle().getFileHandle("file.txt");
+    new FakeFileSystemFileHandle().createWritable();
+
+    const storage = fakeWindow.localStorage as Storage;
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0]).toContain("sessionStorage");
+    expect(warnings[0]).toContain("one disk-backed source of truth");
+    expect(storage.getItem("appify:web:unsupported-storage-warning-seen")).toBe("1");
+    expect(requests.some((body) => body.includes("appify:web:unsupported-storage-warning-seen"))).toBe(true);
+  });
+
   test("injected localStorage facade fails closed when it cannot replace native storage", async () => {
     const page = join(root, "stateful.html");
     await writeFile(page, "<!doctype html><html><head></head><body></body></html>");
