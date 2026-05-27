@@ -17,6 +17,7 @@ swift build --package-path "$SOURCE_DIR" -c release --product appify-host
 mkdir -p "$HOST_DIR"
 cp "$SOURCE_DIR/.build/release/appify-host" "$HOST_BINARY"
 chmod +x "$HOST_BINARY"
+codesign --force --sign - "$HOST_BINARY"
 
 source_hash="$(appify_source_hash "$SOURCE_DIR")"
 binary_hash="$(appify_file_hash "$HOST_BINARY")"

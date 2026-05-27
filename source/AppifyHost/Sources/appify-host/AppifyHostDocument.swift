@@ -20,8 +20,9 @@ final class AppifyHostDocument: NSDocument {
 
     override var fileURL: URL? {
         didSet {
-            if fileURL != nil {
+            if let fileURL {
                 temporaryDocumentURL = nil
+                NSDocumentController.shared.noteNewRecentDocumentURL(fileURL.standardizedFileURL)
             }
             hostWindowController?.documentURLDidChange()
         }

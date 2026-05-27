@@ -15,11 +15,12 @@ protocol AppifyHostWebViewInspecting: AnyObject {
     func openWebInspectorFromMenu()
 }
 
-final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation {
+final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation, NSMenuDelegate {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
     private var helpWindowController: AppifyHostHelpWindowController?
     private var terminateAfterHostWindowsClose = false
+    private weak var openRecentMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         do {
@@ -133,6 +134,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     @objc private func openDocumentFromMenu(_ sender: Any?) {
         DispatchQueue.main.async { [weak self] in
             self?.showOpenPanel()
+        }
+    }
+
+    @objc private func openRecentDocumentFromMenu(_ sender: NSMenuItem) {
+        guard let url = sender.representedObject as? URL else {
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+
+            self.didReceiveDocumentOpenEvent = true
+            self.openDocument(at: url)
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 
@@ -338,6 +355,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         do {
             let documentURL = try PackageDocument.documentURL(forPackage: url, configuration: configuration)
             if let existingDocument = existingOpenDocument(at: documentURL) {
+                noteRecentDocument(at: documentURL)
                 existingDocument.showWindows()
                 existingDocument.windowControllers.forEach { $0.window?.makeKeyAndOrderFront(nil) }
                 return
@@ -354,6 +372,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             NSDocumentController.shared.addDocument(document)
             document.makeWindowControllers()
             document.showWindows()
+            noteRecentDocument(at: documentURL)
         } catch {
             showAlert(title: "Could Not Open Document", message: String(describing: error))
         }
@@ -408,12 +427,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         openItem.target = self
         let openRecentItem = fileMenu.addItem(withTitle: "Open Recent", action: nil, keyEquivalent: "")
         let openRecentMenu = NSMenu(title: "Open Recent")
-        let clearRecentItem = openRecentMenu.addItem(
-            withTitle: "Clear Menu",
-            action: #selector(NSDocumentController.clearRecentDocuments(_:)),
-            keyEquivalent: ""
-        )
-        clearRecentItem.target = NSDocumentController.shared
+        openRecentMenu.delegate = self
+        self.openRecentMenu = openRecentMenu
+        rebuildOpenRecentMenu(openRecentMenu)
         openRecentItem.submenu = openRecentMenu
         fileMenu.addItem(.separator())
         fileMenu.addItem(withTitle: "Close", action: #selector(NSWindow.performClose(_:)), keyEquivalent: "w")
@@ -486,6 +502,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 
     @MainActor
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let openRecentMenu, menu === openRecentMenu else {
+            return
+        }
+
+        rebuildOpenRecentMenu(menu)
+    }
+
+    @MainActor
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
         if menuItem.action == #selector(reloadWebViewFromMenu(_:)) {
             return currentWebViewReloadingController()?.canReloadWebView == true
@@ -514,6 +539,54 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         return NSApp.mainWindow?.windowController as? AppifyHostWebViewInspecting
+    }
+
+    @MainActor
+    private func noteRecentDocument(at url: URL) {
+        NSDocumentController.shared.noteNewRecentDocumentURL(url.standardizedFileURL)
+
+        if let openRecentMenu {
+            rebuildOpenRecentMenu(openRecentMenu)
+        }
+    }
+
+    @MainActor
+    private func rebuildOpenRecentMenu(_ menu: NSMenu) {
+        let recentURLs = NSDocumentController.shared.recentDocumentURLs
+
+        menu.removeAllItems()
+
+        for url in recentURLs {
+            let item = menu.addItem(
+                withTitle: recentMenuTitle(for: url),
+                action: #selector(openRecentDocumentFromMenu(_:)),
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.representedObject = url
+            item.toolTip = url.path
+        }
+
+        if !recentURLs.isEmpty {
+            menu.addItem(.separator())
+        }
+
+        let clearRecentItem = menu.addItem(
+            withTitle: "Clear Menu",
+            action: #selector(NSDocumentController.clearRecentDocuments(_:)),
+            keyEquivalent: ""
+        )
+        clearRecentItem.target = NSDocumentController.shared
+        clearRecentItem.isEnabled = !recentURLs.isEmpty
+    }
+
+    private func recentMenuTitle(for url: URL) -> String {
+        let title = url.lastPathComponent
+        if !title.isEmpty {
+            return title
+        }
+
+        return url.path
     }
 
     @MainActor
