@@ -7,6 +7,18 @@ browser-native folders. It adds live reload where possible and renders Markdown
 files as a convenience without making build tooling part of the `.web` package
 contract.
 
+When a real `.web` package is inside a normal git repo, the repo root defines
+the local URL space while only `.web` package contents are readable. For example,
+`apps/dashboard.web` opens at `/apps/dashboard.web/` and can import or fetch from
+`../ui-kit.web/` or `/packages/ui-kit.web/` when those peers exist under the same
+repo. If there is no normal git root, Web falls back to sibling `.web` packages
+under the opened package's parent directory. A `.git` at the user's home
+directory or filesystem root is ignored as ambient state.
+
+Storage stays per opened document window: imported modules from another `.web`
+package use the current package's duck-punched `localStorage`, and fetched peer
+HTML is served without injected storage or live-reload scripts.
+
 ## Hack On It
 
 1. Run `bun test tests/*.test.ts` from this folder.

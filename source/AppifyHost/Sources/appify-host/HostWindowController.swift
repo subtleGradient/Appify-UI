@@ -745,6 +745,148 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         }
     }
 
+    private func openLinkedWebPackageIfPossible(_ url: URL) -> Bool {
+        guard let activeReadyURL,
+              let activeDocumentURL,
+              sameLoopbackOrigin(url, activeReadyURL),
+              let target = linkedWebPackageTarget(for: url, activeDocumentURL: activeDocumentURL)
+        else {
+            return false
+        }
+
+        openSiblingDocument(at: target.documentURL, route: target.route)
+        return true
+    }
+
+    private func linkedWebPackageTarget(
+        for url: URL,
+        activeDocumentURL: URL
+    ) -> (documentURL: URL, route: String)? {
+        let decodedPath = url.path(percentEncoded: false)
+        guard decodedPath.hasPrefix("/"),
+              !decodedPath.hasPrefix("//"),
+              !decodedPath.contains("\0"),
+              !decodedPath.contains("\\")
+        else {
+            return nil
+        }
+
+        let segments = decodedPath
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .map(String.init)
+        guard !segments.isEmpty,
+              !segments.contains(where: { $0 == "." || $0 == ".." }),
+              let packageIndex = segments.firstIndex(where: isDocumentPackageSegment)
+        else {
+            return nil
+        }
+
+        do {
+            let webspaceRoot = try webspaceRoot(for: activeDocumentURL)
+            let packageSegments = segments.prefix(packageIndex + 1)
+            let routeSegments = segments.dropFirst(packageIndex + 1)
+            var documentURL = webspaceRoot
+            for segment in packageSegments {
+                documentURL.appendPathComponent(segment, isDirectory: true)
+            }
+
+            let validatedDocumentURL = try PackageDocument.documentURL(forPackage: documentURL, configuration: configuration)
+            var route = "/\(routeSegments.joined(separator: "/"))"
+            if route == "/" && decodedPath.hasSuffix("/") {
+                route = "/"
+            }
+            if let query = url.query(percentEncoded: true), !query.isEmpty {
+                route += "?\(query)"
+            }
+            if let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty {
+                route += "#\(fragment)"
+            }
+            return (validatedDocumentURL, try AppifyHostDeepLink.normalizeRoute(route))
+        } catch {
+            writeLog("WARN: linked .web package open rejected: \(String(describing: error))\n")
+            return nil
+        }
+    }
+
+    private func isDocumentPackageSegment(_ segment: String) -> Bool {
+        let lowercased = segment.lowercased()
+        return configuration.documentExtensions.contains { lowercased.hasSuffix(".\($0)") }
+    }
+
+    private func webspaceRoot(for documentURL: URL) throws -> URL {
+        let activeRoot = try PackageDocument.workingDirectory(forPackage: documentURL, configuration: configuration)
+        if let gitRoot = nearestProjectGitRoot(startingAt: activeRoot) {
+            return gitRoot
+        }
+        if configuration.documentExtensions.contains(activeRoot.pathExtension.lowercased()) {
+            return activeRoot.deletingLastPathComponent()
+        }
+        return activeRoot
+    }
+
+    private func nearestProjectGitRoot(startingAt startURL: URL) -> URL? {
+        let fileManager = FileManager.default
+        var cursor = startURL.standardizedFileURL
+        let homeURL = fileManager.homeDirectoryForCurrentUser.standardizedFileURL
+
+        while true {
+            let gitURL = cursor.appendingPathComponent(".git")
+            if fileManager.fileExists(atPath: gitURL.path) {
+                if cursor.path != "/" && cursor.path != homeURL.path {
+                    return cursor
+                }
+                return nil
+            }
+
+            let parent = cursor.deletingLastPathComponent()
+            if parent.path == cursor.path {
+                return nil
+            }
+            cursor = parent
+        }
+    }
+
+    private func sameLoopbackOrigin(_ left: URL, _ right: URL) -> Bool {
+        left.scheme?.lowercased() == right.scheme?.lowercased()
+            && left.host(percentEncoded: false)?.lowercased() == right.host(percentEncoded: false)?.lowercased()
+            && left.port == right.port
+            && left.user == nil
+            && left.password == nil
+    }
+
+    private func openSiblingDocument(at documentURL: URL, route: String?) {
+        do {
+            let validatedURL = try PackageDocument.documentURL(forPackage: documentURL, configuration: configuration)
+            if let existingDocument = NSDocumentController.shared.documents.compactMap({ $0 as? AppifyHostDocument }).first(where: { document in
+                document.activeDocumentURL?.standardizedFileURL == validatedURL.standardizedFileURL
+            }) {
+                if let route {
+                    existingDocument.openDeepLinkRoute(route)
+                }
+                existingDocument.showWindows()
+                existingDocument.windowControllers.forEach { $0.window?.makeKeyAndOrderFront(nil) }
+                return
+            }
+
+            let document = AppifyHostDocument()
+            try document.read(from: validatedURL, ofType: configuration.documentKindEnvironmentValue)
+            document.fileType = configuration.documentKindEnvironmentValue
+            document.fileURL = validatedURL
+            if let modificationDate = try? validatedURL.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate {
+                document.fileModificationDate = modificationDate
+            }
+            NSDocumentController.shared.addDocument(document)
+            document.makeWindowControllers()
+            if let route {
+                document.openDeepLinkRoute(route)
+            }
+            document.showWindows()
+            NSDocumentController.shared.noteNewRecentDocumentURL(validatedURL)
+        } catch {
+            showError(title: "Could Not Open Linked .web Package", message: String(describing: error))
+        }
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -773,6 +915,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
             bundleURL: configuration.bundleURL,
             restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
         )
+        if !allowed,
+           navigationAction.navigationType == .linkActivated,
+           openLinkedWebPackageIfPossible(url)
+        {
+            decisionHandler(.cancel)
+            return
+        }
+
         decisionHandler(allowed ? .allow : .cancel)
     }
 

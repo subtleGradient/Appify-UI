@@ -402,6 +402,14 @@ final class AppifyHostCoreTests: XCTestCase {
         let routedURL = try AppifyHostOpenURL.readyURL(readyURL, routedTo: "/docs/index.html?q=1#top")
 
         XCTAssertEqual(routedURL.absoluteString, "http://127.0.0.1:49152/docs/index.html?q=1#top")
+
+        let packagedReadyURL = URL(string: "http://127.0.0.1:49152/apps/dashboard.web/")!
+        let packagedRoutedURL = try AppifyHostOpenURL.readyURL(packagedReadyURL, routedTo: "/docs/index.html?q=1#top")
+
+        XCTAssertEqual(
+            packagedRoutedURL.absoluteString,
+            "http://127.0.0.1:49152/apps/dashboard.web/docs/index.html?q=1#top"
+        )
     }
 
     func testRestrictsNavigationToReadyURLScope() throws {

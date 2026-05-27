@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>100 - Web Bundle Composition</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre { overflow: auto; padding: 1rem; border-radius: 0.5rem; background: color-mix(in oklch, CanvasText 8%, transparent); }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/appdev / bundle composition / 2026-05-27</p>
+        <h1>Web Bundle Composition</h1>
+        <p class="lede">
+          <code>.web</code> bundles compose through ordinary relative web URLs. The host gives them a stable local webspace, but readable bytes still come only from opted-in <code>.web</code> packages.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">seed</a> /
+        <a href="090-per-app-deep-links.idea.html">per-app deep links</a>
+      </nav>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li>Use native web imports, CSS links, anchors, and <code>fetch()</code> between packages. Do not invent a custom URL scheme for module loading.</li>
+          <li>If the opened package is inside a normal git repo, use the nearest non-home, non-root git worktree root as URL geometry.</li>
+          <li>If there is no normal git root, use the opened package's parent directory so sibling <code>.web</code> packages can compose.</li>
+          <li>Only contents inside <code>.web</code> packages are readable through the local webspace. Random repo files are not web-addressable.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="shape">
+        <h2 id="shape">Portable Shape</h2>
+        <pre><code>project/
+  apps/
+    dashboard.web/
+      index.html
+  packages/
+    ui-kit.web/
+      exports/button.js
+      exports/tokens.css</code></pre>
+        <pre><code>&lt;link rel="stylesheet" href="../../packages/ui-kit.web/exports/tokens.css"&gt;
+&lt;script type="importmap"&gt;
+{
+  "imports": {
+    "ui-kit/": "../../packages/ui-kit.web/exports/"
+  }
+}
+&lt;/script&gt;</code></pre>
+      </section>
+
+      <section aria-labelledby="storage">
+        <h2 id="storage">Storage Boundary</h2>
+        <ul>
+          <li>The opened package owns the window's duck-punched <code>localStorage</code>.</li>
+          <li>Imported modules from a peer package run as library code inside the caller's storage context.</li>
+          <li>Fetched peer HTML is served raw, without injected storage or live reload scripts.</li>
+          <li>Opening a peer <code>.web</code> package creates a separate window with separate storage.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="golf">
+        <h2 id="golf">Golf</h2>
+        <ul>
+          <li>Low badness: this follows normal static web deployment and avoids CORS, registries, custom fetch schemes, and build steps.</li>
+          <li>The git-root rule is URL geometry only. The opt-in safety boundary is still the <code>.web</code> package.</li>
+          <li>Ignoring <code>~/.git</code> and <code>/.git</code> avoids accidental whole-home or whole-disk webspaces without adding a policy framework.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

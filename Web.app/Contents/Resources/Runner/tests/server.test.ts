@@ -19,6 +19,8 @@ import {
   resolveRequestPath,
   resolveServerPort,
   resolveServeRoot,
+  resolveWebSpace,
+  resolveWebSpaceRequestPath,
   scanHtmlPages,
   writeLocalStorageSnapshot,
 } from "../src/webPackage";
@@ -56,6 +58,57 @@ describe("web package resolution", () => {
   test("resolves non-empty .web packages to their own contents", async () => {
     await writeFile(join(root, "index.html"), "<h1>Home</h1>");
     expect(await resolveServeRoot(root)).toBe(root);
+  });
+
+  test("uses git roots for URL geometry while serving only .web package contents", async () => {
+    const project = join(root, "project");
+    const app = join(project, "apps", "dashboard.web");
+    const kit = join(project, "packages", "ui-kit.web");
+    await mkdir(join(project, ".git"), { recursive: true });
+    await mkdir(app, { recursive: true });
+    await mkdir(join(kit, "exports"), { recursive: true });
+    await writeFile(join(app, "index.html"), "<h1>Dashboard</h1>");
+    await writeFile(join(kit, "exports", "button.js"), "export const name = 'button';");
+    await writeFile(join(project, "private.txt"), "secret");
+
+    const webspace = await resolveWebSpace(app);
+    expect(webspace.webspaceKind).toBe("git");
+    expect(webspace.webspaceRootPath).toBe(project);
+    expect(webspace.activeRootPath).toBe(app);
+    expect(webspace.activeBasePath).toBe("/apps/dashboard.web/");
+
+    expect(await resolveWebSpaceRequestPath(webspace, "/apps/dashboard.web/index.html")).toEqual({
+      kind: "file",
+      path: join(app, "index.html"),
+    });
+    expect(await resolveWebSpaceRequestPath(webspace, "/packages/ui-kit.web/exports/button.js")).toEqual({
+      kind: "file",
+      path: join(kit, "exports", "button.js"),
+    });
+    expect(await resolveWebSpaceRequestPath(webspace, "/private.txt")).toBeNull();
+  });
+
+  test("falls back to sibling webspace roots without a git root", async () => {
+    const standaloneRoot = join("/private/tmp", `webspace-${crypto.randomUUID()}`);
+    try {
+      const app = join(standaloneRoot, "dashboard.web");
+      const kit = join(standaloneRoot, "ui-kit.web");
+      await mkdir(app, { recursive: true });
+      await mkdir(kit, { recursive: true });
+      await writeFile(join(app, "index.html"), "<h1>Dashboard</h1>");
+      await writeFile(join(kit, "tokens.css"), ":root { color: red; }");
+
+      const webspace = await resolveWebSpace(app);
+      expect(webspace.webspaceKind).toBe("sibling");
+      expect(webspace.webspaceRootPath).toBe(standaloneRoot);
+      expect(webspace.activeBasePath).toBe("/dashboard.web/");
+      expect(await resolveWebSpaceRequestPath(webspace, "/ui-kit.web/tokens.css")).toEqual({
+        kind: "file",
+        path: join(kit, "tokens.css"),
+      });
+    } finally {
+      await rm(standaloneRoot, { recursive: true, force: true });
+    }
   });
 
   test("rejects path traversal and symlinks", async () => {
@@ -161,6 +214,28 @@ describe("web package resolution", () => {
       expect(await legacy.text()).toContain("__WEB_APP_LOCAL_STORAGE__");
     } finally {
       persistenceServer.stop(true);
+    }
+
+    const prefixedRoutes = await buildHtmlRoutes(root, pages, await findRootEntry(root, pages), false, {
+      localStoragePersistence: true,
+      controlBasePath: "/apps/dashboard.web/",
+      routeBasePath: "/apps/dashboard.web/",
+    });
+    expect(prefixedRoutes["/apps/dashboard.web/"]).toBeDefined();
+    expect(prefixedRoutes["/apps/dashboard.web/index.html"]).toBeDefined();
+    const prefixedServer = Bun.serve({
+      port: await resolveServerPort(),
+      idleTimeout: 0,
+      routes: prefixedRoutes,
+      fetch() {
+        return new Response("fallback");
+      },
+    });
+    try {
+      const prefixedHome = await fetch(new URL("/apps/dashboard.web/", prefixedServer.url));
+      expect(await prefixedHome.text()).toContain("/apps/dashboard.web/_web/persistence/local-storage");
+    } finally {
+      prefixedServer.stop(true);
     }
 
     await writeFile(join(root, "module.html"), "<!doctype html><script type=\"module\" src=\"./module.js\"></script>");

@@ -782,7 +782,7 @@ public enum AppifyHostOpenURL {
             throw AppifyHostError.invalidOpenURL("Deep link route could not be applied.")
         }
 
-        readyComponents.path = routeComponents.path
+        readyComponents.path = routePath(routeComponents.path, underReadyPath: readyComponents.path)
         readyComponents.query = routeComponents.query
         readyComponents.fragment = routeComponents.fragment
 
@@ -791,6 +791,17 @@ public enum AppifyHostOpenURL {
         }
         try validateLoopbackHTTPURL(routedURL)
         return routedURL
+    }
+
+    private static func routePath(_ routePath: String, underReadyPath readyPath: String) -> String {
+        let basePath = readyPath.hasSuffix("/") ? String(readyPath.dropLast()) : readyPath
+        guard !basePath.isEmpty, basePath != "/" else {
+            return routePath
+        }
+        guard routePath != "/" else {
+            return "\(basePath)/"
+        }
+        return "\(basePath)\(routePath)"
     }
 
     public static func isAllowedNavigation(

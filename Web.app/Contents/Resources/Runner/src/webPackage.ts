@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
+import { homedir } from "node:os";
 import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -11,12 +12,21 @@ export type ResolvedRequestPath =
 export type RenderOptions = {
   liveReload?: boolean;
   localStoragePersistence?: boolean;
+  controlBasePath?: string;
   title?: string;
 };
 
 export type LocalStorageSnapshot = {
   schema: 1;
   entries: [string, string][];
+};
+
+export type WebSpace = {
+  documentPath: string;
+  activeRootPath: string;
+  webspaceRootPath: string;
+  activeBasePath: string;
+  webspaceKind: "git" | "sibling";
 };
 
 type LocalStorageDiskSnapshot = {
@@ -176,6 +186,49 @@ export async function resolveServeRoot(documentPath: string): Promise<string> {
   throw new Error(`${documentPath} must be a .web file or directory.`);
 }
 
+export async function resolveWebSpace(documentPath: string): Promise<WebSpace> {
+  const activeRootPath = await resolveServeRoot(documentPath);
+  const gitRoot = await nearestProjectGitRoot(activeRootPath);
+  const webspaceRootPath = gitRoot ?? fallbackWebspaceRoot(documentPath, activeRootPath);
+  const activeBasePath = directoryRoutePath(webspaceRootPath, activeRootPath);
+
+  return {
+    documentPath,
+    activeRootPath,
+    webspaceRootPath,
+    activeBasePath,
+    webspaceKind: gitRoot === null ? "sibling" : "git",
+  };
+}
+
+async function nearestProjectGitRoot(startPath: string): Promise<string | null> {
+  let cursor = resolve(startPath);
+  const homePath = resolve(homedir());
+
+  while (true) {
+    if (await pathExists(join(cursor, ".git"))) {
+      if (cursor !== dirname(cursor) && cursor !== homePath) {
+        return cursor;
+      }
+      return null;
+    }
+
+    const parent = dirname(cursor);
+    if (parent === cursor) {
+      return null;
+    }
+    cursor = parent;
+  }
+}
+
+function fallbackWebspaceRoot(documentPath: string, activeRootPath: string): string {
+  const documentExtension = extname(documentPath).toLowerCase();
+  if (documentExtension === ".web" && extname(activeRootPath).toLowerCase() === ".web") {
+    return dirname(activeRootPath);
+  }
+  return activeRootPath;
+}
+
 export async function resolveLocalStorageFilePath(documentPath: string): Promise<string> {
   const stat = await lstat(documentPath);
   if (stat.isDirectory()) {
@@ -246,6 +299,33 @@ export async function resolveRequestPath(rootPath: string, requestPath: string):
   return null;
 }
 
+export async function resolveWebSpaceRequestPath(
+  webspace: WebSpace,
+  requestPath: string,
+): Promise<ResolvedRequestPath | null> {
+  const resolvedPath = await resolveRequestPath(webspace.webspaceRootPath, requestPath);
+  if (resolvedPath === null) {
+    return null;
+  }
+  if (!isReadableWebSpacePath(webspace, resolvedPath.path)) {
+    return null;
+  }
+  return resolvedPath;
+}
+
+function isReadableWebSpacePath(webspace: WebSpace, filePath: string): boolean {
+  if (isInsideRoot(webspace.activeRootPath, filePath)) {
+    return true;
+  }
+
+  const rel = relative(webspace.webspaceRootPath, filePath);
+  if (rel === "" || rel.startsWith("..") || isAbsolute(rel)) {
+    return false;
+  }
+
+  return rel.split(sep).some((part) => extname(part).toLowerCase() === ".web");
+}
+
 export async function scanHtmlPages(rootPath: string): Promise<string[]> {
   const pages: string[] = [];
 
@@ -291,10 +371,11 @@ export async function buildHtmlRoutes(
   htmlPages: string[],
   rootEntry: string | null,
   hmrEnabled: boolean,
-  options: Pick<RenderOptions, "localStoragePersistence"> = {},
+  options: Pick<RenderOptions, "localStoragePersistence" | "controlBasePath"> & { routeBasePath?: string } = {},
 ): Promise<Record<string, unknown>> {
   const routes: Record<string, unknown> = {};
   const aliasTargets = preferredDirectoryAliasTargets(rootPath, htmlPages);
+  const routeBasePath = options.routeBasePath ?? "/";
 
   for (const pagePath of htmlPages) {
     try {
@@ -302,15 +383,16 @@ export async function buildHtmlRoutes(
       const routeValue = htmlRouteValue(pagePath, htmlImport, {
         liveReload: hmrEnabled,
         localStoragePersistence: options.localStoragePersistence,
+        controlBasePath: options.controlBasePath,
       });
-      routes[routePathFor(rootPath, pagePath)] = routeValue;
+      routes[routePathWithBase(routeBasePath, routePathFor(rootPath, pagePath))] = routeValue;
 
       const alias = directoryAliasForIndex(rootPath, pagePath);
       if (alias !== null && aliasTargets.get(alias) === pagePath) {
-        routes[alias] = routeValue;
+        routes[routePathWithBase(routeBasePath, alias)] = routeValue;
       }
       if (rootEntry === pagePath) {
-        routes["/"] = routeValue;
+        routes[directoryRouteBasePath(routeBasePath)] = routeValue;
       }
     } catch (error) {
       console.error(`Could not register ${pagePath} as a Bun HTML route:`, error);
@@ -345,6 +427,7 @@ export async function renderMarkdownResponse(filePath: string, options: RenderOp
       options.title ?? basename(filePath),
       options.liveReload === true,
       options.localStoragePersistence === true,
+      options.controlBasePath,
     ),
     {
     headers: {
@@ -393,7 +476,7 @@ export async function createDirectoryListingResponse(
     <meta name="color-scheme" content="light dark" />
     <title>${escapeHTML(title)}</title>
     <style>${directoryListingCSS()}</style>
-    ${options.localStoragePersistence ? localStoragePersistenceClientScript() : ""}
+    ${options.localStoragePersistence ? localStoragePersistenceClientScript(options.controlBasePath) : ""}
   </head>
   <body>
     <main>
@@ -402,7 +485,7 @@ export async function createDirectoryListingResponse(
       <p class="path">${escapeHTML(normalizedRequestPath)}</p>
       <ul>${rows.join("\n")}</ul>
     </main>
-    ${options.liveReload ? liveReloadClientScript() : ""}
+    ${options.liveReload ? liveReloadClientScript(options.controlBasePath) : ""}
   </body>
 </html>`;
 
@@ -419,6 +502,7 @@ export function renderMarkdownDocument(
   title: string,
   liveReload = false,
   localStoragePersistence = false,
+  controlBasePath = "/",
 ): string {
   const body = renderMarkdown(source);
   return `<!doctype html>
@@ -429,13 +513,13 @@ export function renderMarkdownDocument(
     <meta name="color-scheme" content="light dark" />
     <title>${escapeHTML(title)}</title>
     <style>${markdownCSS()}</style>
-    ${localStoragePersistence ? localStoragePersistenceClientScript() : ""}
+    ${localStoragePersistence ? localStoragePersistenceClientScript(controlBasePath) : ""}
   </head>
   <body>
     <main class="markdown-body">
       ${body}
     </main>
-    ${liveReload ? liveReloadClientScript() : ""}
+    ${liveReload ? liveReloadClientScript(controlBasePath) : ""}
   </body>
 </html>`;
 }
@@ -544,9 +628,14 @@ export async function writeLocalStorageSnapshot(
   await rename(tempPath, storageFilePath);
 }
 
-export function createLocalStoragePersistenceRoutes(storageFilePath: string, rootPath: string): Record<string, unknown> {
+export function createLocalStoragePersistenceRoutes(
+  storageFilePath: string,
+  rootPath: string,
+  controlBasePath = "/",
+): Record<string, unknown> {
+  const routePath = routePathWithBase(controlBasePath, LOCAL_STORAGE_ROUTE);
   return {
-    [LOCAL_STORAGE_ROUTE]: {
+    [routePath]: {
       async GET(request?: Request) {
         try {
           return Response.json(
@@ -1046,6 +1135,44 @@ function routePathFor(rootPath: string, filePath: string): string {
   return `/${relative(rootPath, filePath).split(sep).map(encodeURIComponent).join("/")}`;
 }
 
+function directoryRoutePath(rootPath: string, directoryPath: string): string {
+  return directoryRouteBasePath(routePathFor(rootPath, directoryPath));
+}
+
+function directoryRouteBasePath(routePath: string): string {
+  const normalized = normalizeRoutePath(routePath);
+  return normalized === "/" ? "/" : `${normalized}/`;
+}
+
+function routePathWithBase(basePath: string, routePath: string): string {
+  const routeIsDirectory = routePath.endsWith("/");
+  const normalizedRoute = normalizeRoutePath(routePath);
+  const routeSuffix = routeIsDirectory ? directoryRouteBasePath(normalizedRoute) : normalizedRoute;
+  const normalizedBase = normalizeControlBasePath(basePath);
+  if (normalizedBase === "") {
+    return routeSuffix;
+  }
+  if (routeSuffix === "/") {
+    return `${normalizedBase}/`;
+  }
+  return `${normalizedBase}${routeSuffix}`;
+}
+
+function normalizeControlBasePath(basePath: string | undefined): string {
+  const normalized = normalizeRoutePath(basePath ?? "/");
+  return normalized === "/" ? "" : normalized;
+}
+
+function normalizeRoutePath(routePath: string): string {
+  if (!routePath.startsWith("/")) {
+    routePath = `/${routePath}`;
+  }
+  while (routePath.length > 1 && routePath.endsWith("/")) {
+    routePath = routePath.slice(0, -1);
+  }
+  return routePath;
+}
+
 function exactRootPage(rootPath: string, pages: string[], name: string): string | null {
   return pages.find((page) => relative(rootPath, page) === name) ?? null;
 }
@@ -1163,10 +1290,10 @@ async function assertNoSymlinkAlongPath(rootPath: string, candidate: string): Pr
 function injectClientScripts(html: string, options: RenderOptions): string {
   let result = html;
   if (options.localStoragePersistence) {
-    result = injectHeadScript(result, localStoragePersistenceClientScript());
+    result = injectHeadScript(result, localStoragePersistenceClientScript(options.controlBasePath));
   }
   if (options.liveReload) {
-    result = injectBodyScript(result, liveReloadClientScript());
+    result = injectBodyScript(result, liveReloadClientScript(options.controlBasePath));
   }
   return result;
 }
@@ -1185,12 +1312,22 @@ function injectBodyScript(html: string, script: string): string {
   return `${html}${script}`;
 }
 
-function localStoragePersistenceClientScript(): string {
+function localStoragePersistenceClientScript(controlBasePath = "/"): string {
+  const endpoint = routePathWithBase(controlBasePath, LOCAL_STORAGE_ROUTE);
+  const basePath = normalizeControlBasePath(controlBasePath);
   return `<script>
 (() => {
   if (window.__WEB_APP_LOCAL_STORAGE__) return;
-  const endpoint = "/_web/persistence/local-storage";
-  const endpointForPage = () => endpoint + "?page=" + encodeURIComponent(window.location?.pathname || "/");
+  const endpoint = ${JSON.stringify(endpoint)};
+  const basePath = ${JSON.stringify(basePath)};
+  const pagePath = () => {
+    const pathname = window.location?.pathname || "/";
+    if (basePath === "") return pathname || "/";
+    if (pathname === basePath) return "/";
+    if (pathname.startsWith(basePath + "/")) return pathname.slice(basePath.length) || "/";
+    return "/";
+  };
+  const endpointForPage = () => endpoint + "?page=" + encodeURIComponent(pagePath());
   const items = new Map();
   const reservedProperties = new Set(["clear", "getItem", "key", "length", "removeItem", "setItem"]);
   let flushTimer = 0;
@@ -1633,15 +1770,19 @@ function localStoragePersistenceClientScript(): string {
 </script>`;
 }
 
-function liveReloadClientScript(): string {
+function liveReloadClientScript(controlBasePath = "/"): string {
+  const versionEndpoint = routePathWithBase(controlBasePath, "/_web/live-reload-version");
+  const eventsEndpoint = routePathWithBase(controlBasePath, "/_web/live-reload");
   return `<script>
 (() => {
   if (window.__WEB_APP_LIVE_RELOAD__) return;
   window.__WEB_APP_LIVE_RELOAD__ = true;
+  const versionEndpoint = ${JSON.stringify(versionEndpoint)};
+  const eventsEndpoint = ${JSON.stringify(eventsEndpoint)};
   const reload = () => location.reload();
   const poll = async () => {
     try {
-      const response = await fetch("/_web/live-reload-version", { cache: "no-store" });
+      const response = await fetch(versionEndpoint, { cache: "no-store" });
       const payload = await response.json();
       const version = String(payload.version ?? "");
       if (!window.__WEB_APP_LIVE_RELOAD_VERSION__) {
@@ -1656,7 +1797,7 @@ function liveReloadClientScript(): string {
     window.setTimeout(poll, 750);
   };
   if (typeof EventSource === "function") {
-    const source = new EventSource("/_web/live-reload");
+    const source = new EventSource(eventsEndpoint);
     source.addEventListener("hello", (event) => {
       window.__WEB_APP_LIVE_RELOAD_VERSION__ = event.data;
     });
