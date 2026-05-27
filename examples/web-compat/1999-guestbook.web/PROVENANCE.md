@@ -10,10 +10,12 @@ without running any server-side bundle code.
 
 - `index.html` contains a guestbook form that posts to `./cgi-bin/sign.cgi`.
 - `cgi-bin/sign.cgi.html` is the explicit static shadow page for that route.
-- In Web.app, the shadow page reads `window.AppifyHost.request` to display the
-  submitted fields.
-- In a normal browser, the shadow page remains a static page and explains that
-  no posted request data is available.
+- `service-worker.js` observes the native POST `Request`, reads `formData()`,
+  and returns a 303 redirect to `cgi-bin/sign.cgi.html?...`.
+- If service workers are unavailable, the page feature-detects that gap and
+  falls back to the same query-string shadow URL from client-side form data.
+- Opening the shadow page directly remains a loud static fallback because no
+  posted form fields are present in `location.search`.
 
 ## Safety Rule
 
@@ -29,3 +31,7 @@ must not be silently treated as HTML.
 
 This fixture is self-contained. It has no external assets, no network
 dependencies, and no build tools.
+
+Posted values are displayed by client-side JavaScript from
+`URLSearchParams(location.search)` using text nodes, not by injecting untrusted
+HTML.

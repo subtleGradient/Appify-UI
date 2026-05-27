@@ -4,6 +4,74 @@
     <meta charset="utf-8" />
     <title>Starflower's Guestbook Zone</title>
     <link rel="stylesheet" href="./style.css" />
+    <script>
+      (function () {
+        function shadowURLFor(form) {
+          var target = new URL(form.getAttribute("action") || location.href, location.href);
+          target.pathname = target.pathname + ".html";
+          target.search = new URLSearchParams(new FormData(form)).toString();
+          target.hash = "";
+          return target;
+        }
+
+        function waitForController(registrationPromise) {
+          if (!("serviceWorker" in navigator)) return Promise.resolve(false);
+          if (navigator.serviceWorker.controller) return Promise.resolve(true);
+
+          var changed = new Promise(function (resolve) {
+            navigator.serviceWorker.addEventListener("controllerchange", function () {
+              resolve(true);
+            }, { once: true });
+          });
+          var timeout = new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve(Boolean(navigator.serviceWorker.controller));
+            }, 800);
+          });
+
+          return Promise.race([
+            Promise.resolve(registrationPromise).then(function () {
+              return navigator.serviceWorker.controller ? true : changed;
+            }),
+            timeout,
+          ]).then(Boolean, function () {
+            return false;
+          });
+        }
+
+        var serviceWorkerReady = "serviceWorker" in navigator
+          ? navigator.serviceWorker.register("./service-worker.js", { scope: "./" })
+            .then(function () { return navigator.serviceWorker.ready; })
+            .catch(function (error) {
+              console.warn("Guestbook service worker registration failed; using query-string form fallback.", error);
+              return null;
+            })
+          : Promise.resolve(null);
+
+        window.addEventListener("DOMContentLoaded", function () {
+          var form = document.querySelector("form[action$='sign.cgi'][method='post']");
+          if (!form) return;
+
+          form.addEventListener("submit", function (event) {
+            if (!("serviceWorker" in navigator)) {
+              event.preventDefault();
+              location.assign(shadowURLFor(form).href);
+              return;
+            }
+            if (navigator.serviceWorker.controller) return;
+
+            event.preventDefault();
+            waitForController(serviceWorkerReady).then(function (controlled) {
+              if (controlled) {
+                HTMLFormElement.prototype.submit.call(form);
+                return;
+              }
+              location.assign(shadowURLFor(form).href);
+            });
+          });
+        });
+      })();
+    </script>
   </head>
   <body bgcolor="#000066" text="#ffffcc" link="#00ffff" vlink="#ff99ff" alink="#ffff00">
     <center>
@@ -49,8 +117,8 @@
                     </p>
                     <p>
                       No scripts run on the server. No network calls leave the bundle.
-                      The magic is only that Web.app can hand the posted form fields to
-                      the next client-side page.
+                      The magic is only that a service worker can turn a POST into
+                      a static shadow page URL with query-string form fields.
                     </p>
                   </font>
 

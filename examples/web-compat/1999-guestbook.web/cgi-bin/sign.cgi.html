@@ -6,23 +6,10 @@
     <link rel="stylesheet" href="../style.css" />
     <script>
       (function () {
+        var params = new URLSearchParams(location.search);
+
         function text(value) {
           return value == null || value === "" ? "(blank)" : String(value);
-        }
-
-        function field(request, name) {
-          if (!request) return "";
-          if (typeof request.field === "function") return request.field(name);
-          if (request.searchParams && typeof request.searchParams.get === "function") {
-            return request.searchParams.get(name);
-          }
-          if (Array.isArray(request.fields)) {
-            for (var index = 0; index < request.fields.length; index += 1) {
-              var pair = request.fields[index];
-              if (pair && pair[0] === name) return pair[1];
-            }
-          }
-          return "";
         }
 
         function fill(id, value) {
@@ -31,16 +18,15 @@
         }
 
         window.addEventListener("DOMContentLoaded", function () {
-          var request = window.AppifyHost && window.AppifyHost.request;
-          var hasPostedData = request && request.method === "POST";
+          var hasPostedData = Array.from(params.keys()).length > 0;
 
           document.documentElement.className = hasPostedData ? "has-post" : "no-post";
-          fill("method", request && request.method);
-          fill("path", request && request.path);
-          fill("name", field(request, "name"));
-          fill("homepage", field(request, "homepage"));
-          fill("favorite-era", field(request, "favorite_era"));
-          fill("message", field(request, "message"));
+          fill("method", hasPostedData ? "POST" : "");
+          fill("path", location.pathname.replace(/\.html$/, ""));
+          fill("name", params.get("name"));
+          fill("homepage", params.get("homepage"));
+          fill("favorite-era", params.get("favorite_era"));
+          fill("message", params.get("message"));
         });
       })();
     </script>
@@ -65,10 +51,9 @@
               <div class="no-post-message">
                 <h1>No POST data was provided.</h1>
                 <p>
-                  In a normal browser this file is only a static HTML page, so there is
-                  no server request object to read. In Web.app, submit the guestbook
-                  form on <a href="../index.html">the home page</a> and this same page
-                  will receive <code>window.AppifyHost.request</code>.
+                  This is a static HTML shadow page. Submit the guestbook
+                  form on <a href="../index.html">the home page</a> so the
+                  service worker can redirect here with query-string form data.
                 </p>
               </div>
 

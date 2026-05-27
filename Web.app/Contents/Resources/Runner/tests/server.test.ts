@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
-import { mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -54,6 +54,8 @@ function testWebSpace(rootPath = root) {
     mounts: [],
   };
 }
+
+const repoRoot = join(import.meta.dir, "../../../../..");
 
 describe("web package resolution", () => {
   test("resolves .web files and empty packages to their parent directory", async () => {
@@ -1263,6 +1265,19 @@ const x = 1;
     expect(nativeCalls).toEqual([]);
   });
 
+  test("serves worker scripts as ordinary JavaScript without page injections", async () => {
+    const worker = join(root, "service-worker.js");
+    await writeFile(worker, "self.addEventListener('fetch', () => {});\n");
+
+    const response = await readFileResponse(worker, { localStoragePersistence: true, liveReload: true });
+    const text = await response.text();
+
+    expect(response.headers.get("Content-Type")).toBe("text/javascript; charset=utf-8");
+    expect(text).toBe("self.addEventListener('fetch', () => {});\n");
+    expect(text).not.toContain("__WEB_APP_LOCAL_STORAGE__");
+    expect(text).not.toContain("__WEB_APP_LIVE_RELOAD__");
+  });
+
   test("exposes live reload versions for polling clients", async () => {
     const reloader = createReloadBroadcaster();
     expect(await reloader.versionResponse().json()).toEqual({ version: 0 });
@@ -1280,3 +1295,44 @@ const x = 1;
     expect(html).toContain("/_web/live-reload");
   });
 });
+
+describe("native web compatibility fixtures", () => {
+  test("web-compat examples do not depend on Appify request globals", async () => {
+    const files = await textFixtureFiles(join(repoRoot, "examples", "web-compat"));
+    for (const file of files) {
+      const text = await readFile(file, "utf8");
+      expect(text).not.toMatch(/AppifyHost|__WEB_APP_REQUEST__/);
+    }
+  });
+
+  test("Rails weblog fixture uses service-worker POST redirects and Navigation API detection", async () => {
+    const fixtureRoot = join(repoRoot, "examples", "web-compat", "2005-rails-weblog.web");
+    const worker = await readFile(join(fixtureRoot, "service-worker.js"), "utf8");
+    const app = await readFile(join(fixtureRoot, "app.js"), "utf8");
+    const shadow = await readFile(join(fixtureRoot, "posts", "create.cgi.html"), "utf8");
+
+    expect(worker).toContain("event.request.method !== \"POST\"");
+    expect(worker).toContain("request.clone().formData()");
+    expect(worker).toContain("Response.redirect(url, 303)");
+    expect(app).toContain("event.formData");
+    expect(app).toContain("URLSearchParams(location.search)");
+    expect(shadow).toContain("data-request-panel=\"post\"");
+  });
+});
+
+async function textFixtureFiles(directory: string): Promise<string[]> {
+  const result: string[] = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries) {
+    if (entry.name === ".DS_Store") continue;
+    const entryPath = join(directory, entry.name);
+    if (entry.isDirectory()) {
+      result.push(...await textFixtureFiles(entryPath));
+      continue;
+    }
+    if (entry.isFile() && /\.(?:html|js|md|css|json)$/i.test(entry.name)) {
+      result.push(entryPath);
+    }
+  }
+  return result.sort();
+}

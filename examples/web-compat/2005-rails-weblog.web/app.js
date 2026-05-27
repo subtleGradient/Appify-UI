@@ -1,11 +1,10 @@
 (function () {
-  const request = window.AppifyHost && window.AppifyHost.request
-    ? window.AppifyHost.request
-    : window.__WEB_APP_REQUEST__;
+  const serviceWorkerReady = registerServiceWorker();
+  installPostFormCompatibility(serviceWorkerReady);
 
   const requestPanel = document.querySelector("[data-request-panel]");
   if (requestPanel) {
-    renderPostedRequest(requestPanel, request);
+    renderPostedRequest(requestPanel, requestFromLocation());
   }
 
   const recentList = document.querySelector("[data-recent-submissions]");
@@ -13,21 +12,135 @@
     renderRecentSubmissions(recentList);
   }
 
+  function registerServiceWorker() {
+    if (!("serviceWorker" in navigator)) {
+      return Promise.resolve(null);
+    }
+
+    const script = document.currentScript;
+    const scriptURL = script && script.src
+      ? new URL("service-worker.js", script.src)
+      : new URL("./service-worker.js", location.href);
+    const scopeURL = new URL("./", scriptURL);
+
+    return navigator.serviceWorker.register(scriptURL, { scope: scopeURL.pathname })
+      .then(() => navigator.serviceWorker.ready)
+      .catch((error) => {
+        console.warn("Rails weblog service worker registration failed; using query-string form fallback.", error);
+        return null;
+      });
+  }
+
+  function installPostFormCompatibility(serviceWorkerReady) {
+    installNavigationFormDataEnhancement();
+
+    const forms = Array.from(document.querySelectorAll("form"));
+    forms.forEach((form) => {
+      if (!isCompatPostForm(form)) return;
+      form.addEventListener("submit", (event) => {
+        if (!("serviceWorker" in navigator)) {
+          event.preventDefault();
+          redirectFormToShadow(form);
+          return;
+        }
+        if (navigator.serviceWorker.controller) {
+          return;
+        }
+
+        event.preventDefault();
+        waitForServiceWorkerController(serviceWorkerReady).then((controlled) => {
+          if (controlled) {
+            HTMLFormElement.prototype.submit.call(form);
+            return;
+          }
+          redirectFormToShadow(form);
+        });
+      });
+    });
+  }
+
+  function installNavigationFormDataEnhancement() {
+    const appNavigation = window.navigation;
+    if (!appNavigation || typeof appNavigation.addEventListener !== "function") return;
+
+    appNavigation.addEventListener("navigate", (event) => {
+      if (!event || !event.formData || !event.destination || !event.destination.url) return;
+      const destination = new URL(event.destination.url);
+      if (!isCompatPostPath(destination.pathname) || typeof event.intercept !== "function") return;
+
+      event.intercept({
+        handler() {
+          const target = shadowURLFor(destination, event.formData);
+          location.assign(target.href);
+        },
+      });
+    });
+  }
+
+  function waitForServiceWorkerController(serviceWorkerReady) {
+    if (navigator.serviceWorker.controller) {
+      return Promise.resolve(true);
+    }
+
+    const controllerChanged = new Promise((resolve) => {
+      navigator.serviceWorker.addEventListener("controllerchange", () => resolve(true), { once: true });
+    });
+    const timeout = new Promise((resolve) => {
+      setTimeout(() => resolve(Boolean(navigator.serviceWorker.controller)), 800);
+    });
+
+    return Promise.race([
+      Promise.resolve(serviceWorkerReady).then(() => (
+        navigator.serviceWorker.controller ? true : controllerChanged
+      )),
+      timeout,
+    ]).then(Boolean, () => false);
+  }
+
+  function isCompatPostForm(form) {
+    const method = (form.getAttribute("method") || "get").toLowerCase();
+    if (method !== "post") return false;
+    return isCompatPostPath(new URL(form.getAttribute("action") || location.href, location.href).pathname);
+  }
+
+  function isCompatPostPath(pathname) {
+    return pathname.endsWith("/posts/create.cgi")
+      || pathname.endsWith("/posts/1/comments/create.cgi");
+  }
+
+  function redirectFormToShadow(form) {
+    const target = shadowURLFor(new URL(form.getAttribute("action") || location.href, location.href), new FormData(form));
+    location.assign(target.href);
+  }
+
+  function shadowURLFor(url, formData) {
+    const target = new URL(url.href);
+    target.pathname = target.pathname + ".html";
+    target.search = new URLSearchParams(formData).toString();
+    target.hash = "";
+    return target;
+  }
+
+  function requestFromLocation() {
+    const params = new URLSearchParams(location.search);
+    const fields = Array.from(params.entries());
+    return {
+      method: fields.length > 0 ? "POST" : "GET",
+      action: location.pathname.replace(/\.html$/, ""),
+      path: location.pathname.replace(/\.html$/, ""),
+      fields,
+    };
+  }
+
   function renderPostedRequest(panel, postedRequest) {
     const kind = panel.getAttribute("data-request-panel") || "submission";
     const title = document.querySelector("[data-submission-title]");
     const flash = document.querySelector("[data-flash]");
 
-    if (!postedRequest) {
-      setFlash(flash, "error", "No posted request data was found.");
-      panel.replaceChildren(textBlock("This page is a safe POST shadow file. Open it by submitting the matching form."));
-      return;
-    }
-
     const fields = postedRequest.fields || [];
-    if (fields.length === 0 && !postedRequest.text) {
-      setFlash(flash, "error", "The POST request arrived, but it did not include form fields.");
-      panel.replaceChildren(textBlock("No fields were submitted."));
+    if (fields.length === 0) {
+      setFlash(flash, "error", "No posted form data was found.");
+      panel.replaceChildren(textBlock("This is a static shadow page. Submit the matching form so the service worker can redirect here with URLSearchParams."));
       return;
     }
 

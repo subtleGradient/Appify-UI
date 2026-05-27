@@ -18,23 +18,23 @@ ASP, JSP, or other bundle-provided server code is ever executed.
 - Resource-shaped navigation: `posts/`, `posts/1/`, and `posts/1/comments/`.
 - Form field names shaped like `post[title]`, `post[body]`,
   `comment[author]`, and `comment[body]`.
-- POST action URLs use safe Web.app shadow pages where static HTML needs to
-  stand in for server behavior.
+- POST action URLs are observed by `service-worker.js` as native `Request`
+  objects and redirected to safe static shadow pages.
 
 ## Workflows
 
 1. Open `index.html`.
 2. Follow `posts/` to the scaffold listing.
 3. Follow `posts/new.html`, fill out the weblog form, and submit it.
-4. Web.app receives `POST posts/create.cgi`, serves
-   `posts/create.cgi.html`, and injects the posted request as
-   `window.AppifyHost.request`.
+4. The service worker receives `POST posts/create.cgi`, reads
+   `request.clone().formData()`, and returns a 303 redirect to
+   `posts/create.cgi.html?...`.
 5. Follow `posts/1/`, add a comment, and submit it.
-6. Web.app receives `POST posts/1/comments/create.cgi`, serves
-   `posts/1/comments/create.cgi.html`, and injects the posted request.
+6. The service worker repeats the POST-to-303 flow for
+   `posts/1/comments/create.cgi`.
 
 Opening a shadow page directly is also intentional: the page fails loud in the
-fixture UI because there is no posted request payload.
+fixture UI because there are no posted form fields in `location.search`.
 
 ## Safety Boundary
 
@@ -43,5 +43,6 @@ fixture UI because there is no posted request payload.
 - No build tool is required.
 - The `.cgi.html` files are static HTML shadow files. The corresponding `.cgi`
   URLs are compatibility routes only; there are no on-disk `.cgi` scripts.
-- Posted values are displayed by client-side JavaScript using text nodes, not
-  by injecting untrusted HTML.
+- Posted values are displayed by client-side JavaScript from
+  `URLSearchParams(location.search)` using text nodes, not by injecting
+  untrusted HTML.
