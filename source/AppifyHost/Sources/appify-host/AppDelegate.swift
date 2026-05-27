@@ -53,7 +53,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             }
             self.didReceiveDocumentOpenEvent = true
             for url in urls {
-                self.openDocument(at: url)
+                self.openURL(url)
             }
             NSApp.activate(ignoringOtherApps: true)
         }
@@ -289,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 
     @MainActor
-    private func showOpenPanel() {
+    private func showOpenPanel(initialRoute: String? = nil) {
         guard let configuration else {
             return
         }
@@ -316,7 +316,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
         didReceiveDocumentOpenEvent = true
         for url in panel.urls {
-            openDocument(at: url)
+            openDocument(at: url, initialRoute: initialRoute)
         }
     }
 
@@ -339,7 +339,39 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 
     @MainActor
-    private func openDocument(at url: URL) {
+    private func openURL(_ url: URL) {
+        guard let configuration else {
+            showAlert(title: "Could Not Open URL", message: "The app configuration is not loaded.")
+            return
+        }
+
+        guard AppifyHostDeepLink.hasAllowedScheme(url, schemes: configuration.deepLinkSchemes) else {
+            openDocument(at: url)
+            return
+        }
+
+        do {
+            let deepLink = try AppifyHostDeepLink.parse(url, allowedSchemes: configuration.deepLinkSchemes)
+            switch deepLink.command {
+            case .open:
+                guard let documentURL = deepLink.documentURL else {
+                    throw AppifyHostError.invalidOpenURL("Deep link did not include a document path.")
+                }
+                guard confirmDeepLinkOpen(documentURL: documentURL, route: deepLink.route) else {
+                    return
+                }
+                openDocument(at: documentURL, initialRoute: deepLink.route)
+
+            case .choose:
+                showOpenPanel(initialRoute: deepLink.route)
+            }
+        } catch {
+            showAlert(title: "Could Not Open Deep Link", message: String(describing: error))
+        }
+    }
+
+    @MainActor
+    private func openDocument(at url: URL, initialRoute: String? = nil) {
         guard let configuration else {
             showAlert(title: "Could Not Open Document", message: "The app configuration is not loaded.")
             return
@@ -349,6 +381,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             let documentURL = try PackageDocument.documentURL(forPackage: url, configuration: configuration)
             if let existingDocument = existingOpenDocument(at: documentURL) {
                 noteRecentDocument(at: documentURL)
+                if let initialRoute {
+                    existingDocument.openDeepLinkRoute(initialRoute)
+                }
                 existingDocument.showWindows()
                 existingDocument.windowControllers.forEach { $0.window?.makeKeyAndOrderFront(nil) }
                 return
@@ -364,6 +399,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
             NSDocumentController.shared.addDocument(document)
             document.makeWindowControllers()
+            if let initialRoute {
+                document.openDeepLinkRoute(initialRoute)
+            }
             document.showWindows()
             noteRecentDocument(at: documentURL)
         } catch {
@@ -377,6 +415,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         return NSDocumentController.shared.documents.compactMap { $0 as? AppifyHostDocument }.first { document in
             document.activeDocumentURL == standardizedURL
         }
+    }
+
+    @MainActor
+    private func confirmDeepLinkOpen(documentURL: URL, route: String?) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Open \(configuration?.appName ?? "Document") Deep Link?"
+        let routeLine = route.map { "\nRoute: \($0)" } ?? ""
+        alert.informativeText = """
+        A deep link wants to open this local document:
+        \(documentURL.path)\(routeLine)
+        """
+        alert.addButton(withTitle: "Open")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
     }
 
     @MainActor

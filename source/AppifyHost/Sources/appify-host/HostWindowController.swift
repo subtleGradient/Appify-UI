@@ -14,6 +14,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
     private var stdoutBuffer = ""
     private var activeDocumentURL: URL?
     private var activeReadyURL: URL?
+    private var pendingDeepLinkRoute: String?
     private var didLoadServerURL = false
     private var isClosing = false
     private var allowNextWindowClose = false
@@ -63,8 +64,9 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
         closeLog()
     }
 
-    func showAndStart(documentURL: URL) {
+    func showAndStart(documentURL: URL, initialRoute: String? = nil) {
         activeDocumentURL = resolvedDocumentURL(documentURL)
+        pendingDeepLinkRoute = initialRoute
         updateWindowDocumentIdentity()
         showWindow(nil)
         window?.center()
@@ -76,6 +78,35 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
             message: "Starting \(configuration.appName)'s app-local server."
         )
         startServer()
+    }
+
+    func navigate(toDeepLinkRoute route: String) {
+        guard let activeReadyURL,
+              let activeDocumentURL,
+              let webView
+        else {
+            pendingDeepLinkRoute = route
+            return
+        }
+
+        do {
+            let routedURL = try AppifyHostOpenURL.readyURL(activeReadyURL, routedTo: route)
+            guard AppifyHostOpenURL.isAllowedNavigation(
+                routedURL,
+                readyURL: activeReadyURL,
+                documentURL: activeDocumentURL,
+                bundleURL: configuration.bundleURL,
+                restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
+            )
+            else {
+                throw AppifyHostError.invalidOpenURL("Deep link route leaves the app-local server scope.")
+            }
+
+            webView.load(URLRequest(url: routedURL))
+        } catch {
+            showError(title: "Deep Link Was Rejected", message: String(describing: error))
+            writeLog("WARN: deep link route rejected: \(String(describing: error))\n")
+        }
     }
 
     func documentURLDidChange() {
@@ -480,11 +511,24 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
                 documentURL: activeDocumentURL,
                 bundleURL: configuration.bundleURL
             )
+            let loadURL = try AppifyHostOpenURL.readyURL(safeURL, routedTo: pendingDeepLinkRoute)
+            guard AppifyHostOpenURL.isAllowedNavigation(
+                loadURL,
+                readyURL: safeURL,
+                documentURL: activeDocumentURL,
+                bundleURL: configuration.bundleURL,
+                restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
+            )
+            else {
+                throw AppifyHostError.invalidOpenURL("Deep link route leaves the app-local server scope.")
+            }
+
+            pendingDeepLinkRoute = nil
             activeReadyURL = safeURL
             didLoadServerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
-            loadWebView(url: safeURL)
+            loadWebView(url: loadURL)
         } catch {
             showError(title: "Server URL Was Rejected", message: String(describing: error))
             stopServer()
@@ -710,6 +754,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, NSWi
               let activeReadyURL,
               let activeDocumentURL
         else {
+            decisionHandler(.cancel)
+            return
+        }
+
+        if AppifyHostDeepLink.hasAllowedScheme(url, schemes: configuration.deepLinkSchemes) {
+            if navigationAction.navigationType == .linkActivated {
+                NSWorkspace.shared.open(url)
+            }
             decisionHandler(.cancel)
             return
         }

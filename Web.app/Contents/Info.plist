@@ -22,6 +22,17 @@
   <array>
     <string>MacOSX</string>
   </array>
+  <key>CFBundleURLTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleURLName</key>
+      <string>Web Deep Links</string>
+      <key>CFBundleURLSchemes</key>
+      <array>
+        <string>dotweb</string>
+      </array>
+    </dict>
+  </array>
   <key>CFBundleVersion</key>
   <string>0.1.0</string>
   <key>LSMinimumSystemVersion</key>

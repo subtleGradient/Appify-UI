@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>090 - Per-App Deep Links</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/appdev / deep links / 2026-05-27</p>
+        <h1>Per-App Deep Links</h1>
+        <p class="lede">
+          AppifyHost links should be app-specific. <code>Web.app</code> owns <code>dotweb:</code>; future host apps own their own schemes instead of sharing one global <code>appify:</code> router.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">seed</a> /
+        <a href="070-macos-bundle-conventions.idea.html">macOS conventions</a> /
+        <a href="080-macos-bundle-taxonomy.idea.html">bundle taxonomy</a>
+      </nav>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li><code>Web.app</code> registers <code>dotweb:</code> through <code>CFBundleURLTypes</code>.</li>
+          <li>Deep links are an explicit ingress path, not a relaxation of normal WebView navigation.</li>
+          <li>The initial public shape is <code>dotweb://open?document=/absolute/path/Site.web&amp;route=/page.html</code> and <code>dotweb://choose?route=/page.html</code>.</li>
+          <li>Opening a raw local document path from a deep link requires user confirmation, because websites can launch custom schemes.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="why">
+        <h2 id="why">Why Per-App Schemes</h2>
+        <ul>
+          <li>Custom schemes are global names. If two apps claim the same scheme, the operating system does not give a clean ownership model.</li>
+          <li>Each AppifyHost app has its own document extension, app-local command vocabulary, and trust boundary.</li>
+          <li>A shared <code>appify:</code> scheme would turn one router into a privileged broker for every personal app, which is the wrong default for hackable local software.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="linux">
+        <h2 id="linux">Linux Future</h2>
+        <ul>
+          <li>No Linux implementation yet.</li>
+          <li>When AppifyHost gets Linux support, each host app should register its own <code>x-scheme-handler/*</code> MIME association through a <code>.desktop</code> file.</li>
+          <li>For <code>Web.app</code>, the desired handler is <code>x-scheme-handler/dotweb</code>.</li>
+          <li>Arch + Wayland should be treated as an XDG/portal integration problem, not a Wayland protocol problem: <code>xdg-mime</code>, <code>mimeapps.list</code>, and <code>xdg-desktop-portal</code> are the relevant future surfaces.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="sources">
+        <h2 id="sources">Sources To Recheck Before Linux Work</h2>
+        <ul>
+          <li><a href="https://specifications.freedesktop.org/desktop-entry-spec/latest-single/">Desktop Entry Specification</a> for <code>MimeType=x-scheme-handler/dotweb;</code>.</li>
+          <li><a href="https://specifications.freedesktop.org/mime-apps-spec/latest/">MIME Applications Associations Specification</a> for defaults in <code>mimeapps.list</code>.</li>
+          <li><a href="https://flatpak.github.io/xdg-desktop-portal/docs/doc-org.freedesktop.portal.OpenURI.html">OpenURI portal</a> for sandboxed browser/app handoff.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

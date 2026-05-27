@@ -248,6 +248,23 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertFalse(isDirectory.boolValue)
     }
 
+    func testParsesDeepLinkSchemesFromInfoPlist() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackageOrFile", extensionName: "web")
+        plist["CFBundleURLTypes"] = [
+            [
+                "CFBundleURLName": "Web Deep Links",
+                "CFBundleURLSchemes": ["dotweb", "DOTWEB", " dotweb "],
+            ],
+        ]
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/Web.app")
+        )
+
+        XCTAssertEqual(config.deepLinkSchemes, ["dotweb"])
+    }
+
     func testFileDocumentWorkingDirectoryIsTheContainingFolder() throws {
         let config = try AppifyHostConfigurationLoader.load(
             infoDictionary: sampleInfoPlist(documentMode: "fileDocument", extensionName: "sqlite"),
@@ -352,6 +369,39 @@ final class AppifyHostCoreTests: XCTestCase {
 
         let documentFileURL = URL(fileURLWithPath: "/tmp/Canvas.sketchdoc/index.html")
         XCTAssertEqual(try AppifyHostOpenURL.validateReadyURL(documentFileURL, documentURL: documentURL, bundleURL: bundleURL), documentFileURL)
+    }
+
+    func testParsesDeepLinks() throws {
+        let deepLink = try AppifyHostDeepLink.parse(
+            URL(string: "dotweb://open?document=/tmp/Site.web&route=%2Fdocs%2Findex.html%3Fq%3D1%23top")!,
+            allowedSchemes: ["dotweb"]
+        )
+
+        XCTAssertEqual(deepLink.command, .open)
+        XCTAssertEqual(deepLink.documentURL?.path, "/tmp/Site.web")
+        XCTAssertEqual(deepLink.route, "/docs/index.html?q=1#top")
+    }
+
+    func testRejectsUnsafeDeepLinks() throws {
+        XCTAssertThrowsError(try AppifyHostDeepLink.parse(
+            URL(string: "other://open?document=/tmp/Site.web")!,
+            allowedSchemes: ["dotweb"]
+        ))
+        XCTAssertThrowsError(try AppifyHostDeepLink.parse(
+            URL(string: "dotweb://open?document=relative.web")!,
+            allowedSchemes: ["dotweb"]
+        ))
+        XCTAssertThrowsError(try AppifyHostDeepLink.parse(
+            URL(string: "dotweb://open?document=/tmp/Site.web&route=%2F..%2Fsecret")!,
+            allowedSchemes: ["dotweb"]
+        ))
+    }
+
+    func testAppliesDeepLinkRoutesToReadyURL() throws {
+        let readyURL = URL(string: "http://127.0.0.1:49152/")!
+        let routedURL = try AppifyHostOpenURL.readyURL(readyURL, routedTo: "/docs/index.html?q=1#top")
+
+        XCTAssertEqual(routedURL.absoluteString, "http://127.0.0.1:49152/docs/index.html?q=1#top")
     }
 
     func testRestrictsNavigationToReadyURLScope() throws {

@@ -7,6 +7,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var documentExtensions: [String]
     public var documentContentTypes: [String]
     public var documentClassName: String?
+    public var deepLinkSchemes: [String]
     public var documentMode: AppifyHostDocumentMode
     public var documentKindEnvironmentValue: String
     public var serverInstallDirectory: String
@@ -29,6 +30,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         documentExtensions: [String],
         documentContentTypes: [String],
         documentClassName: String?,
+        deepLinkSchemes: [String],
         documentMode: AppifyHostDocumentMode,
         documentKindEnvironmentValue: String,
         serverInstallDirectory: String,
@@ -50,6 +52,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.documentExtensions = documentExtensions
         self.documentContentTypes = documentContentTypes
         self.documentClassName = documentClassName
+        self.deepLinkSchemes = deepLinkSchemes
         self.documentMode = documentMode
         self.documentKindEnvironmentValue = documentKindEnvironmentValue
         self.serverInstallDirectory = serverInstallDirectory
@@ -93,6 +96,102 @@ public enum AppifyHostDocumentMode: String, Equatable, Sendable {
 public enum AppifyHostWebViewDataStore: String, Equatable, Sendable {
     case persistent
     case nonPersistent
+}
+
+public enum AppifyHostDeepLinkCommand: String, Equatable, Sendable {
+    case choose
+    case open
+}
+
+public struct AppifyHostDeepLink: Equatable, Sendable {
+    public var command: AppifyHostDeepLinkCommand
+    public var documentURL: URL?
+    public var route: String?
+
+    public init(command: AppifyHostDeepLinkCommand, documentURL: URL?, route: String?) {
+        self.command = command
+        self.documentURL = documentURL
+        self.route = route
+    }
+
+    public static func hasAllowedScheme(_ url: URL, schemes: [String]) -> Bool {
+        guard let scheme = url.scheme?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return false
+        }
+
+        return schemes.contains(scheme)
+    }
+
+    public static func parse(_ url: URL, allowedSchemes: [String]) throws -> AppifyHostDeepLink {
+        guard hasAllowedScheme(url, schemes: allowedSchemes) else {
+            throw AppifyHostError.invalidOpenURL("Deep link scheme is not registered by this app.")
+        }
+        if url.user != nil || url.password != nil {
+            throw AppifyHostError.invalidOpenURL("Credentials must not be embedded in deep links.")
+        }
+
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            throw AppifyHostError.invalidOpenURL("Deep link could not be parsed.")
+        }
+        let commandName = components.host
+            ?? components.path.trimmingPrefix("/").split(separator: "/", maxSplits: 1).first.map(String.init)
+            ?? ""
+        guard let command = AppifyHostDeepLinkCommand(rawValue: commandName.lowercased()) else {
+            throw AppifyHostError.invalidOpenURL("Unsupported deep link command: \(commandName).")
+        }
+
+        let documentValues = [
+            firstQueryValue(named: "document", in: components),
+            firstQueryValue(named: "path", in: components),
+            firstQueryValue(named: "url", in: components),
+        ].compactMap { $0 }
+        guard documentValues.count <= 1 else {
+            throw AppifyHostError.invalidOpenURL("Deep links may include only one document, path, or url parameter.")
+        }
+
+        let documentURL = try documentValues.first.map(documentURLFromDeepLinkValue)
+        let route = try firstQueryValue(named: "route", in: components).map(normalizeRoute)
+
+        switch command {
+        case .open:
+            guard documentURL != nil else {
+                throw AppifyHostError.invalidOpenURL("Open deep links require a document, path, or file url parameter.")
+            }
+        case .choose:
+            break
+        }
+
+        return AppifyHostDeepLink(command: command, documentURL: documentURL, route: route)
+    }
+
+    public static func normalizeRoute(_ route: String) throws -> String {
+        let normalized = route.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty,
+              normalized.hasPrefix("/"),
+              !normalized.hasPrefix("//")
+        else {
+            throw AppifyHostError.invalidOpenURL("Deep link routes must be root-relative paths.")
+        }
+        if normalized.contains("\0") || normalized.contains("\\") {
+            throw AppifyHostError.invalidOpenURL("Deep link routes must not contain NULs or backslashes.")
+        }
+
+        let pathPart = normalized
+            .split(separator: "#", maxSplits: 1, omittingEmptySubsequences: false)[0]
+            .split(separator: "?", maxSplits: 1, omittingEmptySubsequences: false)[0]
+        let lowerPath = pathPart.lowercased()
+        if lowerPath.contains("%2f") || lowerPath.contains("%5c") {
+            throw AppifyHostError.invalidOpenURL("Deep link routes must not encode path separators.")
+        }
+        if pathPart.split(separator: "/", omittingEmptySubsequences: true).contains(where: { $0 == "." || $0 == ".." }) {
+            throw AppifyHostError.invalidOpenURL("Deep link routes must not contain dot path segments.")
+        }
+        guard URLComponents(string: "http://appify.invalid\(normalized)")?.url != nil else {
+            throw AppifyHostError.invalidOpenURL("Deep link route is not a valid URL path.")
+        }
+
+        return normalized
+    }
 }
 
 public struct AppifyHostAboutNotice: Equatable, Sendable {
@@ -206,6 +305,7 @@ public enum AppifyHostConfigurationLoader {
 
         let documentContentTypes = parseDocumentContentTypes(from: infoDictionary)
         let documentExtensions = parseDocumentExtensions(from: infoDictionary)
+        let deepLinkSchemes = parseDeepLinkSchemes(from: infoDictionary)
         let documentKind = stringValue(hostSettings["DocumentKindEnvironmentValue"])
             ?? bundleIdentifier
         let documentClassName = parseDocumentClassName(from: infoDictionary, documentKind: documentKind)
@@ -246,6 +346,7 @@ public enum AppifyHostConfigurationLoader {
             documentExtensions: documentExtensions,
             documentContentTypes: documentContentTypes,
             documentClassName: documentClassName,
+            deepLinkSchemes: deepLinkSchemes,
             documentMode: documentMode,
             documentKindEnvironmentValue: documentKind,
             serverInstallDirectory: serverInstallDirectory,
@@ -318,6 +419,24 @@ public enum AppifyHostConfigurationLoader {
         }
 
         return contentTypes
+    }
+
+    public static func parseDeepLinkSchemes(from infoDictionary: [String: Any]) -> [String] {
+        var seen = Set<String>()
+        var schemes: [String] = []
+
+        for urlType in arrayOfDictionaries(infoDictionary["CFBundleURLTypes"]) {
+            for value in stringArrayValue(urlType["CFBundleURLSchemes"]) ?? [] {
+                let normalized = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                guard !normalized.isEmpty, !seen.contains(normalized) else {
+                    continue
+                }
+                seen.insert(normalized)
+                schemes.append(normalized)
+            }
+        }
+
+        return schemes
     }
 
     public static func parseDocumentClassName(from infoDictionary: [String: Any], documentKind: String) -> String? {
@@ -646,6 +765,34 @@ public enum AppifyHostOpenURL {
         }
     }
 
+    public static func readyURL(_ readyURL: URL, routedTo route: String?) throws -> URL {
+        guard let route else {
+            return readyURL
+        }
+
+        let normalizedRoute = try AppifyHostDeepLink.normalizeRoute(route)
+        guard let scheme = readyURL.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            throw AppifyHostError.invalidOpenURL("Deep link routes require an HTTP(S) app-local server URL.")
+        }
+        guard var readyComponents = URLComponents(url: readyURL, resolvingAgainstBaseURL: false),
+              let routeComponents = URLComponents(string: "http://appify.invalid\(normalizedRoute)")
+        else {
+            throw AppifyHostError.invalidOpenURL("Deep link route could not be applied.")
+        }
+
+        readyComponents.path = routeComponents.path
+        readyComponents.query = routeComponents.query
+        readyComponents.fragment = routeComponents.fragment
+
+        guard let routedURL = readyComponents.url else {
+            throw AppifyHostError.invalidOpenURL("Deep link route produced an invalid URL.")
+        }
+        try validateLoopbackHTTPURL(routedURL)
+        return routedURL
+    }
+
     public static func isAllowedNavigation(
         _ url: URL,
         readyURL: URL,
@@ -749,6 +896,31 @@ public enum AppifyHostOpenURL {
         }
         return path
     }
+}
+
+private func firstQueryValue(named name: String, in components: URLComponents) -> String? {
+    components.queryItems?.first { $0.name == name }?.value
+}
+
+private func documentURLFromDeepLinkValue(_ value: String) throws -> URL {
+    let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else {
+        throw AppifyHostError.invalidOpenURL("Deep link document path must not be empty.")
+    }
+
+    if trimmed.lowercased().hasPrefix("file:") {
+        guard let url = URL(string: trimmed), url.isFileURL else {
+            throw AppifyHostError.invalidOpenURL("Deep link file url must be a valid file URL.")
+        }
+        return url.standardizedFileURL
+    }
+
+    let expanded = (trimmed as NSString).expandingTildeInPath
+    guard expanded.hasPrefix("/") else {
+        throw AppifyHostError.invalidOpenURL("Deep link document paths must be absolute.")
+    }
+
+    return URL(fileURLWithPath: expanded).standardizedFileURL
 }
 
 public enum ServerEnvironmentBuilder {

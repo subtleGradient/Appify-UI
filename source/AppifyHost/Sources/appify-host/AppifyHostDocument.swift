@@ -128,6 +128,10 @@ final class AppifyHostDocument: NSDocument {
         }
     }
 
+    func openDeepLinkRoute(_ route: String) {
+        hostWindowController?.navigate(toDeepLinkRoute: route)
+    }
+
     func stopServerForAppTermination() {
         hostWindowController?.stopForAppTermination()
     }
