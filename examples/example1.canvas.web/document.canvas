@@ -23,7 +23,7 @@
     {
       "id": "storage",
       "type": "text",
-      "text": "Edits are written to localStorage. Web.app persists readable storage files in .local/Web inside this bundle.",
+      "text": "Edits use localStorage. In Web.app, the ./document.canvas key writes back to this standard JSON Canvas file.",
       "x": 440,
       "y": 96,
       "width": 300,

@@ -1,4 +1,4 @@
-const STORAGE_KEY = "example1.canvas.web:document";
+const STORAGE_KEY = "./document.canvas";
 const VIEW_KEY = "example1.canvas.web:view";
 
 const elements = {
@@ -233,9 +233,9 @@ function editNode(node) {
 }
 
 function persist(message) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(canvasDocument));
+  localStorage.setItem(STORAGE_KEY, stableJSON(canvasDocument));
   localStorage.setItem(VIEW_KEY, JSON.stringify({ selectedId }));
-  setStatus(`${message} - saved to localStorage`);
+  setStatus(`${message} - saved`);
 }
 
 function setStatus(message) {

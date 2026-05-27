@@ -27,7 +27,7 @@ const localStorageFilePath = await resolveLocalStorageFilePath(documentPath);
 const htmlPages = await scanHtmlPages(serveRoot);
 const rootEntry = await findRootEntry(serveRoot, htmlPages);
 const routes = {
-  ...createLocalStoragePersistenceRoutes(localStorageFilePath),
+  ...createLocalStoragePersistenceRoutes(localStorageFilePath, serveRoot),
   ...(await buildHtmlRoutes(serveRoot, htmlPages, rootEntry, hmrEnabled, {
     localStoragePersistence: true,
   })),
