@@ -972,6 +972,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
         let webView = WKWebView(frame: window?.contentView?.bounds ?? .zero, configuration: webViewConfiguration)
         webView.isInspectable = true
+        webView.allowsBackForwardNavigationGestures = true
         webView.allowsMagnification = true
         webView.autoresizingMask = [.width, .height]
         webView.navigationDelegate = self
