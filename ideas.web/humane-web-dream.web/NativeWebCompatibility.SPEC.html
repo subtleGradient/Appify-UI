@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Native Web Compatibility</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      h3 { font-size: 1rem; margin-block-start: 0.8rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.92rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      pre { margin: 0; overflow: auto; padding: 0.75rem; border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.5rem; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 68rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / compatibility and native web APIs</p>
+        <h1>Native Web Compatibility</h1>
+        <p class="lede">
+          <code>.web</code> bundles should be ordinary client-side web sites: HTML, CSS, JavaScript, forms, workers, storage, and service workers. Web.app may provide local hosting and safe filesystem affordances, but compatibility should come from web-native APIs that degrade naturally in a normal browser.
+        </p>
+      </header>
+
+      <section aria-labelledby="decision">
+        <h2 id="decision">Decision</h2>
+        <ul>
+          <li>Make <a href="StableWebspaceOrigins.SPEC.html">stable webspace origins</a> the foundation for persistent native browser state.</li>
+          <li>Support real service workers first-class; do not emulate service workers with window globals.</li>
+          <li>Support <a href="https://developer.mozilla.org/en-US/docs/Web/API/NavigateEvent/formData"><code>NavigateEvent.formData</code></a> where WebKit exposes the Navigation API.</li>
+          <li>Use normal <a href="https://developer.mozilla.org/en-US/docs/Web/API/Request"><code>Request</code></a>, <code>Response</code>, <code>FormData</code>, <code>URLSearchParams</code>, and <code>location</code> objects for form and request compatibility.</li>
+          <li>Remove preferred dependence on <code>window.AppifyHost.request</code> and <code>window.__WEB_APP_REQUEST__</code> from examples and future APIs.</li>
+          <li>Never execute bundle-provided server code. Dynamic-looking routes are static shadow files or client-side service worker responses.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="eras">
+        <h2 id="eras">Era Targets</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Era</th>
+              <th>Conventions to Preserve</th>
+              <th>Native Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Web 1.0</td>
+              <td>Handwritten HTML, tables, frames-ish navigation, image maps, plain forms, fossil CGI-looking action URLs.</td>
+              <td>Static files, normal form submission, URLSearchParams for GET-compatible state, and explicit <code>.cgi.html</code> shadow pages.</td>
+            </tr>
+            <tr>
+              <td>Web 1.5</td>
+              <td>Early AJAX, XMLHttpRequest, small HTML fragments, progressive enhancement, no build step.</td>
+              <td>Same-origin <code>fetch</code>/XHR, fragment HTML files, History API, and bundle-owned client scripts.</td>
+            </tr>
+            <tr>
+              <td>Web 2.0 / PWA</td>
+              <td>Client routing, offline behavior, background request handling, rich local state, workers.</td>
+              <td>Service worker <code>fetch</code> events, CacheStorage, IndexedDB, OPFS, cookies, Web Workers, and persistent webspace origin state.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="post-model">
+        <h2 id="post-model">POST Compatibility Model</h2>
+        <ul>
+          <li>The preferred request interception API is a real service worker <a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerGlobalScope/fetch_event"><code>fetch</code> event</a> with <code>event.request</code> and <code>event.respondWith()</code>.</li>
+          <li>For forms that can safely become GET-compatible state, the service worker should answer POST with a redirect to the static landing page plus query parameters.</li>
+          <li>The landing page can synchronously read <code>new URLSearchParams(location.search)</code> during initial parsing, including from old <code>document.write</code> code.</li>
+          <li>For non-GET-compatible bodies, the service worker should synthesize a <code>Response</code> or fetch a static shadow page and inject bundle-owned inert data such as <code>&lt;script type="application/json" id="posted-request"&gt;</code>.</li>
+          <li>Bundle code that handles modern navigation should feature-detect <code>navigation</code> and use <code>NavigateEvent.formData</code> for same-document form flows.</li>
+          <li>Web.app should keep serving explicit fossil shadow aliases such as <code>/path/to/file.cgi</code> from <code>/path/to/file.cgi.html</code> as a fail-loud fallback when no service worker controls the route.</li>
+        </ul>
+        <h3>Canonical Rails-ish Flow</h3>
+        <pre><code>// service-worker.js
+self.onfetch = (event) =&gt; {
+  const url = new URL(event.request.url)
+  if (event.request.method === "POST" &amp;&amp; url.pathname.endsWith("/posts/create.cgi")) {
+    event.respondWith((async () =&gt; {
+      const form = await event.request.clone().formData()
+      const params = new URLSearchParams(form)
+      return Response.redirect(new URL("./create.cgi.html?" + params, event.request.url), 303)
+    })())
+  }
+}
+
+// posts/create.cgi.html, usable during initial rendering
+const posted = new URLSearchParams(location.search)
+document.write(posted.get("post[title]") || "Untitled post")</code></pre>
+      </section>
+
+      <section aria-labelledby="dynamic-files">
+        <h2 id="dynamic-files">Fossil Dynamic Routes</h2>
+        <ul>
+          <li>On-disk dynamic extensions are never executable and are not a plugin API: <code>.cgi</code>, <code>.pl</code>, <code>.php</code>, <code>.asp</code>, <code>.aspx</code>, and <code>.jsp</code> are respected and feared.</li>
+          <li>If <code>path/to/file.cgi.html</code> exists, <code>path/to/file.cgi</code> may resolve to that static HTML shadow page.</li>
+          <li>If no shadow page exists, Web.app must return a clear error explaining that server code is unsupported and naming the expected shadow file.</li>
+          <li>No compatibility feature should silently swallow an unsupported method, missing shadow page, parse failure, or unsafe request.</li>
+          <li>Server Side Includes are not enabled as a blanket templating language; add only the smallest static include behavior needed by a checked-in example bundle.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="native-state">
+        <h2 id="native-state">Native Origin State</h2>
+        <ul>
+          <li>With stable <code>*.localhost:55555</code> origins, Web.app should use WebKit's persistent website data store so native origin state survives reopening.</li>
+          <li>Service worker registrations, CacheStorage, IndexedDB, cookies, OPFS, and related origin state should be treated as supported web platform features.</li>
+          <li>Do not duck-punch supported native APIs merely to police storage. Warnings are appropriate only for actually unsupported features or transitional builds.</li>
+          <li>File-backed <code>localStorage</code> remains a Web.app enhancement for document files, not a reason to disable normal web storage.</li>
+          <li>Native origin state is isolated by webspace origin; filesystem writes still require the strict <code>localStorage</code> file-key path grammar from the stable-origin spec.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="examples">
+        <h2 id="examples">Example-Driven Compatibility</h2>
+        <ul>
+          <li>Do not add compatibility behavior without a concrete <code>examples/web-compat/*.web</code> bundle that needs it.</li>
+          <li>Use cartoonishly idiomatic examples first: guestbook, early AJAX suggest, Rails-ish weblog, and later PWA/offline fixtures.</li>
+          <li>Each fixture should document the era convention, the exact native web mechanism used, and the safety boundary.</li>
+          <li>After each red fixture passes, refactor only if the shared behavior becomes simpler, more general, and no less safe.</li>
+          <li>Normal browsers should degrade by feature detection: if service workers, Navigation API, or persistent storage are unavailable, the page should still present a clear static fallback.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="implementation">
+        <h2 id="implementation">Implementation Notes</h2>
+        <ul>
+          <li>AppifyHost should load Web.app through stable localhost origins that satisfy secure-context requirements for service workers and other modern APIs.</li>
+          <li>Web.app should serve worker scripts as ordinary JavaScript files, respect normal service worker scope rules, and avoid injecting page-only scripts into worker responses.</li>
+          <li>A bundle-root <code>service-worker.js</code> controls its own <code>.web</code> path by default; broader webspace control requires a worker at the broader path, not a hidden host override.</li>
+          <li>Existing POST shadow injection may remain only as a migration fallback until examples are converted to service-worker-owned request handling.</li>
+          <li>The <code>2005-rails-weblog.web</code> fixture should register a service worker and use POST-to-303-to-query for its create/comment flows.</li>
+          <li>All failures that matter to humans should be visible: console warning for progressive enhancement gaps, HTTP error page for unsupported server behavior, and in-page message for direct shadow-page opens.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="tests">
+        <h2 id="tests">Acceptance Tests</h2>
+        <ul>
+          <li><code>window.isSecureContext</code> is true for a Web.app <code>.web</code> bundle.</li>
+          <li>A bundle can register <code>service-worker.js</code>; after activation, a form POST is observed by the worker as a native <code>Request</code>.</li>
+          <li>The Rails weblog example submits to <code>posts/create.cgi</code>, the service worker returns a 303 redirect, and <code>create.cgi.html</code> renders from <code>location.search</code> without Appify globals.</li>
+          <li>Feature-detected <code>NavigateEvent.formData</code> code runs where WebKit supports it and gracefully falls back where it does not.</li>
+          <li><code>AppifyHost</code> and <code>__WEB_APP_REQUEST__</code> are absent from updated web-compat examples.</li>
+          <li>A missing fossil shadow page fails with a loud HTTP error; an existing <code>.cgi.html</code> shadow page is served without executing server code.</li>
+          <li>Service worker registration, CacheStorage, and IndexedDB persist across Web.app restarts for the same stable webspace origin.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="rationale">
+        <h2 id="rationale">Golf Rationale</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Option</th>
+              <th>Technical Liability</th>
+              <th>Verdict</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Real service workers plus Navigation API</td>
+              <td>Lowest bespoke surface, highest browser-native smell, and naturally useful outside Web.app.</td>
+              <td>Default.</td>
+            </tr>
+            <tr>
+              <td>Host-injected <code>window.AppifyHost.request</code></td>
+              <td>Small short-term implementation, but creates an Appify-specific programming model and teaches the wrong abstraction.</td>
+              <td>Migrate away.</td>
+            </tr>
+            <tr>
+              <td>Synthetic window-level fetch events</td>
+              <td>Looks like service workers but violates where the platform actually places request interception.</td>
+              <td>Reject.</td>
+            </tr>
+            <tr>
+              <td>Fake REST/server emulation</td>
+              <td>Quickly becomes uncanny, insecure, and unbounded without real examples.</td>
+              <td>Only add concrete red-case behavior.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </main>
+  </body>
+</html>
