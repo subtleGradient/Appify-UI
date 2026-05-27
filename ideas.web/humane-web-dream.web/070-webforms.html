@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>WebForms</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / webforms</p>
+        <h1>WebForms</h1>
+        <p class="lede">
+          A <code>.webform</code> should feel like a PDF form made from the web: one file, visible
+          controls, durable answers, and enough semantic structure for humans and agents to collaborate.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="060-interactive-creativity.html">interactive creativity</a> /
+        <a href="090-agent-collaboration.html">agent collaboration</a> /
+        <a href="../webform/000-single-file-webform.idea.html">webform note</a>
+      </nav>
+
+      <section aria-labelledby="contract">
+        <h2 id="contract">Contract</h2>
+        <ul>
+          <li>Saved answers live in HTML: <code>value</code>, <code>checked</code>, <code>selected</code>, <code>textarea</code>, and vetted editable HTML.</li>
+          <li>Runtime affordances can be injected by WebFormer, but the durable artifact remains readable HTML.</li>
+          <li>Clean diffs matter because git and agents are part of the working surface.</li>
+          <li>Custom elements are welcome when they mirror back to native controls or form-associated state that can be inspected.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="example">
+        <h2 id="example">Tiny Form</h2>
+        <pre><code>&lt;!doctype html&gt;
+&lt;meta charset=utf-8&gt;
+&lt;title&gt;Story Seed&lt;/title&gt;
+
+&lt;h1&gt;Story Seed&lt;/h1&gt;
+&lt;form&gt;
+  &lt;label&gt;World
+    &lt;input value="Moon orchard"&gt;
+  &lt;/label&gt;
+  &lt;label&gt;Trouble
+    &lt;textarea&gt;The fruit sings only when nobody is watching.&lt;/textarea&gt;
+  &lt;/label&gt;
+&lt;/form&gt;</code></pre>
+      </section>
+    </main>
+  </body>
+</html>

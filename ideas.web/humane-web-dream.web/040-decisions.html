@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Decisions</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / decisions</p>
+        <h1>Decisions</h1>
+        <p class="lede">
+          These are the current working decisions. Future agents may revise them, but should not
+          accidentally drift past them.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="010-values.html">values</a> /
+        <a href="050-constraints.html">constraints</a> /
+        <a href="110-uncertainties.html">uncertainties</a>
+      </nav>
+
+      <section aria-labelledby="decisions">
+        <h2 id="decisions">Working Decisions</h2>
+        <ol>
+          <li><code>.web</code> remains static, browser-native, and build-free.</li>
+          <li><code>.webapp</code> remains the place for packages that require npm, transforms, or dev servers.</li>
+          <li>No <code>index.html</code> is required for a thought bundle; a directory listing can be the honest entrypoint.</li>
+          <li>Interactive creativity starts with ordinary HTML, CSS, ESM, web components, relative assets, and browser APIs.</li>
+          <li>Webforms store durable state in visible native HTML, not invisible sidecars.</li>
+          <li>Reusable leverage should first appear as component-kit <code>.web</code> bundles, not a framework.</li>
+          <li>Public, private, and internal surfaces should be separated by visible file and package shape before policy machinery.</li>
+          <li>Agent collaboration should happen in the same web-native artifacts humans can inspect.</li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="not-yet">
+        <h2 id="not-yet">Not Yet Decisions</h2>
+        <ul>
+          <li>No decentralized identity protocol yet.</li>
+          <li>No registry yet.</li>
+          <li>No sync layer yet.</li>
+          <li>No universal app schema yet.</li>
+          <li>No claim that every arbitrary website should become a perfect local document.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>

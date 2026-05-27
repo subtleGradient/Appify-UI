@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Component Kits</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / component kits</p>
+        <h1>Component Kits</h1>
+        <p class="lede">
+          Modern web components and ESM make a small leverage layer possible without defaulting to
+          React, Next, JSX, TypeScript, npm, or a bundler.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="050-constraints.html">constraints</a> /
+        <a href="060-interactive-creativity.html">interactive creativity</a> /
+        <a href="090-agent-collaboration.html">agent collaboration</a> /
+        <a href="../web-components-native.idea.htm">web components native</a>
+      </nav>
+
+      <section aria-labelledby="shape">
+        <h2 id="shape">Kit Shape</h2>
+        <pre><code>kit.web/
+  exports/
+    sprite-stage.js
+    form-card.js
+    generative-panel.js
+    tokens.css
+
+toy.web/
+  game.html
+  game.js
+  assets/</code></pre>
+      </section>
+
+      <section aria-labelledby="use">
+        <h2 id="use">Use</h2>
+        <pre><code>&lt;link rel=&quot;stylesheet&quot; href=&quot;../kit.web/exports/tokens.css&quot;&gt;
+&lt;script type="module" src="../kit.web/exports/sprite-stage.js"&gt;&lt;/script&gt;
+
+&lt;sprite-stage src="./assets/player.png" speed="gentle"&gt;&lt;/sprite-stage&gt;</code></pre>
+      </section>
+
+      <section aria-labelledby="why">
+        <h2 id="why">Why This Matters</h2>
+        <p>
+          A future agent can generate tiny artifacts by composing known custom elements instead of
+          spending tokens recreating app chrome, layout, state widgets, and interaction scaffolding.
+          The kit is still just web files, so the leverage does not smuggle in a platform.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

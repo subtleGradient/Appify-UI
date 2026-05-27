@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Portability</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / portability</p>
+        <h1>Portability</h1>
+        <p class="lede">
+          The same bytes should feel natural as a local document, a static website, an emailed zip,
+          a GitHub Pages site, a Vercel deployment, a removable-media archive, or a future mobile
+          Web.app bundle.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="010-values.html">values</a> /
+        <a href="050-constraints.html">constraints</a> /
+        <a href="120-next-probes.html">next probes</a>
+      </nav>
+
+      <section aria-labelledby="matrix">
+        <h2 id="matrix">Same Bytes Matrix</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Place</th>
+              <th>Should Work By</th>
+              <th>Must Avoid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Web.app</td>
+              <td>Double-clicking the package.</td>
+              <td>Requiring a browser profile, dev server, or terminal ritual.</td>
+            </tr>
+            <tr>
+              <td>Static host</td>
+              <td>Serving the same files with ordinary HTTP.</td>
+              <td>Special server logic for core behavior.</td>
+            </tr>
+            <tr>
+              <td>Email or removable media</td>
+              <td>Copying the package or zip.</td>
+              <td>External cloud state as the only real document.</td>
+            </tr>
+            <tr>
+              <td>Future mobile Web.app</td>
+              <td>Opening the same static bundle with a native document shell.</td>
+              <td>Desktop-only build assumptions.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="offline">
+        <h2 id="offline">Offline Meaning</h2>
+        <p>
+          Offline support is not an afterthought. The artifact should still make sense when the
+          internet is gone: a folder of pages, scripts, styles, assets, forms, and previews.
+        </p>
+      </section>
+    </main>
+  </body>
+</html>
