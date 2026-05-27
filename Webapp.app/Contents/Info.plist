@@ -6,6 +6,15 @@
   <dict>
     <key>AboutNotice</key>
     <dict>
+      <key>Links</key>
+      <array>
+        <dict>
+          <key>Title</key>
+          <string>Bun</string>
+          <key>URL</key>
+          <string>https://bun.sh/</string>
+        </dict>
+      </array>
       <key>Message</key>
       <string>Webapp runs local .webapp Bun package folders and marker files.</string>
     </dict>

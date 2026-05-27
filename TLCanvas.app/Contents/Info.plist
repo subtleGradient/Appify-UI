@@ -10,6 +10,21 @@
 			<string>Open tldraw.dev</string>
 			<key>LinkURL</key>
 			<string>https://tldraw.dev</string>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>tldraw on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/tldraw/tldraw</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>tldraw license</string>
+					<key>URL</key>
+					<string>https://github.com/tldraw/tldraw/blob/main/LICENSE.md</string>
+				</dict>
+			</array>
 			<key>Message</key>
 			<string>TLCanvas is a local macOS document app built with the tldraw SDK.
 

@@ -4,6 +4,32 @@
 <dict>
 	<key>AppifyHost</key>
 	<dict>
+		<key>AboutNotice</key>
+		<dict>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>Tabiew on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/shshemi/tabiew</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>Tabiew Keybindings</string>
+					<key>URL</key>
+					<string>https://github.com/shshemi/tabiew#useful-keybindings%EF%B8%8F</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>ttyd on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/tsl0922/ttyd</string>
+				</dict>
+			</array>
+			<key>Message</key>
+			<string>tw opens tabular data files and shows Tabiew in a local WebKit terminal.</string>
+		</dict>
 		<key>DocumentKindEnvironmentValue</key>
 		<string>com.subtlegradient.tw.csv</string>
 		<key>DocumentMode</key>

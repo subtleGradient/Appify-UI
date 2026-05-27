@@ -10,6 +10,21 @@
 			<string>Open tiddlywiki.com</string>
 			<key>LinkURL</key>
 			<string>https://tiddlywiki.com/</string>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>TiddlyWiki on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/TiddlyWiki/TiddlyWiki5</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>TiddlyWiki Folder Format</string>
+					<key>URL</key>
+					<string>https://tiddlywiki.com/static/TiddlyWikiFolders.html</string>
+				</dict>
+			</array>
 			<key>Message</key>
 			<string>WikiDock is an independent local document host for TiddlyWiki folder packages.
 

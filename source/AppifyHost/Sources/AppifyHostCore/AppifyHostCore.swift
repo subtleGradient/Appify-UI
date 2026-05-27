@@ -20,6 +20,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
     public var firstLaunchHelp: AppifyHostFirstLaunchHelp?
+    public var sourceReference: AppifyHostSourceReference?
 
     public init(
         appName: String,
@@ -40,7 +41,8 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         webViewDataStore: AppifyHostWebViewDataStore,
         restrictNavigationToReadyURLScope: Bool,
         aboutNotice: AppifyHostAboutNotice?,
-        firstLaunchHelp: AppifyHostFirstLaunchHelp?
+        firstLaunchHelp: AppifyHostFirstLaunchHelp?,
+        sourceReference: AppifyHostSourceReference?
     ) {
         self.appName = appName
         self.bundleIdentifier = bundleIdentifier
@@ -61,6 +63,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
         self.firstLaunchHelp = firstLaunchHelp
+        self.sourceReference = sourceReference
     }
 
     public var primaryDocumentExtension: String {
@@ -96,11 +99,23 @@ public struct AppifyHostAboutNotice: Equatable, Sendable {
     public var message: String
     public var linkTitle: String?
     public var linkURL: String?
+    public var links: [AppifyHostAboutLink]
 
-    public init(message: String, linkTitle: String?, linkURL: String?) {
+    public init(message: String, linkTitle: String?, linkURL: String?, links: [AppifyHostAboutLink] = []) {
         self.message = message
         self.linkTitle = linkTitle
         self.linkURL = linkURL
+        self.links = links
+    }
+}
+
+public struct AppifyHostAboutLink: Equatable, Sendable {
+    public var title: String
+    public var url: String
+
+    public init(title: String, url: String) {
+        self.title = title
+        self.url = url
     }
 }
 
@@ -111,6 +126,20 @@ public struct AppifyHostFirstLaunchHelp: Equatable, Sendable {
     public init(url: URL, windowTitle: String) {
         self.url = url
         self.windowTitle = windowTitle
+    }
+}
+
+public struct AppifyHostSourceReference: Equatable, Sendable {
+    public var repositoryURL: String?
+    public var commit: String?
+    public var appPath: String?
+    public var sourceDirectory: String?
+
+    public init(repositoryURL: String?, commit: String?, appPath: String?, sourceDirectory: String?) {
+        self.repositoryURL = repositoryURL
+        self.commit = commit
+        self.appPath = appPath
+        self.sourceDirectory = sourceDirectory
     }
 }
 
@@ -199,6 +228,7 @@ public enum AppifyHostConfigurationLoader {
         let restrictNavigation = boolValue(hostSettings["RestrictNavigationToReadyURLScope"]) ?? true
         let aboutNotice = parseAboutNotice(from: hostSettings)
         let firstLaunchHelp = try parseFirstLaunchHelp(from: hostSettings, appName: appName)
+        let sourceReference = parseSourceReference(from: hostSettings)
 
         guard !documentExtensions.isEmpty else {
             throw AppifyHostError.invalidInfoPlist("At least one document filename extension is required.")
@@ -228,7 +258,8 @@ public enum AppifyHostConfigurationLoader {
             webViewDataStore: webViewDataStore,
             restrictNavigationToReadyURLScope: restrictNavigation,
             aboutNotice: aboutNotice,
-            firstLaunchHelp: firstLaunchHelp
+            firstLaunchHelp: firstLaunchHelp,
+            sourceReference: sourceReference
         )
     }
 
@@ -304,17 +335,38 @@ public enum AppifyHostConfigurationLoader {
     }
 
     public static func parseAboutNotice(from hostSettings: [String: Any]) -> AppifyHostAboutNotice? {
-        guard let notice = hostSettings["AboutNotice"] as? [String: Any],
-              let message = trimmedString(notice["Message"])
-        else {
+        guard let notice = hostSettings["AboutNotice"] as? [String: Any] else {
             return nil
         }
 
+        let legacyLinkTitle = trimmedString(notice["LinkTitle"])
+        let legacyLinkURL = trimmedString(notice["LinkURL"])
+        var links = parseAboutLinks(from: notice)
+        if let legacyLinkURL {
+            links.insert(
+                AppifyHostAboutLink(title: legacyLinkTitle ?? "Open Link", url: legacyLinkURL),
+                at: 0
+            )
+        }
+
         return AppifyHostAboutNotice(
-            message: message,
-            linkTitle: trimmedString(notice["LinkTitle"]),
-            linkURL: trimmedString(notice["LinkURL"])
+            message: trimmedString(notice["Message"]) ?? "",
+            linkTitle: legacyLinkTitle,
+            linkURL: legacyLinkURL,
+            links: links
         )
+    }
+
+    public static func parseAboutLinks(from notice: [String: Any]) -> [AppifyHostAboutLink] {
+        arrayOfDictionaries(notice["Links"]).compactMap { link in
+            guard let title = trimmedString(link["Title"]),
+                  let url = trimmedString(link["URL"])
+            else {
+                return nil
+            }
+
+            return AppifyHostAboutLink(title: title, url: url)
+        }
     }
 
     public static func parseFirstLaunchHelp(from hostSettings: [String: Any], appName: String) throws -> AppifyHostFirstLaunchHelp? {
@@ -335,6 +387,28 @@ public enum AppifyHostConfigurationLoader {
             url: url,
             windowTitle: trimmedString(help["WindowTitle"]) ?? "\(appName) Help"
         )
+    }
+
+    public static func parseSourceReference(from hostSettings: [String: Any]) -> AppifyHostSourceReference? {
+        guard let reference = hostSettings["SourceReference"] as? [String: Any] else {
+            return nil
+        }
+
+        let sourceReference = AppifyHostSourceReference(
+            repositoryURL: trimmedString(reference["RepositoryURL"]),
+            commit: trimmedString(reference["Commit"]),
+            appPath: trimmedString(reference["AppPath"]),
+            sourceDirectory: trimmedString(reference["SourceDirectory"])
+        )
+
+        if sourceReference.repositoryURL == nil,
+           sourceReference.commit == nil,
+           sourceReference.appPath == nil,
+           sourceReference.sourceDirectory == nil {
+            return nil
+        }
+
+        return sourceReference
     }
 }
 

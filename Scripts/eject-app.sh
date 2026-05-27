@@ -83,6 +83,27 @@ cp "$ROOT/bin/appify-host" "$STAGED_APP/Contents/MacOS/appify-host"
 chmod +x "$STAGED_APP/Contents/MacOS/appify-host"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable appify-host" "$STAGED_APP/Contents/Info.plist"
+
+source_app_path="$SOURCE_APP"
+case "$SOURCE_APP" in
+  "$ROOT"/*)
+    source_app_path="${SOURCE_APP#$ROOT/}"
+    ;;
+esac
+source_directory="$(appify_app_source_directory "$SOURCE_APP")"
+source_repository_url="$(git -C "$ROOT" remote get-url origin 2>/dev/null || true)"
+source_commit="$(git -C "$ROOT" rev-parse HEAD 2>/dev/null || true)"
+
+/usr/libexec/PlistBuddy -c "Delete :AppifyHost:SourceReference" "$STAGED_APP/Contents/Info.plist" >/dev/null 2>&1 || true
+/usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference dict" "$STAGED_APP/Contents/Info.plist"
+if [[ -n "$source_repository_url" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:RepositoryURL string $source_repository_url" "$STAGED_APP/Contents/Info.plist"
+fi
+if [[ -n "$source_commit" ]]; then
+  /usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:Commit string $source_commit" "$STAGED_APP/Contents/Info.plist"
+fi
+/usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:AppPath string $source_app_path" "$STAGED_APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Add :AppifyHost:SourceReference:SourceDirectory string $source_directory" "$STAGED_APP/Contents/Info.plist"
 plutil -lint "$STAGED_APP/Contents/Info.plist" >/dev/null
 
 if [[ -n "$SIGN_IDENTITY" ]]; then

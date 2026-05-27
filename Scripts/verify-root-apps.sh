@@ -125,6 +125,13 @@ for app in "${thin_apps[@]}"; do
     || fail "$app is missing bundled AppServer/main.sh"
 done
 
+for app in "${root_apps[@]}"; do
+  app_path="$ROOT/$app"
+  source_dir="$(appify_app_source_directory "$app_path")"
+  [[ -f "$app_path/$source_dir/README.md" ]] \
+    || fail "$app is missing app source README at $source_dir/README.md"
+done
+
 [[ -f "$ROOT/litecli.app/Contents/Resources/AppServer/liteclirc" ]] \
   || fail "litecli.app is missing bundled AppServer/liteclirc"
 
@@ -175,5 +182,14 @@ ejected_executable="$(plutil -extract CFBundleExecutable raw "$ejected_app/Conte
 if find "$ejected_app" -path '*AppifyHostSource*' -print | grep -q .; then
   fail "ejected WebFormer should not contain AppifyHostSource"
 fi
+ejected_source_commit="$(plutil -extract AppifyHost.SourceReference.Commit raw "$ejected_app/Contents/Info.plist")"
+[[ -n "$ejected_source_commit" ]] \
+  || fail "ejected WebFormer should include AppifyHost SourceReference Commit"
+ejected_source_app_path="$(plutil -extract AppifyHost.SourceReference.AppPath raw "$ejected_app/Contents/Info.plist")"
+[[ "$ejected_source_app_path" == "WebFormer.app" ]] \
+  || fail "ejected WebFormer SourceReference AppPath should be WebFormer.app, got $ejected_source_app_path"
+ejected_source_dir="$(plutil -extract AppifyHost.SourceReference.SourceDirectory raw "$ejected_app/Contents/Info.plist")"
+[[ "$ejected_source_dir" == "Contents/Resources/Runner" ]] \
+  || fail "ejected WebFormer SourceReference SourceDirectory should be Contents/Resources/Runner, got $ejected_source_dir"
 
 echo "root app verification ok"

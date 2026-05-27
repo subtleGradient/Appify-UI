@@ -10,6 +10,15 @@
 			<string>Open jsoncanvas.org</string>
 			<key>LinkURL</key>
 			<string>https://jsoncanvas.org/spec/1.0</string>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>JSON Canvas on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/obsidianmd/jsoncanvas</string>
+				</dict>
+			</array>
 			<key>Message</key>
 			<string>JSONCanvas is a local macOS document app for JSON Canvas .canvas files.</string>
 		</dict>

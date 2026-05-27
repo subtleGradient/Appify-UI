@@ -55,6 +55,15 @@ appify_file_hash() {
   shasum -a 256 "$1" | awk '{print $1}'
 }
 
+appify_app_source_directory() {
+  local app="$1"
+  if [[ -d "$app/Contents/Resources/Runner" ]]; then
+    printf 'Contents/Resources/Runner\n'
+  else
+    printf 'Contents/Resources/AppServer\n'
+  fi
+}
+
 appify_manifest_value() {
   local manifest="$1"
   local key="$2"

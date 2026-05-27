@@ -18,7 +18,7 @@ protocol AppifyHostWebViewInspecting: AnyObject {
 final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegate, NSMenuItemValidation, NSMenuDelegate {
     private var didReceiveDocumentOpenEvent = false
     private var configuration: AppifyHostConfiguration?
-    private var helpWindowController: AppifyHostHelpWindowController?
+    private var infoWindowController: AppifyHostInfoWindowController?
     private var terminateAfterHostWindowsClose = false
     private weak var openRecentMenu: NSMenu?
 
@@ -163,35 +163,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         currentWebViewInspectingController()?.openWebInspectorFromMenu()
     }
 
+    @MainActor
     @objc private func showAboutFromMenu(_ sender: Any?) {
-        guard let configuration, let aboutNotice = configuration.aboutNotice else {
+        guard let configuration else {
             NSApplication.shared.orderFrontStandardAboutPanel(sender)
             return
         }
 
-        let alert = NSAlert()
-        alert.messageText = "About \(configuration.appName)"
-        alert.informativeText = aboutNotice.message
-        alert.addButton(withTitle: "OK")
-
-        if aboutNotice.linkURL != nil {
-            alert.addButton(withTitle: aboutNotice.linkTitle ?? "Open Link")
-        }
-
-        let response = alert.runModal()
-        if response == .alertSecondButtonReturn,
-           let linkURL = aboutNotice.linkURL,
-           let url = URL(string: linkURL) {
-            NSWorkspace.shared.open(url)
-        }
+        showInfoWindow(
+            title: "About \(configuration.appName)",
+            html: aboutHTML(configuration: configuration)
+        )
     }
 
-    @objc private func showConfiguredHelpFromMenu(_ sender: Any?) {
+    @objc private func showAppHelpFromMenu(_ sender: Any?) {
         DispatchQueue.main.async { [weak self] in
-            guard let self, let configuration = self.configuration, let help = configuration.firstLaunchHelp else {
+            guard let self, let configuration = self.configuration else {
                 return
             }
-            self.showHelpWindow(help)
+            self.showInfoWindow(
+                title: "\(configuration.appName) Help",
+                html: helpHTML(configuration: configuration)
+            )
         }
     }
 
@@ -489,16 +482,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         let helpMenu = NSMenu(title: "Help")
         helpMenuItem.submenu = helpMenu
         NSApp.helpMenu = helpMenu
-        if let help = configuration.firstLaunchHelp {
-            let helpItem = helpMenu.addItem(
-                withTitle: help.windowTitle,
-                action: #selector(showConfiguredHelpFromMenu(_:)),
-                keyEquivalent: "?"
-            )
-            helpItem.target = self
-        } else {
-            helpMenu.addItem(withTitle: "\(configuration.appName) Help", action: #selector(NSApplication.showHelp(_:)), keyEquivalent: "?")
-        }
+        let helpItem = helpMenu.addItem(
+            withTitle: "\(configuration.appName) Help",
+            action: #selector(showAppHelpFromMenu(_:)),
+            keyEquivalent: "?"
+        )
+        helpItem.target = self
     }
 
     @MainActor
@@ -603,7 +592,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         UserDefaults.standard.set(true, forKey: key)
-        showHelpWindow(help)
+        showURLWindow(title: help.windowTitle, url: help.url)
     }
 
     private func firstLaunchHelpDefaultsKey(
@@ -614,10 +603,382 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 
     @MainActor
-    private func showHelpWindow(_ help: AppifyHostFirstLaunchHelp) {
-        let controller = helpWindowController ?? AppifyHostHelpWindowController()
-        helpWindowController = controller
-        controller.show(title: help.windowTitle, url: help.url)
+    private func showInfoWindow(title: String, html: String) {
+        let controller = infoWindowController ?? AppifyHostInfoWindowController()
+        infoWindowController = controller
+        controller.show(title: title, html: html, baseURL: configuration?.bundleURL)
+    }
+
+    @MainActor
+    private func showURLWindow(title: String, url: URL) {
+        let controller = infoWindowController ?? AppifyHostInfoWindowController()
+        infoWindowController = controller
+        controller.show(title: title, url: url)
+    }
+
+    private struct AppSourceInfo {
+        var repositoryURL: String?
+        var commit: String?
+        var appPath: String?
+        var sourceDirectory: String
+        var sourceDirectoryURL: URL
+        var readmeURL: URL?
+
+        var githubAppURL: URL? {
+            AppDelegate.sourceWebURL(repositoryURL: repositoryURL, commit: commit, path: appPath)
+        }
+
+        var githubSourceURL: URL? {
+            guard let appPath else {
+                return nil
+            }
+
+            return AppDelegate.sourceWebURL(
+                repositoryURL: repositoryURL,
+                commit: commit,
+                path: appPath + "/" + sourceDirectory
+            )
+        }
+    }
+
+    private struct InferredGitReference {
+        var repositoryURL: String?
+        var commit: String?
+        var appPath: String?
+    }
+
+    private func aboutHTML(configuration: AppifyHostConfiguration) -> String {
+        let source = appSourceInfo(configuration: configuration)
+        let notice = configuration.aboutNotice
+        let message = notice?.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+            ? notice?.message
+            : "\(configuration.appName) is a self-contained Appify UI bundle."
+        let links = notice?.links ?? []
+
+        return htmlDocument(
+            title: "About \(configuration.appName)",
+            body: """
+            <header>
+              <p class="eyebrow">About this app</p>
+              <h1>\(htmlEscaped(configuration.appName))</h1>
+            </header>
+            <section>
+              \(paragraphsHTML(message ?? ""))
+            </section>
+            <section>
+              <h2>App Identity</h2>
+              <dl>
+                <dt>Bundle identifier</dt>
+                <dd><code>\(htmlEscaped(configuration.bundleIdentifier))</code></dd>
+                <dt>Document extensions</dt>
+                <dd>\(htmlEscaped(configuration.documentExtensions.map { ".\($0)" }.joined(separator: ", ")))</dd>
+                <dt>App-local source</dt>
+                <dd><a href="\(htmlAttributeEscaped(source.sourceDirectoryURL.absoluteString))"><code>\(htmlEscaped(source.sourceDirectory))</code></a></dd>
+              </dl>
+            </section>
+            \(sourceLinksHTML(source: source))
+            \(aboutLinksHTML(links))
+            <section>
+              <h2>Hackability</h2>
+              <p>This app carries its app-specific source inside the bundle. Open the source folder, read its README, edit the runner or app server, then clone the app bundle when you want a nearby tool with different behavior.</p>
+            </section>
+            """
+        )
+    }
+
+    private func helpHTML(configuration: AppifyHostConfiguration) -> String {
+        let source = appSourceInfo(configuration: configuration)
+        let extensionList = configuration.documentExtensions.map { ".\($0)" }.joined(separator: ", ")
+        let configuredHelpLink: String
+        if let help = configuration.firstLaunchHelp {
+            configuredHelpLink = """
+            <li><a href="\(htmlAttributeEscaped(help.url.absoluteString))">\(htmlEscaped(help.windowTitle))</a></li>
+            """
+        } else {
+            configuredHelpLink = ""
+        }
+
+        return htmlDocument(
+            title: "\(configuration.appName) Help",
+            body: """
+            <header>
+              <p class="eyebrow">Help</p>
+              <h1>\(htmlEscaped(configuration.appName))</h1>
+            </header>
+            <section>
+              <p>\(htmlEscaped(configuration.appName)) opens \(htmlEscaped(extensionList)) documents with an app-local server and a native WebKit window.</p>
+            </section>
+            <section>
+              <h2>Common Actions</h2>
+              <ul>
+                <li>Use File > Open... to open an existing document or package.</li>
+                <li>Use File > New when this app supports creating an untitled document.</li>
+                <li>Use View > Reload to restart the current web view after editing local app code.</li>
+                <li>Use View > Developer > Open Web Inspector to inspect the running web UI.</li>
+                \(configuredHelpLink)
+              </ul>
+            </section>
+            \(sourceLinksHTML(source: source))
+            <section>
+              <h2>Customize or Clone</h2>
+              <p>Start in the app-local source folder. Its README explains the bundle shape, where to edit behavior, and how to copy a nearby app into a new specialized tool.</p>
+            </section>
+            """
+        )
+    }
+
+    private func appSourceInfo(configuration: AppifyHostConfiguration) -> AppSourceInfo {
+        let configured = configuration.sourceReference
+        let inferred = inferGitReference(bundleURL: configuration.bundleURL)
+        let sourceDirectory = configured?.sourceDirectory
+            ?? defaultSourceDirectory(in: configuration.bundleURL)
+        let sourceDirectoryURL = configuration.bundleURL
+            .appendingPathComponent(sourceDirectory, isDirectory: true)
+            .standardizedFileURL
+        let readmeURL = sourceDirectoryURL.appendingPathComponent("README.md", isDirectory: false)
+
+        return AppSourceInfo(
+            repositoryURL: configured?.repositoryURL ?? inferred?.repositoryURL,
+            commit: configured?.commit ?? inferred?.commit,
+            appPath: configured?.appPath ?? inferred?.appPath,
+            sourceDirectory: sourceDirectory,
+            sourceDirectoryURL: sourceDirectoryURL,
+            readmeURL: FileManager.default.fileExists(atPath: readmeURL.path) ? readmeURL : nil
+        )
+    }
+
+    private func defaultSourceDirectory(in bundleURL: URL) -> String {
+        let runnerPath = bundleURL
+            .appendingPathComponent("Contents/Resources/Runner", isDirectory: true)
+            .path
+        if FileManager.default.fileExists(atPath: runnerPath) {
+            return "Contents/Resources/Runner"
+        }
+
+        return "Contents/Resources/AppServer"
+    }
+
+    private func inferGitReference(bundleURL: URL) -> InferredGitReference? {
+        guard let rootPath = gitOutput(["rev-parse", "--show-toplevel"], in: bundleURL) else {
+            return nil
+        }
+
+        let rootURL = URL(fileURLWithPath: rootPath, isDirectory: true).standardizedFileURL
+        return InferredGitReference(
+            repositoryURL: gitOutput(["config", "--get", "remote.origin.url"], in: rootURL),
+            commit: gitOutput(["rev-parse", "HEAD"], in: rootURL),
+            appPath: relativePath(from: rootURL, to: bundleURL)
+        )
+    }
+
+    private func gitOutput(_ arguments: [String], in directory: URL) -> String? {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = ["-C", directory.path] + arguments
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else {
+            return nil
+        }
+
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        let output = String(data: data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return output?.isEmpty == false ? output : nil
+    }
+
+    private func relativePath(from rootURL: URL, to url: URL) -> String? {
+        let rootPath = rootURL.standardizedFileURL.path
+        let path = url.standardizedFileURL.path
+        if path == rootPath {
+            return "."
+        }
+        guard path.hasPrefix(rootPath + "/") else {
+            return nil
+        }
+
+        return String(path.dropFirst(rootPath.count + 1))
+    }
+
+    private func htmlDocument(title: String, body: String) -> String {
+        """
+        <!doctype html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1">
+          <title>\(htmlEscaped(title))</title>
+          <style>
+            :root { color-scheme: light dark; }
+            body {
+              margin: 0;
+              padding: 32px;
+              max-width: 860px;
+              color: CanvasText;
+              background: Canvas;
+              font: -apple-system-body;
+              line-height: 1.45;
+            }
+            header { margin-bottom: 28px; }
+            .eyebrow {
+              margin: 0 0 6px;
+              color: color-mix(in srgb, CanvasText 62%, transparent);
+              font: -apple-system-caption1;
+              text-transform: uppercase;
+            }
+            h1 { margin: 0; font: -apple-system-title1; }
+            h2 { margin: 28px 0 8px; font: -apple-system-title3; }
+            p { margin: 0 0 10px; }
+            ul { margin: 8px 0 0; padding-left: 22px; }
+            li { margin: 6px 0; }
+            dl {
+              display: grid;
+              grid-template-columns: max-content 1fr;
+              gap: 8px 18px;
+              margin: 10px 0 0;
+            }
+            dt { color: color-mix(in srgb, CanvasText 68%, transparent); }
+            dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+            code {
+              font: 12px ui-monospace, SFMono-Regular, Menlo, monospace;
+              overflow-wrap: anywhere;
+            }
+            a { color: LinkText; }
+          </style>
+        </head>
+        <body>
+        \(body)
+        </body>
+        </html>
+        """
+    }
+
+    private func sourceLinksHTML(source: AppSourceInfo) -> String {
+        var items: [String] = []
+        if let githubAppURL = source.githubAppURL {
+            items.append(linkListItem(title: "GitHub app bundle at this commit", url: githubAppURL))
+        }
+        if let githubSourceURL = source.githubSourceURL {
+            items.append(linkListItem(title: "GitHub app source folder at this commit", url: githubSourceURL))
+        }
+        items.append(linkListItem(title: "Local app source folder", url: source.sourceDirectoryURL))
+        if let readmeURL = source.readmeURL {
+            items.append(linkListItem(title: "Local hacking README", url: readmeURL))
+        }
+
+        return """
+        <section>
+          <h2>Source</h2>
+          <ul>
+            \(items.joined(separator: "\n"))
+          </ul>
+        </section>
+        """
+    }
+
+    private func aboutLinksHTML(_ links: [AppifyHostAboutLink]) -> String {
+        guard !links.isEmpty else {
+            return ""
+        }
+
+        let items = links.compactMap { link -> String? in
+            guard let url = URL(string: link.url) else {
+                return nil
+            }
+            return linkListItem(title: link.title, url: url)
+        }.joined(separator: "\n")
+
+        guard !items.isEmpty else {
+            return ""
+        }
+
+        return """
+        <section>
+          <h2>Credits and Links</h2>
+          <ul>
+            \(items)
+          </ul>
+        </section>
+        """
+    }
+
+    private func linkListItem(title: String, url: URL) -> String {
+        """
+        <li><a href="\(htmlAttributeEscaped(url.absoluteString))">\(htmlEscaped(title))</a></li>
+        """
+    }
+
+    private func paragraphsHTML(_ text: String) -> String {
+        text.components(separatedBy: "\n\n")
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+            .map { "<p>\(htmlEscaped($0).replacingOccurrences(of: "\n", with: "<br>"))</p>" }
+            .joined(separator: "\n")
+    }
+
+    private func htmlEscaped(_ value: String) -> String {
+        value
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "<", with: "&lt;")
+            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+    }
+
+    private func htmlAttributeEscaped(_ value: String) -> String {
+        htmlEscaped(value)
+    }
+
+    private static func sourceWebURL(repositoryURL: String?, commit: String?, path: String?) -> URL? {
+        guard let repositoryURL,
+              let commit,
+              let path,
+              let normalizedRepositoryURL = normalizedGitHubRepositoryURL(repositoryURL)
+        else {
+            return nil
+        }
+
+        return URL(string: "\(normalizedRepositoryURL)/tree/\(urlPathComponent(commit))/\(urlPath(path))")
+    }
+
+    private static func normalizedGitHubRepositoryURL(_ repositoryURL: String) -> String? {
+        var value = repositoryURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        if value.hasSuffix(".git") {
+            value.removeLast(4)
+        }
+
+        if value.hasPrefix("git@github.com:") {
+            let path = String(value.dropFirst("git@github.com:".count))
+            return "https://github.com/\(path)"
+        }
+
+        if value.hasPrefix("http://github.com/") {
+            return "https://" + String(value.dropFirst("http://".count))
+        }
+
+        if value.hasPrefix("https://github.com/") {
+            return value
+        }
+
+        return nil
+    }
+
+    private static func urlPath(_ path: String) -> String {
+        path.split(separator: "/", omittingEmptySubsequences: false)
+            .map { urlPathComponent(String($0)) }
+            .joined(separator: "/")
+    }
+
+    private static func urlPathComponent(_ value: String) -> String {
+        value.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? value
     }
 
     private func openPanelMessage(configuration: AppifyHostConfiguration) -> String {
@@ -667,7 +1028,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     }
 }
 
-final class AppifyHostHelpWindowController: NSWindowController {
+final class AppifyHostInfoWindowController: NSWindowController, WKNavigationDelegate {
     private let webView: WKWebView
 
     init() {
@@ -689,11 +1050,12 @@ final class AppifyHostHelpWindowController: NSWindowController {
 
         self.webView = webView
         super.init(window: window)
+        webView.navigationDelegate = self
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
-        fatalError("AppifyHostHelpWindowController does not support NSCoder.")
+        fatalError("AppifyHostInfoWindowController does not support NSCoder.")
     }
 
     func show(title: String, url: URL) {
@@ -704,9 +1066,34 @@ final class AppifyHostHelpWindowController: NSWindowController {
         NSApp.activate(ignoringOtherApps: true)
         webView.load(URLRequest(url: url))
     }
+
+    func show(title: String, html: String, baseURL: URL?) {
+        window?.title = title
+        showWindow(nil)
+        window?.center()
+        window?.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
+        webView.loadHTMLString(html, baseURL: baseURL)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard navigationAction.navigationType == .linkActivated,
+              let url = navigationAction.request.url
+        else {
+            decisionHandler(.allow)
+            return
+        }
+
+        NSWorkspace.shared.open(url)
+        decisionHandler(.cancel)
+    }
 }
 
-extension AppifyHostHelpWindowController: AppifyHostWebViewReloading {
+extension AppifyHostInfoWindowController: AppifyHostWebViewReloading {
     var canReloadWebView: Bool {
         true
     }

@@ -4,6 +4,38 @@
 <dict>
 	<key>AppifyHost</key>
 	<dict>
+		<key>AboutNotice</key>
+		<dict>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>LazyGit on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/jesseduffield/lazygit</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>ttyd on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/tsl0922/ttyd</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>git</string>
+					<key>URL</key>
+					<string>https://git-scm.com/</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>Git LFS</string>
+					<key>URL</key>
+					<string>https://git-lfs.com/</string>
+				</dict>
+			</array>
+			<key>Message</key>
+			<string>LazyGit opens .lazygit marker packages and shows lazygit for the marker's parent git repository in a local WebKit terminal.</string>
+		</dict>
 		<key>DocumentMode</key>
 		<string>folderMarker</string>
 		<key>DocumentKindEnvironmentValue</key>

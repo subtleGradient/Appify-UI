@@ -24,7 +24,12 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
+        XCTAssertEqual(config.aboutNotice?.links, [
+            AppifyHostAboutLink(title: "Example Project", url: "https://example.com"),
+            AppifyHostAboutLink(title: "Example License", url: "https://example.com/license"),
+        ])
         XCTAssertNil(config.firstLaunchHelp)
+        XCTAssertNil(config.sourceReference)
         XCTAssertEqual(config.serverDirectoryURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer")
         XCTAssertEqual(config.serverExecutableURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer/main.sh")
     }
@@ -70,6 +75,28 @@ final class AppifyHostCoreTests: XCTestCase {
 
         XCTAssertEqual(config.firstLaunchHelp?.url.absoluteString, "https://example.com/keybindings")
         XCTAssertEqual(config.firstLaunchHelp?.windowTitle, "Useful Keybindings")
+    }
+
+    func testLoadsSourceReferenceConfiguration() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["SourceReference"] = [
+            "RepositoryURL": "https://github.com/example/SketchPad",
+            "Commit": "abc123",
+            "AppPath": "SketchPad.app",
+            "SourceDirectory": "Contents/Resources/Runner",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/SketchPad.app")
+        )
+
+        XCTAssertEqual(config.sourceReference?.repositoryURL, "https://github.com/example/SketchPad")
+        XCTAssertEqual(config.sourceReference?.commit, "abc123")
+        XCTAssertEqual(config.sourceReference?.appPath, "SketchPad.app")
+        XCTAssertEqual(config.sourceReference?.sourceDirectory, "Contents/Resources/Runner")
     }
 
     func testRejectsInvalidFirstLaunchHelpURL() throws {
@@ -443,6 +470,12 @@ final class AppifyHostCoreTests: XCTestCase {
                     "Message": "Example host notice.",
                     "LinkTitle": "Example Project",
                     "LinkURL": "https://example.com",
+                    "Links": [
+                        [
+                            "Title": "Example License",
+                            "URL": "https://example.com/license",
+                        ],
+                    ],
                 ],
             ],
         ]

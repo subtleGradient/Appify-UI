@@ -8,6 +8,10 @@
 		<data>
 		twRq4RRhfEgD+FQ2wmKo8PcBomQ=
 		</data>
+		<key>Resources/Runner/README.md</key>
+		<data>
+		EwsuYXwNqHgQkSuDbFR/kVOdClg=
+		</data>
 		<key>Resources/Runner/package.json</key>
 		<data>
 		WSg0O5UTDVSUOTFSoEKWPgKt2I0=
@@ -86,6 +90,13 @@
 			<key>hash2</key>
 			<data>
 			9mJFspi7AQVnG8DnS3p26Em7OtbuDRBbb0W2uQXOcWw=
+			</data>
+		</dict>
+		<key>Resources/Runner/README.md</key>
+		<dict>
+			<key>hash2</key>
+			<data>
+			XPuH5uk0z8gPOo7HQilzkhxcGIlfqNNNKGEPXscxjRo=
 			</data>
 		</dict>
 		<key>Resources/Runner/package.json</key>

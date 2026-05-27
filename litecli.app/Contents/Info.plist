@@ -4,6 +4,26 @@
 <dict>
 	<key>AppifyHost</key>
 	<dict>
+		<key>AboutNotice</key>
+		<dict>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>litecli on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/dbcli/litecli</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>ttyd on GitHub</string>
+					<key>URL</key>
+					<string>https://github.com/tsl0922/ttyd</string>
+				</dict>
+			</array>
+			<key>Message</key>
+			<string>litecli opens SQLite databases read-only and shows litecli in a local WebKit terminal.</string>
+		</dict>
 		<key>DocumentKindEnvironmentValue</key>
 		<string>com.subtlegradient.litecli.sqlite</string>
 		<key>DocumentMode</key>

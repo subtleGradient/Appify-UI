@@ -4,6 +4,26 @@
 <dict>
 	<key>AppifyHost</key>
 	<dict>
+		<key>AboutNotice</key>
+		<dict>
+			<key>Links</key>
+			<array>
+				<dict>
+					<key>Title</key>
+					<string>Bun</string>
+					<key>URL</key>
+					<string>https://bun.sh/</string>
+				</dict>
+				<dict>
+					<key>Title</key>
+					<string>HTML forms on MDN</string>
+					<key>URL</key>
+					<string>https://developer.mozilla.org/en-US/docs/Web/HTML/Element/form</string>
+				</dict>
+			</array>
+			<key>Message</key>
+			<string>WebFormer opens single-file .webform HTML documents, injects save affordances, and writes form edits back into the source file.</string>
+		</dict>
 		<key>DocumentKindEnvironmentValue</key>
 		<string>com.subtlegradient.webform</string>
 		<key>DocumentMode</key>
