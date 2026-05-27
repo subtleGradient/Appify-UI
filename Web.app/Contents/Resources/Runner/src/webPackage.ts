@@ -1123,26 +1123,31 @@ export async function buildHtmlRoutes(
   const aliasTargets = preferredDirectoryAliasTargets(rootPath, htmlPages);
   const routeBasePath = options.routeBasePath ?? "/";
 
+  const registerPageRoute = (pagePath: string, routeValue: unknown) => {
+    routes[routePathWithBase(routeBasePath, routePathFor(rootPath, pagePath))] = routeValue;
+
+    const alias = directoryAliasForIndex(rootPath, pagePath);
+    if (alias !== null && aliasTargets.get(alias) === pagePath) {
+      routes[routePathWithBase(routeBasePath, alias)] = routeValue;
+    }
+    if (rootEntry === pagePath) {
+      routes[directoryRouteBasePath(routeBasePath)] = routeValue;
+    }
+  };
+
   for (const pagePath of htmlPages) {
+    const renderOptions = {
+      liveReload: hmrEnabled,
+      localStoragePersistence: options.localStoragePersistence,
+      controlBasePath: options.controlBasePath,
+      controlToken: options.controlToken,
+    };
     try {
       const htmlImport = (await import(pathToFileURL(pagePath).href)).default;
-      const routeValue = htmlRouteValue(pagePath, htmlImport, {
-        liveReload: hmrEnabled,
-        localStoragePersistence: options.localStoragePersistence,
-        controlBasePath: options.controlBasePath,
-        controlToken: options.controlToken,
-      });
-      routes[routePathWithBase(routeBasePath, routePathFor(rootPath, pagePath))] = routeValue;
-
-      const alias = directoryAliasForIndex(rootPath, pagePath);
-      if (alias !== null && aliasTargets.get(alias) === pagePath) {
-        routes[routePathWithBase(routeBasePath, alias)] = routeValue;
-      }
-      if (rootEntry === pagePath) {
-        routes[directoryRouteBasePath(routeBasePath)] = routeValue;
-      }
+      registerPageRoute(pagePath, htmlRouteValue(pagePath, htmlImport, renderOptions));
     } catch (error) {
       console.error(`Could not register ${pagePath} as a Bun HTML route:`, error);
+      registerPageRoute(pagePath, htmlRouteValue(pagePath, "", renderOptions));
     }
   }
 

@@ -1,6 +1,7 @@
 import AppKit
 import AppifyHostCore
 import Darwin
+import Network
 import WebKit
 
 final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NSWindowDelegate {
@@ -210,6 +211,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private var stdoutBuffer = ""
     private var activeDocumentURL: URL?
     private var activeReadyURL: URL?
+    private var pendingBackendURL: URL?
+    private var activeBackendURL: URL?
     private var pendingDeepLinkRoute: String?
     private var didLoadServerURL = false
     private var isClosing = false
@@ -269,6 +272,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
     func showAndStart(documentURL: URL, initialRoute: String? = nil) {
         activeDocumentURL = resolvedDocumentURL(documentURL)
+        pendingBackendURL = nil
+        activeBackendURL = nil
         pendingDeepLinkRoute = initialRoute
         updateWindowDocumentIdentity()
         loadStatusPage(
@@ -566,6 +571,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         closeLog()
         stdoutBuffer.removeAll()
         activeReadyURL = nil
+        pendingBackendURL = nil
+        activeBackendURL = nil
         didLoadServerURL = false
 
         guard let activeDocumentURL else {
@@ -764,6 +771,16 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     private func handleServerLine(_ line: String) {
+        if let backendURL = AppifyHostOpenURL.extractBackend(from: line) {
+            do {
+                pendingBackendURL = try AppifyHostOpenURL.validateBackendURL(backendURL)
+            } catch {
+                showError(title: "Backend URL Was Rejected", message: String(describing: error))
+                stopServer()
+            }
+            return
+        }
+
         guard let openURL = AppifyHostOpenURL.extract(from: line) else {
             return
         }
@@ -778,6 +795,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
                 documentURL: activeDocumentURL,
                 bundleURL: configuration.bundleURL
             )
+            let backendURL = try pendingBackendURL.map(AppifyHostOpenURL.validateBackendURL)
             let loadURL = try AppifyHostOpenURL.readyURL(safeURL, routedTo: pendingDeepLinkRoute)
             guard AppifyHostOpenURL.isAllowedNavigation(
                 loadURL,
@@ -792,10 +810,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
             pendingDeepLinkRoute = nil
             activeReadyURL = safeURL
+            activeBackendURL = backendURL
             didLoadServerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
-            loadWebView(url: loadURL)
+            loadWebView(url: loadURL, visibleWebspaceURL: safeURL, backendServerURL: backendURL)
         } catch {
             showError(title: "Server URL Was Rejected", message: String(describing: error))
             stopServer()
@@ -962,12 +981,13 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         window?.contentView = container
     }
 
-    private func loadWebView(url: URL) {
+    private func loadWebView(url: URL, visibleWebspaceURL: URL, backendServerURL: URL?) {
         let webViewConfiguration = WKWebViewConfiguration()
         PrivateWebKitInspector.enableDeveloperExtras(for: webViewConfiguration.preferences)
-        if configuration.webViewDataStore == .nonPersistent {
-            webViewConfiguration.websiteDataStore = .nonPersistent()
-        }
+        webViewConfiguration.websiteDataStore = websiteDataStore(
+            visibleWebspaceURL: visibleWebspaceURL,
+            backendServerURL: backendServerURL
+        )
         webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
         if configuration.windowContentSizing == .automatic {
             let userContentController = WKUserContentController()
@@ -1000,6 +1020,46 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             window?.makeFirstResponder(webView)
         }
         webView.load(URLRequest(url: url))
+    }
+
+    private func websiteDataStore(visibleWebspaceURL: URL, backendServerURL: URL?) -> WKWebsiteDataStore {
+        let dataStore: WKWebsiteDataStore
+        if configuration.webViewDataStore == .nonPersistent {
+            dataStore = .nonPersistent()
+        } else if let identifier = AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: visibleWebspaceURL) {
+            dataStore = WKWebsiteDataStore(forIdentifier: identifier)
+        } else {
+            dataStore = .default()
+        }
+
+        routeVisibleOriginThroughBackend(
+            dataStore: dataStore,
+            visibleWebspaceURL: visibleWebspaceURL,
+            backendServerURL: backendServerURL
+        )
+        return dataStore
+    }
+
+    private func routeVisibleOriginThroughBackend(
+        dataStore: WKWebsiteDataStore,
+        visibleWebspaceURL: URL,
+        backendServerURL: URL?
+    ) {
+        guard let backendServerURL,
+              let visibleHost = visibleWebspaceURL.host(percentEncoded: false),
+              let backendHost = backendServerURL.host(percentEncoded: false),
+              let backendPort = backendServerURL.port,
+              let proxyPort = NWEndpoint.Port(rawValue: UInt16(backendPort))
+        else {
+            dataStore.proxyConfigurations = []
+            return
+        }
+
+        var proxy = ProxyConfiguration(httpCONNECTProxy: .hostPort(host: NWEndpoint.Host(backendHost), port: proxyPort))
+        proxy.matchDomains = [visibleHost]
+        proxy.allowFailover = false
+        dataStore.proxyConfigurations = [proxy]
+        writeLog("Routing visible origin \(visibleWebspaceURL.originDescription) through backend \(backendServerURL.originDescription)\n")
     }
 
     private var shouldWaitForInitialContentFit: Bool {
@@ -1739,6 +1799,20 @@ private func positiveCGFloat(_ value: Any?) -> CGFloat? {
     }
 
     return CGFloat(number)
+}
+
+private extension URL {
+    var originDescription: String {
+        guard let scheme,
+              let host
+        else {
+            return absoluteString
+        }
+        if let port {
+            return "\(scheme)://\(host):\(port)"
+        }
+        return "\(scheme)://\(host)"
+    }
 }
 
 private func webDocumentSaveError(_ message: String) -> NSError {

@@ -404,6 +404,34 @@ final class AppifyHostCoreTests: XCTestCase {
         )
     }
 
+    func testExtractsAndValidatesBackendURLs() throws {
+        let backendURL = try XCTUnwrap(AppifyHostOpenURL.extractBackend(from: "APPIFY_HOST_BACKEND_URL=http://127.0.0.1:49152/apps/dashboard.web/"))
+        XCTAssertEqual(try AppifyHostOpenURL.validateBackendURL(backendURL), backendURL)
+
+        XCTAssertThrowsError(try AppifyHostOpenURL.validateBackendURL(URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!))
+        XCTAssertThrowsError(try AppifyHostOpenURL.validateBackendURL(URL(string: "https://example.com/apps/dashboard.web/")!))
+    }
+
+    func testDerivesStableVisibleWebspaceDataStoreIdentifiers() throws {
+        let visibleA = URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!
+        let visibleB = URL(string: "http://repo--a1b2c3d4.localhost:55555/other.web/")!
+        let differentOrigin = URL(string: "http://other--deadbeef.localhost:55555/apps/dashboard.web/")!
+        let backend = URL(string: "http://127.0.0.1:49152/apps/dashboard.web/")!
+
+        XCTAssertEqual(
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: visibleA),
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: visibleB)
+        )
+        XCTAssertNotEqual(
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: visibleA),
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: differentOrigin)
+        )
+        XCTAssertNotEqual(
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: visibleA),
+            AppifyHostOpenURL.visibleWebspaceDataStoreIdentifier(for: backend)
+        )
+    }
+
     func testParsesDeepLinks() throws {
         let deepLink = try AppifyHostDeepLink.parse(
             URL(string: "dotweb://open?document=/tmp/Site.web&route=%2Fdocs%2Findex.html%3Fq%3D1%23top")!,

@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 public struct AppifyHostConfiguration: Equatable, Sendable {
@@ -752,6 +753,7 @@ public enum ServerCommandBuilder {
 
 public enum AppifyHostOpenURL {
     public static let outputPrefix = "APPIFY_HOST_OPEN_URL="
+    public static let backendOutputPrefix = "APPIFY_HOST_BACKEND_URL="
 
     // For Web.app, a ready URL can be the WebKit-visible stable origin
     // (*.localhost:55555). AppifyHost may route that origin to a separate
@@ -773,6 +775,15 @@ public enum AppifyHostOpenURL {
         return nil
     }
 
+    public static func extractBackend(from line: String) -> URL? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix(backendOutputPrefix) {
+            return URL(string: String(trimmed.dropFirst(backendOutputPrefix.count)))
+        }
+
+        return nil
+    }
+
     public static func validateReadyURL(_ url: URL, documentURL: URL, bundleURL: URL) throws -> URL {
         guard let scheme = url.scheme?.lowercased() else {
             throw AppifyHostError.invalidOpenURL("URL has no scheme.")
@@ -787,6 +798,38 @@ public enum AppifyHostOpenURL {
         default:
             throw AppifyHostError.invalidOpenURL("Unsupported URL scheme: \(scheme).")
         }
+    }
+
+    public static func validateBackendURL(_ url: URL) throws -> URL {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            throw AppifyHostError.invalidOpenURL("Backend URLs must be HTTP(S) loopback URLs.")
+        }
+        try validateLoopbackBackendURL(url)
+        return url
+    }
+
+    public static func visibleWebspaceDataStoreIdentifier(for url: URL) -> UUID? {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = url.host(percentEncoded: false)?.lowercased()
+        else {
+            return nil
+        }
+
+        let port = url.port ?? (scheme == "https" ? 443 : 80)
+        let origin = "\(scheme)://\(host):\(port)"
+        let digest = SHA256.hash(data: Data(origin.utf8))
+        var bytes = Array(digest.prefix(16))
+        bytes[6] = (bytes[6] & 0x0f) | 0x50
+        bytes[8] = (bytes[8] & 0x3f) | 0x80
+        return UUID(uuid: (
+            bytes[0], bytes[1], bytes[2], bytes[3],
+            bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11],
+            bytes[12], bytes[13], bytes[14], bytes[15]
+        ))
     }
 
     public static func readyURL(_ readyURL: URL, routedTo route: String?) throws -> URL {
@@ -924,6 +967,20 @@ public enum AppifyHostOpenURL {
         }
     }
 
+    private static func validateLoopbackBackendURL(_ url: URL) throws {
+        guard let host = url.host(percentEncoded: false)?.lowercased(),
+              isRawLoopbackHost(host)
+        else {
+            throw AppifyHostError.invalidOpenURL("Backend URLs must point at localhost or raw loopback.")
+        }
+        if url.user != nil || url.password != nil {
+            throw AppifyHostError.invalidOpenURL("Credentials must not be embedded in the backend URL.")
+        }
+        if hasUnsafePath(url) {
+            throw AppifyHostError.invalidOpenURL("Dot segments, encoded separators, and backslashes are not allowed in backend URL paths.")
+        }
+    }
+
     private static func isSameHTTPOrigin(_ url: URL, _ readyURL: URL) -> Bool {
         guard let scheme = url.scheme?.lowercased(),
               scheme == "http" || scheme == "https"
@@ -939,6 +996,13 @@ public enum AppifyHostOpenURL {
     private static func isLocalhostHost(_ host: String) -> Bool {
         host == "localhost"
             || host.hasSuffix(".localhost")
+            || host == "127.0.0.1"
+            || host == "::1"
+            || host == "0:0:0:0:0:0:0:1"
+    }
+
+    private static func isRawLoopbackHost(_ host: String) -> Bool {
+        host == "localhost"
             || host == "127.0.0.1"
             || host == "::1"
             || host == "0:0:0:0:0:0:0:1"

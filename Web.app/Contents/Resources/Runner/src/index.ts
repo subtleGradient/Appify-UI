@@ -12,7 +12,6 @@ import {
   readFileResponse,
   renderMarkdownResponse,
   createPostedRequestPayload,
-  defaultStableWebSpacePort,
   resolveDocumentPath,
   resolveWebSpaceLocalStorageFilePath,
   resolveServerPort,
@@ -65,9 +64,7 @@ if (hmrEnabled) {
 
 const server = Bun.serve({
   hostname: "127.0.0.1",
-  // Temporary direct-bind fallback. The stable design is AppifyHost mapping the
-  // visible *.localhost:55555 origin to an ephemeral private Runner port.
-  port: await resolveServerPort(process.env.PORT ?? String(defaultStableWebSpacePort())),
+  port: await resolveServerPort(process.env.PORT ?? "0"),
   idleTimeout: 0,
   routes,
   development: hmrEnabled && {
@@ -158,7 +155,8 @@ const server = Bun.serve({
 });
 
 console.log(`Web serving ${resolve(webspace.activeRootPath)} from ${resolve(webspace.webspaceRootPath)} (${webspace.webspaceKind})`);
-console.log(`APPIFY_HOST_OPEN_URL=${stableWebSpaceURL(webspace, server.port)}`);
+console.log(`APPIFY_HOST_BACKEND_URL=${new URL(webspace.activeBasePath, server.url).href}`);
+console.log(`APPIFY_HOST_OPEN_URL=${stableWebSpaceURL(webspace).href}`);
 
 function isPathInside(rootPath: string, candidatePath: string): boolean {
   const relativePath = candidatePath === rootPath ? "" : candidatePath.slice(rootPath.length);
