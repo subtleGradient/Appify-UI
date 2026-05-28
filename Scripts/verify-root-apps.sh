@@ -105,18 +105,22 @@ if [[ -n "$tracked_legacy" ]]; then
   fail "tracked unqualified AppifyHost artifacts are not allowed"
 fi
 
+tracked_x86_64="$(git -C "$ROOT" ls-files 'bin/appify-host-x86_64' 'bin/appify-host-x86_64.manifest.json')"
+if [[ -n "$tracked_x86_64" ]]; then
+  printf '%s\n' "$tracked_x86_64" >&2
+  fail "x86_64 AppifyHost artifacts should be built locally on x86_64 machines, not checked in"
+fi
+
 for legacy_path in "$ROOT/bin/appify-host" "$ROOT/bin/appify-host.manifest.json"; do
   [[ ! -e "$legacy_path" ]] || fail "unqualified AppifyHost artifact must not exist: ${legacy_path#$ROOT/}"
 done
 
-host_architectures=(arm64 x86_64)
-for architecture in "${host_architectures[@]}"; do
-  host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
-  problem="$(appify_host_artifact_problem "$ROOT" "$architecture" || true)"
-  if [[ -n "$problem" ]]; then
-    fail "$host_binary_relative is not current: $problem"
-  fi
-done
+architecture="$(appify_host_arch)"
+host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
+problem="$(appify_host_artifact_problem "$ROOT" "$architecture" || true)"
+if [[ -n "$problem" ]]; then
+  fail "$host_binary_relative is not current: $problem"
+fi
 
 for app in "${thin_apps[@]}"; do
   app_path="$ROOT/$app"

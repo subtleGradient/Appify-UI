@@ -3,3 +3,5 @@
 *.app.log
 .local/
 .build/
+bin/appify-host-x86_64
+bin/appify-host-x86_64.manifest.json

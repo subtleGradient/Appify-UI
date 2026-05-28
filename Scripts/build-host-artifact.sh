@@ -4,33 +4,11 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 source "$ROOT/Scripts/appify-host-lib.sh"
 
-usage() {
-  cat >&2 <<'USAGE'
-Usage: Scripts/build-host-artifact.sh [--arch arm64|x86_64] [--skip-tests]
-USAGE
-  exit 2
-}
+if [[ $# -ne 0 ]]; then
+  appify_fail "Usage: Scripts/build-host-artifact.sh"
+fi
 
-ARCHITECTURE=""
-RUN_TESTS=1
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --arch)
-      [[ $# -ge 2 ]] || usage
-      ARCHITECTURE="$2"
-      shift 2
-      ;;
-    --skip-tests)
-      RUN_TESTS=0
-      shift
-      ;;
-    *)
-      usage
-      ;;
-  esac
-done
-
-ARCHITECTURE="$(appify_host_arch "$ARCHITECTURE")"
+ARCHITECTURE="$(appify_host_arch)"
 SOURCE_DIR="$ROOT/source/AppifyHost"
 HOST_DIR="$ROOT/bin"
 HOST_BINARY_RELATIVE="$(appify_host_binary_relative_path "$ARCHITECTURE")"
@@ -41,9 +19,7 @@ BUILT_BINARY="$(appify_host_build_output_path "$SOURCE_DIR" release "$ARCHITECTU
 
 [[ -f "$SOURCE_DIR/Package.swift" ]] || appify_fail "Missing AppifyHost source at $SOURCE_DIR"
 
-if [[ "$RUN_TESTS" == "1" ]]; then
-  (cd "$SOURCE_DIR" && swift test --arch "$ARCHITECTURE")
-fi
+(cd "$SOURCE_DIR" && swift test --arch "$ARCHITECTURE")
 swift build --package-path "$SOURCE_DIR" -c release --product appify-host --arch "$ARCHITECTURE"
 [[ -x "$BUILT_BINARY" ]] || appify_fail "Swift build did not produce $BUILT_BINARY"
 

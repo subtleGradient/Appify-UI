@@ -30,9 +30,7 @@ The repo is intentionally object-first:
 ├── ideas.web/
 ├── bin/
 │   ├── appify-host-arm64
-│   ├── appify-host-arm64.manifest.json
-│   ├── appify-host-x86_64
-│   └── appify-host-x86_64.manifest.json
+│   └── appify-host-arm64.manifest.json
 ├── source/
 │   └── AppifyHost/
 ├── Scripts/
@@ -45,9 +43,10 @@ The rule is simple:
 - `*.app/` contains everything specific to that app: runtime payloads, app
   servers, runners, scripts, fixtures, docs, and developer tooling. Root apps
   are repo-bound thin apps; they delegate through a tiny launcher shim.
-- `bin/appify-host-$arch` files are the checked-in prebuilt host binaries used
-  so a cloned or downloaded repo can double-click root apps without Xcode
-  installed for that architecture.
+- `bin/appify-host-$arch` is the checked-in prebuilt host binary used so a
+  cloned or downloaded repo can double-click root apps without Xcode installed
+  for that architecture. The repo currently carries `arm64`; old `x86_64`
+  machines can build their own local artifact with `Scripts/build-host-artifact.sh`.
 - `source/AppifyHost/` contains the shared SwiftPM document host used by the app
   bundles. It is the only checked-in Swift source for the host.
 - Git history carries old experiments. The main tree stays clean.

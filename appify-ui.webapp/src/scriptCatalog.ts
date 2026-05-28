@@ -102,7 +102,7 @@ export function listRootScripts(repoRoot: string): ScriptCatalogEntry[] {
       id: "build-host-artifact",
       title: "Build Host Artifact",
       path: "Scripts/build-host-artifact.sh",
-      description: "Runs AppifyHost Swift tests, builds the release host for the selected architecture, and refreshes bin/appify-host-$arch.",
+      description: "Runs AppifyHost Swift tests, builds the release host for this machine, and refreshes bin/appify-host-$arch.",
       runnable: true,
       inputs: runnableNoInputFields,
     },
