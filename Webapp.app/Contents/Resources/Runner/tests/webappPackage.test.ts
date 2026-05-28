@@ -3,12 +3,16 @@ import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import {
   type CommandExecutor,
+  type ConnectTunnelStarter,
+  defaultStableWebappPort,
   ensureWebappPackage,
   firstLoopbackHTTPURL,
+  isStableOriginMappableBackendURL,
   resolveBunExecutable,
   resolveWebappDocumentPath,
   resolveWebappRunRoot,
   runWebappLifecycle,
+  stableWebappURL,
 } from "../src/webappPackage";
 
 let root: string;
@@ -117,17 +121,26 @@ describe("webapp lifecycle", () => {
     const executor: CommandExecutor = async (spec, onOutput) => {
       invocations.push(`${spec.phase}:${spec.command} ${spec.args.join(" ")}`);
       if (spec.phase === "dev") {
-        onOutput("stdout", "Local: http://localhost:4173/\n");
+        await onOutput("stdout", "Local: http://localhost:4173/\n");
       }
       return 0;
     };
 
     const stdout = createCaptureWriter();
-    const exitCode = await runWebappLifecycle(root, { executor, stdout });
+    const tunnel = createFakeTunnelStarter();
+    const exitCode = await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
+    const expectedOpenURL = stableWebappURL(root, new URL("http://localhost:4173/"));
 
     expect(exitCode).toBe(0);
     expect(invocations).toEqual(["install:bun install", "dev:bun dev"]);
-    expect(stdout.text).toContain("APPIFY_HOST_OPEN_URL=http://localhost:4173/");
+    expect(stdout.text).toContain("APPIFY_HOST_BACKEND_URL=http://localhost:4173/");
+    expect(stdout.text).toContain("APPIFY_HOST_PROXY_URL=http://127.0.0.1:49153/");
+    expect(stdout.text).toContain(`APPIFY_HOST_OPEN_URL=${expectedOpenURL.href}`);
+    expect(tunnel.calls.map((call) => [call.visibleOriginURL.href, call.backendURL.href])).toEqual([[
+      expectedOpenURL.href,
+      "http://localhost:4173/",
+    ]]);
+    expect(tunnel.closeCount).toBe(1);
   });
 
   test("failed bun install stops before dev and preserves the log", async () => {
@@ -135,7 +148,7 @@ describe("webapp lifecycle", () => {
     const invocations: string[] = [];
     const executor: CommandExecutor = async (spec, onOutput) => {
       invocations.push(spec.phase);
-      onOutput("stderr", "install failed\n");
+      await onOutput("stderr", "install failed\n");
       return 42;
     };
 
@@ -149,41 +162,64 @@ describe("webapp lifecycle", () => {
   test("tees stdout and stderr from install and dev into .local/dev.log", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const executor: CommandExecutor = async (spec, onOutput) => {
-      onOutput("stdout", `${spec.phase} stdout\n`);
-      onOutput("stderr", `${spec.phase} stderr\n`);
+      await onOutput("stdout", `${spec.phase} stdout\n`);
+      await onOutput("stderr", `${spec.phase} stderr\n`);
       if (spec.phase === "dev") {
-        onOutput("stdout", "http://127.0.0.1:3000/\n");
+        await onOutput("stdout", "http://127.0.0.1:3000/\n");
       }
       return 0;
     };
+    const tunnel = createFakeTunnelStarter();
 
-    await runWebappLifecycle(root, { executor, stderr: createCaptureWriter(), stdout: createCaptureWriter() });
+    await runWebappLifecycle(root, { executor, stderr: createCaptureWriter(), stdout: createCaptureWriter(), tunnelStarter: tunnel.starter });
     const log = await onlyLogText(root);
 
     expect(log).toContain("install stdout");
     expect(log).toContain("install stderr");
     expect(log).toContain("dev stdout");
     expect(log).toContain("dev stderr");
-    expect(log).toContain("APPIFY_HOST_OPEN_URL=http://127.0.0.1:3000/");
+    expect(log).toContain("APPIFY_HOST_BACKEND_URL=http://127.0.0.1:3000/");
+    expect(log).toContain(`APPIFY_HOST_OPEN_URL=${stableWebappURL(root, new URL("http://127.0.0.1:3000/")).href}`);
   });
 
   test("uses the first dev-phase loopback URL and ignores install-phase URLs", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const executor: CommandExecutor = async (spec, onOutput) => {
       if (spec.phase === "install") {
-        onOutput("stdout", "install docs http://127.0.0.1:9999/\n");
+        await onOutput("stdout", "install docs http://127.0.0.1:9999/\n");
       } else {
-        onOutput("stdout", "first http://localhost:1000/one\nsecond http://localhost:1001/two\n");
+        await onOutput("stdout", "first http://localhost:1000/one\nsecond http://localhost:1001/two\n");
       }
       return 0;
     };
     const stdout = createCaptureWriter();
+    const tunnel = createFakeTunnelStarter();
 
-    await runWebappLifecycle(root, { executor, stdout });
+    await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
 
-    expect(stdout.text).toContain("APPIFY_HOST_OPEN_URL=http://localhost:1000/one");
+    expect(stdout.text).toContain("APPIFY_HOST_BACKEND_URL=http://localhost:1000/one");
+    expect(stdout.text).toContain(`APPIFY_HOST_OPEN_URL=${stableWebappURL(root, new URL("http://localhost:1000/one")).href}`);
     expect(stdout.text).not.toContain("APPIFY_HOST_OPEN_URL=http://127.0.0.1:9999/");
-    expect(stdout.text).not.toContain("APPIFY_HOST_OPEN_URL=http://localhost:1001/two");
+    expect(stdout.text).not.toContain("APPIFY_HOST_BACKEND_URL=http://localhost:1001/two");
+    expect(tunnel.calls.length).toBe(1);
+  });
+
+  test("falls back to direct open URLs for loopback HTTPS dev servers", async () => {
+    await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
+    const executor: CommandExecutor = async (spec, onOutput) => {
+      if (spec.phase === "dev") {
+        await onOutput("stdout", "https://localhost:3443/\n");
+      }
+      return 0;
+    };
+    const stdout = createCaptureWriter();
+    const tunnel = createFakeTunnelStarter();
+
+    await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
+
+    expect(stdout.text).toContain("APPIFY_HOST_OPEN_URL=https://localhost:3443/");
+    expect(stdout.text).not.toContain("APPIFY_HOST_PROXY_URL=");
+    expect(tunnel.calls).toEqual([]);
   });
 });
 
@@ -192,6 +228,28 @@ describe("URL parsing", () => {
     expect(firstLoopbackHTTPURL("open http://localhost:3000/path")).toBe("http://localhost:3000/path");
     expect(firstLoopbackHTTPURL("open http://127.0.0.1:3000/path")).toBe("http://127.0.0.1:3000/path");
     expect(firstLoopbackHTTPURL("open https://example.com")).toBeNull();
+  });
+});
+
+describe("stable webapp origins", () => {
+  test("derives stable visible URLs from the package root while preserving dev-server paths", () => {
+    const backendURL = new URL("http://127.0.0.1:3000/workbench/?q=1#panel");
+    const visibleURL = stableWebappURL(root, backendURL);
+
+    expect(visibleURL.protocol).toBe("http:");
+    expect(visibleURL.hostname).toEndWith(".localhost");
+    expect(visibleURL.port).toBe(String(defaultStableWebappPort()));
+    expect(visibleURL.pathname).toBe("/workbench/");
+    expect(visibleURL.search).toBe("?q=1");
+    expect(visibleURL.hash).toBe("#panel");
+    expect(visibleURL.hostname).not.toBe(backendURL.hostname);
+  });
+
+  test("maps only HTTP loopback backend URLs through the stable-origin tunnel", () => {
+    expect(isStableOriginMappableBackendURL(new URL("http://localhost:3000/"))).toBe(true);
+    expect(isStableOriginMappableBackendURL(new URL("http://127.0.0.1:3000/"))).toBe(true);
+    expect(isStableOriginMappableBackendURL(new URL("https://localhost:3000/"))).toBe(false);
+    expect(isStableOriginMappableBackendURL(new URL("http://example.com:3000/"))).toBe(false);
   });
 });
 
@@ -212,6 +270,24 @@ function createCaptureWriter() {
 
 async function onlyLogText(documentPath: string): Promise<string> {
   return await readFile(join(documentPath, ".local", "dev.log"), "utf8");
+}
+
+function createFakeTunnelStarter() {
+  const calls: Array<{ visibleOriginURL: URL; backendURL: URL }> = [];
+  const result = {
+    calls,
+    closeCount: 0,
+    starter: (async (options) => {
+      calls.push(options);
+      return {
+        url: new URL("http://127.0.0.1:49153/"),
+        close: async () => {
+          result.closeCount += 1;
+        },
+      };
+    }) satisfies ConnectTunnelStarter,
+  };
+  return result;
 }
 
 function packageName(documentPath: string): string {

@@ -1,6 +1,8 @@
 import { appendFileSync, existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
+import { startVisibleOriginConnectTunnel, type VisibleOriginConnectTunnel } from "./connectTunnel";
 
 export type CommandPhase = "install" | "dev";
 export type OutputStreamName = "stdout" | "stderr";
@@ -14,7 +16,10 @@ export type CommandSpec = {
 };
 
 export type CommandExecutor = {
-  (spec: CommandSpec, onOutput: (stream: OutputStreamName, chunk: string | Uint8Array) => void): Promise<number>;
+  (
+    spec: CommandSpec,
+    onOutput: (stream: OutputStreamName, chunk: string | Uint8Array) => void | Promise<void>,
+  ): Promise<number>;
   stopAll?: (signal?: NodeJS.Signals) => void;
 };
 
@@ -32,11 +37,19 @@ export type RunWebappLifecycleOptions = {
   executor?: CommandExecutor;
   stderr?: OutputWriter;
   stdout?: OutputWriter;
+  stableOriginPort?: number;
+  tunnelStarter?: ConnectTunnelStarter;
 };
+
+export type ConnectTunnelStarter = (options: {
+  visibleOriginURL: URL;
+  backendURL: URL;
+}) => Promise<VisibleOriginConnectTunnel>;
 
 const STATIC_DEV_SERVER_PATH = ".local/webapp/dev-server.ts";
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0:0:0:0:0:0:0:1"]);
 const HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
+const DEFAULT_STABLE_WEBAPP_PORT = 55555;
 
 export async function resolveWebappDocumentPath(documentPath: string | undefined): Promise<string> {
   if (!documentPath) {
@@ -110,10 +123,42 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
   const executor = options.executor ?? createBunCommandExecutor(process.env);
   const stdout = options.stdout ?? process.stdout;
   const stderr = options.stderr ?? process.stderr;
+  const tunnelStarter = options.tunnelStarter ?? startVisibleOriginConnectTunnel;
+  const stableOriginPort = options.stableOriginPort ?? DEFAULT_STABLE_WEBAPP_PORT;
   let openURLWasEmitted = false;
   let devOutputBuffer = "";
+  let readyEmissionError: Error | null = null;
+  let activeTunnel: VisibleOriginConnectTunnel | null = null;
 
-  const tee = (phase: CommandPhase, stream: OutputStreamName, chunk: string | Uint8Array) => {
+  const writeBoth = (line: string) => {
+    appendFileSync(logPath, line);
+    stdout.write(line);
+  };
+
+  const writeError = (line: string) => {
+    appendFileSync(logPath, line);
+    stderr.write(line);
+  };
+
+  const emitReadyURL = async (backendURLText: string) => {
+    const backendURL = new URL(backendURLText);
+    if (!isStableOriginMappableBackendURL(backendURL)) {
+      writeBoth(`APPIFY_HOST_OPEN_URL=${backendURL.href}\n`);
+      return;
+    }
+
+    const visibleURL = stableWebappURL(documentPath, backendURL, stableOriginPort);
+    activeTunnel = await tunnelStarter({
+      visibleOriginURL: visibleURL,
+      backendURL,
+    });
+
+    writeBoth(`APPIFY_HOST_BACKEND_URL=${backendURL.href}\n`);
+    writeBoth(`APPIFY_HOST_PROXY_URL=${activeTunnel.url.href}\n`);
+    writeBoth(`APPIFY_HOST_OPEN_URL=${visibleURL.href}\n`);
+  };
+
+  const tee = async (phase: CommandPhase, stream: OutputStreamName, chunk: string | Uint8Array) => {
     const text = textFromChunk(chunk);
     appendFileSync(logPath, text);
     writerFor(stream, stdout, stderr).write(text);
@@ -132,9 +177,13 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
     }
 
     openURLWasEmitted = true;
-    const readyLine = `APPIFY_HOST_OPEN_URL=${openURL}\n`;
-    appendFileSync(logPath, readyLine);
-    stdout.write(readyLine);
+    try {
+      await emitReadyURL(openURL);
+    } catch (error) {
+      readyEmissionError = error instanceof Error ? error : new Error(String(error));
+      writeError(`Webapp could not prepare a stable local origin for ${openURL}: ${readyEmissionError.message}\n`);
+      executor.stopAll?.("SIGTERM");
+    }
   };
 
   const childEnv = childEnvironment(documentPath, logPath);
@@ -146,10 +195,19 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
     return installExitCode;
   }
 
-  return await executor(
+  const devExitCode = await executor(
     { phase: "dev", command: "bun", args: ["dev"], cwd: documentPath, env: childEnv },
     (stream, chunk) => tee("dev", stream, chunk),
   );
+
+  if (activeTunnel !== null) {
+    await activeTunnel.close().catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      writeError(`Webapp could not close its stable-origin tunnel cleanly: ${message}\n`);
+    });
+  }
+
+  return readyEmissionError === null ? devExitCode : 1;
 }
 
 export function createBunCommandExecutor(baseEnvironment: Record<string, string | undefined> = process.env): CommandExecutor {
@@ -191,6 +249,35 @@ export function createBunCommandExecutor(baseEnvironment: Record<string, string 
 
 export function resolveBunExecutable(environment: Record<string, string | undefined> = process.env): string {
   return environment.APPIFY_WEBAPP_BUN_PATH || process.execPath || "bun";
+}
+
+export function stableWebappHostname(documentPath: string): string {
+  const root = resolve(documentPath);
+  const rawName = basename(root, ".webapp").toLowerCase();
+  const safeName = rawName
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 48) || "webapp";
+  const rootHash = createHash("sha256").update(root).digest("hex").slice(0, 8);
+  return `${safeName}--${rootHash}.localhost`;
+}
+
+export function stableWebappURL(documentPath: string, backendURL: URL, port = DEFAULT_STABLE_WEBAPP_PORT): URL {
+  const visibleURL = new URL(backendURL.href);
+  visibleURL.protocol = "http:";
+  visibleURL.hostname = stableWebappHostname(documentPath);
+  visibleURL.port = String(port);
+  visibleURL.username = "";
+  visibleURL.password = "";
+  return visibleURL;
+}
+
+export function defaultStableWebappPort(): number {
+  return DEFAULT_STABLE_WEBAPP_PORT;
+}
+
+export function isStableOriginMappableBackendURL(url: URL): boolean {
+  return url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname.toLowerCase());
 }
 
 export async function findBestRootHtmlEntry(documentPath: string): Promise<string | null> {
@@ -449,7 +536,7 @@ function childEnvironment(documentPath: string, logPath: string): Record<string,
 
 async function pumpReadableStream(
   stream: ReadableStream<Uint8Array> | null,
-  onChunk: (chunk: Uint8Array) => void,
+  onChunk: (chunk: Uint8Array) => void | Promise<void>,
 ): Promise<void> {
   if (stream === null) {
     return;
@@ -461,7 +548,7 @@ async function pumpReadableStream(
     if (done) {
       return;
     }
-    onChunk(value);
+    await onChunk(value);
   }
 }
 
