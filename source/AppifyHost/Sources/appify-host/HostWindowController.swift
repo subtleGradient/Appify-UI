@@ -4,7 +4,9 @@ import Darwin
 import Network
 import WebKit
 
-final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NSWindowDelegate {
+final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUIDelegate, WKScriptMessageHandler, NSWindowDelegate, NSToolbarDelegate {
+    private static let toolbarIdentifier = NSToolbar.Identifier("AppifyHost.HostWindowToolbar")
+    private static let backForwardToolbarItemIdentifier = NSToolbarItem.Identifier("AppifyHost.BackForwardToolbarItem")
     private static let preferredContentSizeMessageName = "appifyPreferredContentSize"
     private static let preferredContentSizeScript = """
     (() => {
@@ -203,7 +205,17 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
     private let configuration: AppifyHostConfiguration
     private var hostDocument: AppifyHostDocument?
-    private var webView: WKWebView?
+    private var webView: WKWebView? {
+        didSet {
+            guard oldValue !== webView else {
+                return
+            }
+
+            observeWebViewNavigationState()
+        }
+    }
+    private var webViewNavigationObservations: [NSKeyValueObservation] = []
+    private var backForwardSegmentedControl: NSSegmentedControl?
     private var serverProcess: Process?
     private var stdoutPipe: Pipe?
     private var stderrPipe: Pipe?
@@ -247,6 +259,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         shouldCascadeWindows = true
         window.delegate = self
         self.document = document
+        configureToolbar()
         updateWindowDocumentIdentity()
         closeObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.willCloseNotification,
@@ -265,11 +278,92 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     deinit {
+        webViewNavigationObservations.forEach { $0.invalidate() }
         if let closeObserver {
             NotificationCenter.default.removeObserver(closeObserver)
         }
         stopServer()
         closeLog()
+    }
+
+    private func configureToolbar() {
+        guard let window else {
+            return
+        }
+
+        let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
+        toolbar.delegate = self
+        toolbar.displayMode = .iconOnly
+        toolbar.sizeMode = .regular
+        toolbar.allowsUserCustomization = false
+        toolbar.autosavesConfiguration = false
+
+        window.toolbarStyle = .unified
+        window.titleVisibility = .visible
+        window.toolbar = toolbar
+    }
+
+    func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [
+            Self.backForwardToolbarItemIdentifier,
+            .flexibleSpace,
+        ]
+    }
+
+    func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
+        [
+            Self.backForwardToolbarItemIdentifier,
+            .flexibleSpace,
+        ]
+    }
+
+    func toolbar(
+        _ toolbar: NSToolbar,
+        itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier,
+        willBeInsertedIntoToolbar flag: Bool
+    ) -> NSToolbarItem? {
+        guard itemIdentifier == Self.backForwardToolbarItemIdentifier else {
+            return nil
+        }
+
+        let backImage = NSImage(systemSymbolName: "chevron.left", accessibilityDescription: "Back") ?? NSImage()
+        let forwardImage = NSImage(systemSymbolName: "chevron.right", accessibilityDescription: "Forward") ?? NSImage()
+        let segmentedControl = NSSegmentedControl(
+            images: [backImage, forwardImage],
+            trackingMode: .momentary,
+            target: self,
+            action: #selector(backForwardSegmentedControlChanged(_:))
+        )
+        segmentedControl.segmentStyle = .texturedRounded
+        segmentedControl.setToolTip("Back", forSegment: 0)
+        segmentedControl.setToolTip("Forward", forSegment: 1)
+        segmentedControl.setWidth(32, forSegment: 0)
+        segmentedControl.setWidth(32, forSegment: 1)
+        segmentedControl.setAccessibilityLabel("Back and Forward")
+        segmentedControl.frame = NSRect(x: 0, y: 0, width: 70, height: 28)
+
+        let item = NSToolbarItem(itemIdentifier: itemIdentifier)
+        item.label = "Back/Forward"
+        item.paletteLabel = "Back/Forward"
+        item.toolTip = "Go Back or Forward"
+        item.view = segmentedControl
+
+        backForwardSegmentedControl = segmentedControl
+        updateNavigationChrome()
+        return item
+    }
+
+    @objc private func backForwardSegmentedControlChanged(_ sender: NSSegmentedControl) {
+        switch sender.selectedSegment {
+        case 0:
+            goBackInWebView()
+        case 1:
+            goForwardInWebView()
+        default:
+            break
+        }
+
+        sender.selectedSegment = -1
     }
 
     func showAndStart(documentURL: URL, initialRoute: String? = nil) {
@@ -314,6 +408,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             }
 
             webView.load(URLRequest(url: routedURL))
+            updateWindowRouteSubtitle(for: routedURL)
         } catch {
             showError(title: "Deep Link Was Rejected", message: String(describing: error))
             writeLog("WARN: deep link route rejected: \(String(describing: error))\n")
@@ -447,6 +542,89 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         }
 
         return obedientStandardFrame(in: window) ?? newFrame
+    }
+
+    private func observeWebViewNavigationState() {
+        webViewNavigationObservations.forEach { $0.invalidate() }
+        webViewNavigationObservations.removeAll()
+
+        guard let webView else {
+            updateNavigationChrome()
+            return
+        }
+
+        webViewNavigationObservations = [
+            webView.observe(\.canGoBack, options: [.initial, .new]) { [weak self] _, _ in
+                self?.scheduleNavigationChromeUpdate()
+            },
+            webView.observe(\.canGoForward, options: [.initial, .new]) { [weak self] _, _ in
+                self?.scheduleNavigationChromeUpdate()
+            },
+            webView.observe(\.url, options: [.initial, .new]) { [weak self] _, _ in
+                self?.scheduleNavigationChromeUpdate()
+            },
+        ]
+    }
+
+    private func scheduleNavigationChromeUpdate() {
+        if Thread.isMainThread {
+            updateNavigationChrome()
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.updateNavigationChrome()
+        }
+    }
+
+    private func updateNavigationChrome() {
+        updateBackForwardToolbarState()
+        updateWindowRouteSubtitle(for: webView?.url)
+    }
+
+    private func updateBackForwardToolbarState() {
+        backForwardSegmentedControl?.setEnabled(webView?.canGoBack == true, forSegment: 0)
+        backForwardSegmentedControl?.setEnabled(webView?.canGoForward == true, forSegment: 1)
+    }
+
+    private func updateWindowRouteSubtitle(for url: URL?) {
+        window?.subtitle = routeSubtitle(for: url)
+    }
+
+    private func routeSubtitle(for url: URL?) -> String {
+        guard let url,
+              let activeReadyURL,
+              sameLoopbackOrigin(url, activeReadyURL),
+              let routePath = routePath(for: url.path(percentEncoded: false), underReadyPath: activeReadyURL.path(percentEncoded: false))
+        else {
+            return ""
+        }
+
+        var subtitle = routePath
+        if let query = url.query(percentEncoded: true), !query.isEmpty {
+            subtitle += "?\(query)"
+        }
+        if let fragment = url.fragment(percentEncoded: true), !fragment.isEmpty {
+            subtitle += "#\(fragment)"
+        }
+        return subtitle
+    }
+
+    private func routePath(for currentPath: String, underReadyPath readyPath: String) -> String? {
+        let basePath = readyPath.hasSuffix("/") ? String(readyPath.dropLast()) : readyPath
+        guard !basePath.isEmpty, basePath != "/" else {
+            return currentPath.isEmpty ? "/" : currentPath
+        }
+
+        if currentPath == basePath || currentPath == "\(basePath)/" {
+            return "/"
+        }
+
+        guard currentPath.hasPrefix("\(basePath)/") else {
+            return nil
+        }
+
+        return String(currentPath.dropFirst(basePath.count))
     }
 
     private enum CloseValidationResult {
@@ -1047,6 +1225,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             window?.makeFirstResponder(webView)
         }
         webView.load(URLRequest(url: url))
+        updateWindowRouteSubtitle(for: url)
     }
 
     private func websiteDataStore(
@@ -1650,6 +1829,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         if !webView.isHidden {
             window?.makeFirstResponder(webView)
         }
+        updateNavigationChrome()
         requestPreferredContentSizeMeasurement(for: webView, reason: "didFinish")
         if configuration.windowContentSizing == .disabled {
             revealWebView(webView)
@@ -1664,6 +1844,34 @@ extension HostWindowController: AppifyHostWebViewReloading {
 
     func reloadWebView() {
         webView?.reload()
+    }
+}
+
+extension HostWindowController: AppifyHostWebViewNavigating {
+    var canGoBackInWebView: Bool {
+        webView?.canGoBack == true
+    }
+
+    var canGoForwardInWebView: Bool {
+        webView?.canGoForward == true
+    }
+
+    func goBackInWebView() {
+        guard webView?.canGoBack == true else {
+            return
+        }
+
+        webView?.goBack()
+        updateNavigationChrome()
+    }
+
+    func goForwardInWebView() {
+        guard webView?.canGoForward == true else {
+            return
+        }
+
+        webView?.goForward()
+        updateNavigationChrome()
     }
 }
 

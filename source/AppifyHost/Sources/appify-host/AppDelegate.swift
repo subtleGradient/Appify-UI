@@ -9,6 +9,14 @@ protocol AppifyHostWebViewReloading: AnyObject {
     func reloadWebView()
 }
 
+protocol AppifyHostWebViewNavigating: AnyObject {
+    var canGoBackInWebView: Bool { get }
+    var canGoForwardInWebView: Bool { get }
+
+    func goBackInWebView()
+    func goForwardInWebView()
+}
+
 protocol AppifyHostWebViewInspecting: AnyObject {
     var canOpenWebInspector: Bool { get }
 
@@ -156,6 +164,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     @MainActor
     @objc private func reloadWebViewFromMenu(_ sender: Any?) {
         currentWebViewReloadingController()?.reloadWebView()
+    }
+
+    @MainActor
+    @objc private func goBackInWebViewFromMenu(_ sender: Any?) {
+        currentWebViewNavigatingController()?.goBackInWebView()
+    }
+
+    @MainActor
+    @objc private func goForwardInWebViewFromMenu(_ sender: Any?) {
+        currentWebViewNavigatingController()?.goForwardInWebView()
     }
 
     @MainActor
@@ -503,6 +521,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: "View")
         viewMenuItem.submenu = viewMenu
+        let backItem = viewMenu.addItem(withTitle: "Back", action: #selector(goBackInWebViewFromMenu(_:)), keyEquivalent: "[")
+        backItem.target = self
+        let forwardItem = viewMenu.addItem(withTitle: "Forward", action: #selector(goForwardInWebViewFromMenu(_:)), keyEquivalent: "]")
+        forwardItem.target = self
+        viewMenu.addItem(.separator())
         let reloadItem = viewMenu.addItem(withTitle: "Reload", action: #selector(reloadWebViewFromMenu(_:)), keyEquivalent: "r")
         reloadItem.target = self
         viewMenu.addItem(.separator())
@@ -554,6 +577,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
 
     @MainActor
     func validateMenuItem(_ menuItem: NSMenuItem) -> Bool {
+        if menuItem.action == #selector(goBackInWebViewFromMenu(_:)) {
+            return currentWebViewNavigatingController()?.canGoBackInWebView == true
+        }
+
+        if menuItem.action == #selector(goForwardInWebViewFromMenu(_:)) {
+            return currentWebViewNavigatingController()?.canGoForwardInWebView == true
+        }
+
         if menuItem.action == #selector(reloadWebViewFromMenu(_:)) {
             return currentWebViewReloadingController()?.canReloadWebView == true
         }
@@ -572,6 +603,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         }
 
         return NSApp.mainWindow?.windowController as? AppifyHostWebViewReloading
+    }
+
+    @MainActor
+    private func currentWebViewNavigatingController() -> AppifyHostWebViewNavigating? {
+        if let controller = NSApp.keyWindow?.windowController as? AppifyHostWebViewNavigating {
+            return controller
+        }
+
+        return NSApp.mainWindow?.windowController as? AppifyHostWebViewNavigating
     }
 
     @MainActor
