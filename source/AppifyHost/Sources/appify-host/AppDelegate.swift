@@ -31,6 +31,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     private weak var openRecentMenu: NSMenu?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSWindow.allowsAutomaticWindowTabbing = true
+
         do {
             configuration = try AppifyHostRuntime.loadConfiguration()
         } catch {
@@ -550,6 +552,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         NSApp.windowsMenu = windowMenu
         windowMenu.addItem(withTitle: "Minimize", action: #selector(NSWindow.miniaturize(_:)), keyEquivalent: "m")
         windowMenu.addItem(withTitle: "Zoom", action: #selector(NSWindow.performZoom(_:)), keyEquivalent: "")
+        windowMenu.addItem(.separator())
+        windowMenu.addItem(withTitle: "Show Tab Bar", action: #selector(NSWindow.toggleTabBar(_:)), keyEquivalent: "")
+        let showPreviousTabItem = windowMenu.addItem(
+            withTitle: "Show Previous Tab",
+            action: #selector(NSWindow.selectPreviousTab(_:)),
+            keyEquivalent: "\t"
+        )
+        showPreviousTabItem.keyEquivalentModifierMask = [.control, .shift]
+        let showNextTabItem = windowMenu.addItem(
+            withTitle: "Show Next Tab",
+            action: #selector(NSWindow.selectNextTab(_:)),
+            keyEquivalent: "\t"
+        )
+        showNextTabItem.keyEquivalentModifierMask = [.control]
+        windowMenu.addItem(withTitle: "Move Tab to New Window", action: #selector(NSWindow.moveTabToNewWindow(_:)), keyEquivalent: "")
+        windowMenu.addItem(withTitle: "Merge All Windows", action: #selector(NSWindow.mergeAllWindows(_:)), keyEquivalent: "")
+        windowMenu.addItem(withTitle: "Show All Tabs", action: #selector(NSWindow.toggleTabOverview(_:)), keyEquivalent: "")
         windowMenu.addItem(.separator())
         windowMenu.addItem(withTitle: "Bring All to Front", action: #selector(NSApplication.arrangeInFront(_:)), keyEquivalent: "")
 

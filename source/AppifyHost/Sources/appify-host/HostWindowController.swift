@@ -259,6 +259,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         shouldCascadeWindows = true
         window.delegate = self
         self.document = document
+        configureWindowTabbing()
         configureToolbar()
         updateWindowDocumentIdentity()
         closeObserver = NotificationCenter.default.addObserver(
@@ -284,6 +285,15 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         }
         stopServer()
         closeLog()
+    }
+
+    private func configureWindowTabbing() {
+        guard let window else {
+            return
+        }
+
+        window.tabbingMode = .automatic
+        window.tabbingIdentifier = NSWindow.TabbingIdentifier(configuration.bundleIdentifier)
     }
 
     private func configureToolbar() {
