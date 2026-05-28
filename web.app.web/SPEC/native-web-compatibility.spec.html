@@ -84,6 +84,7 @@
           <li>For forms that can safely become GET-compatible state, the service worker should answer POST with a redirect to the static landing page plus query parameters.</li>
           <li>The landing page can synchronously read <code>new URLSearchParams(location.search)</code> during initial parsing, including from old <code>document.write</code> code.</li>
           <li>For non-GET-compatible bodies, the service worker should synthesize a <code>Response</code> or fetch a static shadow page and inject bundle-owned inert data such as <code>&lt;script type="application/json" id="posted-request"&gt;</code>.</li>
+          <li>Because service workers cannot use <code>localStorage</code>, Web.app should expose a same-origin service-worker persistence route that reuses the guarded file-key resolver for package-local JSON documents.</li>
           <li>Bundle code that handles modern navigation should feature-detect <code>navigation</code> and use <code>NavigateEvent.formData</code> for same-document form flows.</li>
           <li>Web.app should keep serving explicit fossil shadow aliases such as <code>/path/to/file.cgi</code> from <code>/path/to/file.cgi.html</code> as a fail-loud fallback when no service worker controls the route.</li>
         </ul>
@@ -144,8 +145,9 @@ document.write(posted.get("post[title]") || "Untitled post")</code></pre>
           <li>AppifyHost should load Web.app through stable localhost origins that satisfy secure-context requirements for service workers and other modern APIs.</li>
           <li>Web.app should serve worker scripts as ordinary JavaScript files, respect normal service worker scope rules, and avoid injecting page-only scripts into worker responses.</li>
           <li>A bundle-root <code>service-worker.js</code> controls its own <code>.web</code> path by default; broader webspace control requires a worker at the broader path, not a hidden host override.</li>
+          <li>The service-worker persistence route should not execute bundle code; it should only accept localStorage-shaped snapshots, resolve strict file keys against known writable <code>.web</code> roots, and preserve ordinary browser fallback options such as IndexedDB.</li>
           <li>Existing POST shadow injection may remain only as a migration fallback until examples are converted to service-worker-owned request handling.</li>
-          <li>The <code>2005-rails-weblog.web</code> fixture should register a service worker and use POST-to-303-to-query for its create/comment flows.</li>
+          <li>The <code>2005-rails-weblog.web</code> fixture should register a service worker, implement local REST routes for posts and comments, persist them to <code>weblog-store.json</code>, and use POST-to-303-to-query for HTML form affordances.</li>
           <li>All failures that matter to humans should be visible: console warning for progressive enhancement gaps, HTTP error page for unsupported server behavior, and in-page message for direct shadow-page opens.</li>
         </ul>
       </section>
@@ -155,7 +157,8 @@ document.write(posted.get("post[title]") || "Untitled post")</code></pre>
         <ul>
           <li><code>window.isSecureContext</code> is true for a Web.app <code>.web</code> bundle.</li>
           <li>A bundle can register <code>service-worker.js</code>; after activation, a form POST is observed by the worker as a native <code>Request</code>.</li>
-          <li>The Rails weblog example submits to <code>posts/create.cgi</code>, the service worker returns a 303 redirect, and <code>create.cgi.html</code> renders from <code>location.search</code> without Appify globals.</li>
+          <li>The Rails weblog example submits to <code>posts</code>, the service worker appends a record to <code>weblog-store.json</code>, returns a 303 redirect, and <code>create.cgi.html</code> renders from <code>location.search</code> without Appify globals.</li>
+          <li>The Rails weblog service worker can answer JSON <code>fetch</code> calls for <code>GET</code>, <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, and <code>DELETE</code> over post and comment resources.</li>
           <li>Feature-detected <code>NavigateEvent.formData</code> code runs where WebKit supports it and gracefully falls back where it does not.</li>
           <li><code>AppifyHost</code> and <code>__WEB_APP_REQUEST__</code> are absent from updated web-compat examples.</li>
           <li>A missing fossil shadow page fails with a loud HTTP error; an existing <code>.cgi.html</code> shadow page is served without executing server code.</li>

@@ -175,6 +175,7 @@ const BINARY_TYPES = new Map<string, string>([
 
 const LOCAL_DIRECTORY = ".local";
 const LOCAL_STORAGE_ROUTE = "/_web/persistence/local-storage";
+const SERVICE_WORKER_LOCAL_STORAGE_ROUTE = "/_web/persistence/service-worker-local-storage";
 const SKIPPED_DIRECTORIES = new Set([".git", LOCAL_DIRECTORY, "_web", "node_modules"]);
 const STORAGE_FILE_NAME = "storage.json5";
 // Visible-origin port only: WebKit should store site state against
@@ -1493,36 +1494,49 @@ export function createLocalStoragePersistenceRoutes(
 ): Record<string, unknown> {
   const resolvedWebspace = typeof webspace === "string" ? rootOnlyWebSpace(webspace) : webspace;
   const routePath = routePathWithBase(controlBasePath, LOCAL_STORAGE_ROUTE);
+  const serviceWorkerRoutePath = routePathWithBase(controlBasePath, SERVICE_WORKER_LOCAL_STORAGE_ROUTE);
   return {
-    [routePath]: {
-      async GET(request?: Request) {
-        try {
-          assertAllowedControlRequest(request, controlToken);
-          return Response.json(
-            await readLocalStorageSnapshot(storageFilePath, await localStoragePersistenceContext(resolvedWebspace, request)),
-            {
-              headers: {
-                "Cache-Control": "no-store",
-              },
+    [routePath]: localStoragePersistenceRouteValue(storageFilePath, resolvedWebspace, controlToken),
+    [serviceWorkerRoutePath]: localStoragePersistenceRouteValue(storageFilePath, resolvedWebspace),
+  };
+}
+
+function localStoragePersistenceRouteValue(
+  storageFilePath: string,
+  webspace: WebSpace,
+  controlToken?: string,
+): {
+  GET: (request?: Request) => Promise<Response>;
+  POST: (request: Request) => Promise<Response>;
+} {
+  return {
+    async GET(request?: Request) {
+      try {
+        assertAllowedControlRequest(request, controlToken);
+        return Response.json(
+          await readLocalStorageSnapshot(storageFilePath, await localStoragePersistenceContext(webspace, request)),
+          {
+            headers: {
+              "Cache-Control": "no-store",
             },
-          );
-        } catch (error) {
-          return new Response(String(error), { status: 500 });
-        }
-      },
-      async POST(request: Request) {
-        try {
-          assertAllowedControlRequest(request, controlToken);
-          await writeLocalStorageSnapshot(
-            storageFilePath,
-            await request.json(),
-            await localStoragePersistenceContext(resolvedWebspace, request),
-          );
-          return new Response(null, { status: 204 });
-        } catch (error) {
-          return new Response(String(error), { status: 400 });
-        }
-      },
+          },
+        );
+      } catch (error) {
+        return new Response(String(error), { status: 500 });
+      }
+    },
+    async POST(request: Request) {
+      try {
+        assertAllowedControlRequest(request, controlToken);
+        await writeLocalStorageSnapshot(
+          storageFilePath,
+          await request.json(),
+          await localStoragePersistenceContext(webspace, request),
+        );
+        return new Response(null, { status: 204 });
+      } catch (error) {
+        return new Response(String(error), { status: 400 });
+      }
     },
   };
 }

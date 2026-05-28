@@ -1,4 +1,9 @@
 (function () {
+  const scriptURL = document.currentScript && document.currentScript.src
+    ? new URL(document.currentScript.src)
+    : new URL("./app.js", location.href);
+  const bundleRootURL = new URL("./", scriptURL);
+
   const serviceWorkerReady = registerServiceWorker();
   installPostFormCompatibility(serviceWorkerReady);
 
@@ -13,7 +18,7 @@
   }
 
   function registerServiceWorker() {
-    if (!("serviceWorker" in navigator)) {
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) {
       return Promise.resolve(null);
     }
 
@@ -25,10 +30,30 @@
 
     return navigator.serviceWorker.register(scriptURL, { scope: scopeURL.pathname })
       .then(() => navigator.serviceWorker.ready)
+      .then((registration) => {
+        ensureServiceWorkerControl(registration);
+        return registration;
+      })
       .catch((error) => {
         console.warn("Rails weblog service worker registration failed; using query-string form fallback.", error);
         return null;
       });
+  }
+
+  function ensureServiceWorkerControl(registration) {
+    if (navigator.serviceWorker.controller || !registration || !registration.active) {
+      return;
+    }
+    try {
+      const reloadKey = "2005-rails-weblog.web:service-worker-reloaded";
+      if (sessionStorage.getItem(reloadKey) === "1") {
+        return;
+      }
+      sessionStorage.setItem(reloadKey, "1");
+      location.reload();
+    } catch {
+      // The submit handler still waits for controllerchange before falling back.
+    }
   }
 
   function installPostFormCompatibility(serviceWorkerReady) {
@@ -60,6 +85,7 @@
   }
 
   function installNavigationFormDataEnhancement() {
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) return;
     const appNavigation = window.navigation;
     if (!appNavigation || typeof appNavigation.addEventListener !== "function") return;
 
@@ -104,8 +130,7 @@
   }
 
   function isCompatPostPath(pathname) {
-    return pathname.endsWith("/posts/create.cgi")
-      || pathname.endsWith("/posts/1/comments/create.cgi");
+    return shadowPathForCompatPost(pathname) !== null;
   }
 
   function redirectFormToShadow(form) {
@@ -115,19 +140,25 @@
 
   function shadowURLFor(url, formData) {
     const target = new URL(url.href);
-    target.pathname = target.pathname + ".html";
-    target.search = new URLSearchParams(formData).toString();
+    const shadowPath = shadowPathForCompatPost(target.pathname);
+    const params = new URLSearchParams(formData);
+    params.set("_web_app_action", normalizedResourcePath(target.pathname));
+    target.pathname = shadowPath || target.pathname + ".html";
+    target.search = params.toString();
     target.hash = "";
     return target;
   }
 
   function requestFromLocation() {
     const params = new URLSearchParams(location.search);
+    const postedAction = params.get("_web_app_action") || location.pathname.replace(/\.html$/, "");
+    params.delete("_web_app_action");
+    params.delete("_web_app_persisted");
     const fields = Array.from(params.entries());
     return {
       method: fields.length > 0 ? "POST" : "GET",
-      action: location.pathname.replace(/\.html$/, ""),
-      path: location.pathname.replace(/\.html$/, ""),
+      action: postedAction,
+      path: postedAction,
       fields,
     };
   }
@@ -143,15 +174,6 @@
       panel.replaceChildren(textBlock("This is a static shadow page. Submit the matching form so the service worker can redirect here with URLSearchParams."));
       return;
     }
-
-    const summary = {
-      kind,
-      action: postedRequest.action || "",
-      path: postedRequest.path || "",
-      createdAt: new Date().toISOString(),
-      fields,
-    };
-    saveSubmission(summary);
 
     if (kind === "post") {
       const postTitle = fieldValue(fields, "post[title]") || "Untitled post";
@@ -185,8 +207,8 @@
     panel.replaceChildren(...fields.map(([name, value]) => detailRow(name, value)));
   }
 
-  function renderRecentSubmissions(list) {
-    const submissions = readSubmissions().slice(-5).reverse();
+  async function renderRecentSubmissions(list) {
+    const submissions = (await readSubmissions()).slice(-5).reverse();
     if (submissions.length === 0) {
       const item = document.createElement("li");
       item.textContent = "No local submissions yet.";
@@ -241,23 +263,73 @@
     return row;
   }
 
-  function saveSubmission(submission) {
+  async function readSubmissions() {
     try {
-      const submissions = readSubmissions();
-      submissions.push(submission);
-      localStorage.setItem("2005-rails-weblog.web:submissions", JSON.stringify(submissions.slice(-20)));
-    } catch (error) {
-      console.warn("Could not save local Rails weblog submission.", error);
-    }
-  }
-
-  function readSubmissions() {
-    try {
-      const raw = localStorage.getItem("2005-rails-weblog.web:submissions");
-      const parsed = raw ? JSON.parse(raw) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      const store = await readStore();
+      const postSubmissions = Array.isArray(store.posts) ? store.posts.map((post) => ({
+        kind: "post",
+        path: "/posts/" + post.id,
+        createdAt: post.createdAt || "",
+        fields: [
+          ["post[title]", post.title || "untitled post"],
+          ["post[author]", post.author || "anonymous"],
+        ],
+      })) : [];
+      const commentSubmissions = Array.isArray(store.comments) ? store.comments.map((comment) => ({
+        kind: "comment",
+        path: "/posts/" + comment.postId + "/comments/" + comment.id,
+        createdAt: comment.createdAt || "",
+        fields: [
+          ["comment[author]", comment.author || "anonymous"],
+          ["comment[body]", comment.body || ""],
+        ],
+      })) : [];
+      return [...postSubmissions, ...commentSubmissions].sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
     } catch {
       return [];
     }
+  }
+
+  async function readStore() {
+    const restResponse = await fetch(new URL("posts", bundleRootURL), {
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
+    });
+    if (restResponse.ok && (restResponse.headers.get("Content-Type") || "").includes("application/json")) {
+      const payload = await restResponse.json();
+      if (Array.isArray(payload.posts)) {
+        return { posts: payload.posts, comments: Array.isArray(payload.comments) ? payload.comments : [] };
+      }
+    }
+
+    const fileResponse = await fetch(new URL("weblog-store.json", bundleRootURL), {
+      headers: { "Accept": "application/json" },
+      cache: "no-store",
+    });
+    return fileResponse.ok ? await fileResponse.json() : { posts: [], comments: [] };
+  }
+
+  function shadowPathForCompatPost(pathname) {
+    const path = normalizedResourcePath(pathname);
+    if (path.endsWith("/posts/create.cgi")) {
+      return path + ".html";
+    }
+    const legacyComment = path.match(/^(.*\/posts\/[^/]+\/comments)\/create\.cgi$/);
+    if (legacyComment) {
+      return legacyComment[1] + "/create.cgi.html";
+    }
+    if (path.endsWith("/posts")) {
+      return path + "/create.cgi.html";
+    }
+    const comments = path.match(/^(.*\/posts\/[^/]+\/comments)$/);
+    if (comments) {
+      return comments[1] + "/create.cgi.html";
+    }
+    return null;
+  }
+
+  function normalizedResourcePath(pathname) {
+    const path = pathname.replace(/\/+$/, "");
+    return path || "/";
   }
 })();

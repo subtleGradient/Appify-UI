@@ -1002,6 +1002,32 @@ describe("localStorage persistence", () => {
     }));
     expect(invalidResponse.status).toBe(400);
   });
+
+  test("service worker persistence route can write package-local file keys", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const routes = createLocalStoragePersistenceRoutes(storageFilePath, root, "/", "page-token");
+    const route = routes["/_web/persistence/service-worker-local-storage"] as {
+      GET: (request?: Request) => Promise<Response>;
+      POST: (request: Request) => Promise<Response>;
+    };
+
+    const postResponse = await route.POST(new Request("http://127.0.0.1/_web/persistence/service-worker-local-storage?page=%2Fservice-worker.js", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        schema: 1,
+        entries: [["./weblog-store.json", "{\"posts\":[]}"]],
+        touchedKeys: ["./weblog-store.json"],
+      }),
+    }));
+
+    expect(postResponse.status).toBe(204);
+    expect(await readFile(join(root, "weblog-store.json"), "utf8")).toBe("{\"posts\":[]}");
+    expect(await (await route.GET(new Request("http://127.0.0.1/_web/persistence/service-worker-local-storage?page=%2Fservice-worker.js"))).json()).toEqual({
+      schema: 1,
+      entries: [["./weblog-store.json", "{\"posts\":[]}"]],
+    });
+  });
 });
 
 describe("rendering", () => {
@@ -1501,18 +1527,129 @@ describe("native web compatibility fixtures", () => {
     }
   });
 
-  test("Rails weblog fixture uses service-worker POST redirects and Navigation API detection", async () => {
+  test("Rails weblog fixture uses service-worker REST routes and Navigation API detection", async () => {
     const fixtureRoot = join(repoRoot, "examples", "web-compat", "2005-rails-weblog.web");
     const worker = await readFile(join(fixtureRoot, "service-worker.js"), "utf8");
     const app = await readFile(join(fixtureRoot, "app.js"), "utf8");
     const shadow = await readFile(join(fixtureRoot, "posts", "create.cgi.html"), "utf8");
+    const postForm = await readFile(join(fixtureRoot, "posts", "new.html"), "utf8");
+    const commentForm = await readFile(join(fixtureRoot, "posts", "1", "index.html"), "utf8");
+    const store = JSON.parse(await readFile(join(fixtureRoot, "weblog-store.json"), "utf8"));
 
-    expect(worker).toContain("event.request.method !== \"POST\"");
+    expect(worker).toContain("handleRESTRequest");
+    expect(worker).toContain("WEB_APP_STORAGE_ROUTE");
     expect(worker).toContain("request.clone().formData()");
     expect(worker).toContain("Response.redirect(url, 303)");
     expect(app).toContain("event.formData");
+    expect(app).toContain("shadowPathForCompatPost");
     expect(app).toContain("URLSearchParams(location.search)");
     expect(shadow).toContain("data-request-panel=\"post\"");
+    expect(postForm).toContain('action="../posts"');
+    expect(commentForm).toContain('action="./comments"');
+    expect(store.schema).toBe("appify.rails-weblog.v1");
+  });
+
+  test("Rails weblog service worker CRUDs REST post and comment resources", async () => {
+    const fixtureRoot = join(repoRoot, "examples", "web-compat", "2005-rails-weblog.web");
+    const worker = await readFile(join(fixtureRoot, "service-worker.js"), "utf8");
+    const seedStore = await readFile(join(fixtureRoot, "weblog-store.json"), "utf8");
+    const scope = "http://weblog.localhost/examples/web-compat/2005-rails-weblog.web/";
+    const storeKey = "/examples/web-compat/2005-rails-weblog.web/weblog-store.json";
+    const persisted = new Map<string, string>([[storeKey, seedStore]]);
+    const fakeFetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input));
+      if (url.pathname === "/_web/persistence/service-worker-local-storage") {
+        if ((init?.method || "GET").toUpperCase() === "POST") {
+          const body = JSON.parse(String(init?.body || "{}"));
+          for (const [key, value] of body.entries || []) {
+            persisted.set(key, value);
+          }
+          return new Response(null, { status: 204 });
+        }
+        return Response.json({ schema: 1, entries: [...persisted.entries()] });
+      }
+      if (url.pathname === storeKey) {
+        return new Response(seedStore, { headers: { "Content-Type": "application/json" } });
+      }
+      return new Response("not found", { status: 404 });
+    };
+    const workerAPI = new Function(
+      "self",
+      "URL",
+      "URLSearchParams",
+      "Response",
+      "fetch",
+      `${worker}\nreturn { routeForRequest, handleRESTRequest, storeFileKey };`,
+    )({
+      location: new URL(scope),
+      registration: { scope },
+    }, URL, URLSearchParams, Response, fakeFetch) as {
+      routeForRequest(request: Request): { kind: string } | null;
+      handleRESTRequest(request: Request, route: { kind: string }): Promise<Response>;
+      storeFileKey(): string;
+    };
+
+    expect(workerAPI.storeFileKey()).toBe(storeKey);
+    const postRequest = new Request(`${scope}posts`, {
+      method: "POST",
+      headers: {
+        "Accept": "text/html",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "post%5Btitle%5D=REST+post&post%5Bauthor%5D=reader",
+    });
+    const postResponse = await workerAPI.handleRESTRequest(postRequest, workerAPI.routeForRequest(postRequest)!);
+    const postLocation = new URL(postResponse.headers.get("Location") ?? "");
+    expect(postResponse.status).toBe(303);
+    expect(postLocation.pathname).toBe("/examples/web-compat/2005-rails-weblog.web/posts/create.cgi.html");
+    expect(postLocation.searchParams.get("_web_app_action")).toBe("/posts");
+    expect(postLocation.searchParams.get("_web_app_persisted")).toBe("1");
+    expect(postLocation.searchParams.get("post[title]")).toBe("REST post");
+    expect(JSON.parse(persisted.get(storeKey) ?? "{}").posts).toContainEqual(expect.objectContaining({
+      id: 3,
+      title: "REST post",
+      author: "reader",
+    }));
+
+    const commentRequest = new Request(`${scope}posts/1/comments`, {
+      method: "POST",
+      headers: {
+        "Accept": "text/html",
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: "comment%5Bpost_id%5D=1&comment%5Bauthor%5D=reader&comment%5Bbody%5D=Works",
+    });
+    const commentResponse = await workerAPI.handleRESTRequest(commentRequest, workerAPI.routeForRequest(commentRequest)!);
+    const commentLocation = new URL(commentResponse.headers.get("Location") ?? "");
+    expect(commentResponse.status).toBe(303);
+    expect(commentLocation.pathname).toBe("/examples/web-compat/2005-rails-weblog.web/posts/1/comments/create.cgi.html");
+    expect(commentLocation.searchParams.get("_web_app_action")).toBe("/posts/1/comments");
+    expect(commentLocation.searchParams.get("comment[body]")).toBe("Works");
+    expect(JSON.parse(persisted.get(storeKey) ?? "{}").comments).toContainEqual(expect.objectContaining({
+      id: 3,
+      postId: 1,
+      author: "reader",
+      body: "Works",
+    }));
+
+    const updateRequest = new Request(`${scope}posts/3`, {
+      method: "PUT",
+      headers: {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ "post[title]": "Updated REST post" }),
+    });
+    const updateResponse = await workerAPI.handleRESTRequest(updateRequest, workerAPI.routeForRequest(updateRequest)!);
+    expect((await updateResponse.json()).post.title).toBe("Updated REST post");
+
+    const deleteRequest = new Request(`${scope}posts/3`, {
+      method: "DELETE",
+      headers: { "Accept": "application/json" },
+    });
+    const deleteResponse = await workerAPI.handleRESTRequest(deleteRequest, workerAPI.routeForRequest(deleteRequest)!);
+    expect(await deleteResponse.json()).toEqual({ ok: true });
+    expect(JSON.parse(persisted.get(storeKey) ?? "{}").posts.some((post: { id: number }) => post.id === 3)).toBe(false);
   });
 });
 

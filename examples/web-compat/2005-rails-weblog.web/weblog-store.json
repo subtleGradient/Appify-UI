@@ -1,0 +1,47 @@
+{
+  "schema": "appify.rails-weblog.v1",
+  "nextPostId": 3,
+  "nextCommentId": 3,
+  "posts": [
+    {
+      "id": 1,
+      "title": "Hello from script/server",
+      "author": "david",
+      "category": "dispatches",
+      "body": "A tiny original weblog post wearing the clothes of a 2005 scaffold demo.",
+      "published": true,
+      "createdAt": "2005-07-24T12:00:00.000Z",
+      "updatedAt": "2005-07-24T12:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "title": "Prototype made me do it",
+      "author": "sam",
+      "category": "ajax",
+      "body": "A second static seed post for collection views and REST fetch probes.",
+      "published": true,
+      "createdAt": "2005-09-08T12:00:00.000Z",
+      "updatedAt": "2005-09-08T12:00:00.000Z"
+    }
+  ],
+  "comments": [
+    {
+      "id": 1,
+      "postId": 1,
+      "author": "matz-ish",
+      "body": "Convention is a kindness.",
+      "notify": false,
+      "createdAt": "2005-07-24T13:00:00.000Z",
+      "updatedAt": "2005-07-24T13:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "postId": 1,
+      "author": "prototype fan",
+      "body": "The yellow fade is implied.",
+      "notify": false,
+      "createdAt": "2005-07-24T13:05:00.000Z",
+      "updatedAt": "2005-07-24T13:05:00.000Z"
+    }
+  ]
+}
