@@ -78,21 +78,23 @@ function handleConnectClient(
 
     const header = buffered.subarray(0, headerEnd).toString("latin1");
     const remainder = buffered.subarray(headerEnd + 4);
-    const requestLine = header.split("\r\n", 1)[0] ?? "";
-    const match = /^CONNECT\s+([^\s]+)\s+HTTP\/1\.[01]$/i.exec(requestLine);
-    if (match === null) {
+    const request = parseProxyRequest(header, visibleAuthority);
+    if (request === null) {
       fail(405, "Method Not Allowed");
       return;
     }
 
-    const requestedAuthority = normalizeAuthority(match[1]);
-    if (requestedAuthority !== visibleAuthority) {
+    if (!request.allowed) {
       fail(403, "Forbidden");
       return;
     }
 
     const upstream = createConnection({ host: backendHost, port: backendPort }, () => {
-      client.write("HTTP/1.1 200 Connection Established\r\nConnection: keep-alive\r\n\r\n");
+      if (request.kind === "connect") {
+        client.write("HTTP/1.1 200 Connection Established\r\nConnection: keep-alive\r\n\r\n");
+      } else {
+        upstream.write(rewriteForwardProxyHeader(header, request.path, visibleAuthority));
+      }
       if (remainder.length > 0) {
         upstream.write(remainder);
       }
@@ -115,6 +117,83 @@ function handleConnectClient(
 
   client.on("error", () => {});
   client.on("data", onHeaderData);
+}
+
+type ParsedProxyRequest =
+  | { kind: "connect"; allowed: boolean }
+  | { kind: "forward"; allowed: boolean; path: string };
+
+function parseProxyRequest(header: string, visibleAuthority: string): ParsedProxyRequest | null {
+  const lines = header.split("\r\n");
+  const requestLine = lines[0] ?? "";
+  const match = /^([A-Z]+)\s+([^\s]+)\s+HTTP\/1\.[01]$/i.exec(requestLine);
+  if (match === null) {
+    return null;
+  }
+
+  const method = match[1]?.toUpperCase() ?? "";
+  const target = match[2] ?? "";
+  if (method === "CONNECT") {
+    return { kind: "connect", allowed: normalizeAuthority(target) === visibleAuthority };
+  }
+
+  if (target.startsWith("http://") || target.startsWith("https://")) {
+    try {
+      const url = new URL(target);
+      const authority = authorityFor(url);
+      const path = `${url.pathname || "/"}${url.search}`;
+      return { kind: "forward", allowed: authority === visibleAuthority, path };
+    } catch {
+      return null;
+    }
+  }
+
+  if (target.startsWith("/")) {
+    const host = headerValue(lines, "host");
+    return { kind: "forward", allowed: normalizeAuthority(host) === visibleAuthority, path: target };
+  }
+
+  return null;
+}
+
+function rewriteForwardProxyHeader(header: string, path: string, visibleAuthority: string): string {
+  const lines = header.split("\r\n");
+  const requestLine = lines[0] ?? "";
+  const requestMatch = /^([A-Z]+)\s+[^\s]+\s+(HTTP\/1\.[01])$/i.exec(requestLine);
+  const method = requestMatch?.[1] ?? "GET";
+  const version = requestMatch?.[2] ?? "HTTP/1.1";
+  const rewrittenLines = [`${method} ${path} ${version}`, `Host: ${visibleAuthority}`, "Connection: close"];
+
+  for (const line of lines.slice(1)) {
+    if (line === "") {
+      continue;
+    }
+    const separator = line.indexOf(":");
+    if (separator === -1) {
+      continue;
+    }
+    const name = line.slice(0, separator).trim().toLowerCase();
+    if (name === "host" || name === "connection" || name === "proxy-connection") {
+      continue;
+    }
+    rewrittenLines.push(line);
+  }
+
+  return `${rewrittenLines.join("\r\n")}\r\n\r\n`;
+}
+
+function headerValue(lines: string[], headerName: string): string | undefined {
+  const normalizedHeaderName = headerName.toLowerCase();
+  for (const line of lines.slice(1)) {
+    const separator = line.indexOf(":");
+    if (separator === -1) {
+      continue;
+    }
+    if (line.slice(0, separator).trim().toLowerCase() === normalizedHeaderName) {
+      return line.slice(separator + 1).trim();
+    }
+  }
+  return undefined;
 }
 
 function trackSocket(sockets: Set<Socket>, socket: Socket): void {

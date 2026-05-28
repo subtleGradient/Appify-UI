@@ -376,7 +376,7 @@ describe("web package resolution", () => {
     expect(backendServerURL.pathname).toBe(visibleWebspaceURL.pathname);
   });
 
-  test("stable webspace CONNECT tunnel uses an ephemeral port and preserves the visible host", async () => {
+  test("stable webspace tunnel uses an ephemeral port and preserves the visible host", async () => {
     const visibleWebspaceURL = new URL("http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/");
     const backendServer = Bun.serve({
       hostname: "127.0.0.1",
@@ -417,6 +417,34 @@ describe("web package resolution", () => {
       expect(response).toContain('"url":"http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/index.html?x=1"');
       expect(response).toContain('"host":"repo--a1b2c3d4.localhost:55555"');
 
+      const absoluteFormResponse = await rawTCPRequest(
+        tunnel.url,
+        [
+          `GET ${new URL("index.html?x=2", visibleWebspaceURL).href} HTTP/1.1`,
+          `Host: ${visibleWebspaceURL.host}`,
+          "Proxy-Connection: keep-alive",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      expect(absoluteFormResponse).toContain("HTTP/1.1 200 OK");
+      expect(absoluteFormResponse).toContain('"url":"http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/index.html?x=2"');
+      expect(absoluteFormResponse).toContain('"host":"repo--a1b2c3d4.localhost:55555"');
+
+      const originFormResponse = await rawTCPRequest(
+        tunnel.url,
+        [
+          "GET /apps/dashboard.web/index.html?x=3 HTTP/1.1",
+          `Host: ${visibleWebspaceURL.host}`,
+          "Proxy-Connection: keep-alive",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      expect(originFormResponse).toContain("HTTP/1.1 200 OK");
+      expect(originFormResponse).toContain('"url":"http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/index.html?x=3"');
+      expect(originFormResponse).toContain('"host":"repo--a1b2c3d4.localhost:55555"');
+
       const rejected = await rawTCPRequest(
         tunnel.url,
         [
@@ -427,6 +455,17 @@ describe("web package resolution", () => {
         ].join("\r\n"),
       );
       expect(rejected).toContain("HTTP/1.1 403 Forbidden");
+
+      const rejectedForward = await rawTCPRequest(
+        tunnel.url,
+        [
+          "GET http://other.localhost:55555/apps/dashboard.web/ HTTP/1.1",
+          "Host: other.localhost:55555",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      expect(rejectedForward).toContain("HTTP/1.1 403 Forbidden");
     } finally {
       await tunnel.close();
       backendServer.stop(true);
