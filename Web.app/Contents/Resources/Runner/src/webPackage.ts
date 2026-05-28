@@ -806,7 +806,7 @@ async function discoverWebFileMounts(
   const mounts: WebSpaceMount[] = [];
   async function walk(directory: string): Promise<void> {
     const entries = await readdir(directory, { withFileTypes: true }).catch((error) => {
-      if (isNotFoundError(error)) {
+      if (isIgnorableDirectoryReadError(error)) {
         return [];
       }
       throw error;
@@ -2210,6 +2210,14 @@ function isNotFoundError(error: unknown): boolean {
     && error !== null
     && "code" in error
     && (error as { code?: unknown }).code === "ENOENT";
+}
+
+function isIgnorableDirectoryReadError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+  const code = (error as { code?: unknown }).code;
+  return code === "ENOENT" || code === "EACCES" || code === "EPERM" || code === "ENOTDIR";
 }
 
 function routePathFor(rootPath: string, filePath: string): string {
