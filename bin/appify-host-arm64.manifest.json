@@ -4,7 +4,7 @@
   "configuration": "release",
   "source": "source/AppifyHost",
   "sourceHash": "9786ee5b65ebfd10d5ca440184d351b26db0019fef1e6f64902c9ea7441cc237",
-  "binary": "bin/appify-host",
-  "binaryHash": "0cf8863206c88647799e39ba7c46b7b71b9e9010d3d872568122364bd3e207fd",
+  "binary": "bin/appify-host-arm64",
+  "binaryHash": "5c955ba4c63d3f349cc247b5ce36d773763b712271bbda3cfd9e496ba939fb1c",
   "architecture": "arm64"
 }

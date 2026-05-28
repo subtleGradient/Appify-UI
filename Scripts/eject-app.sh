@@ -55,9 +55,12 @@ if [[ "$SOURCE_APP" == "$OUTPUT" ]]; then
   appify_fail "Output app must be different from source app."
 fi
 
-problem="$(appify_host_artifact_problem "$ROOT" || true)"
+ARCHITECTURE="$(appify_host_arch)"
+HOST_BINARY="$(appify_host_binary_path "$ROOT" "$ARCHITECTURE")"
+
+problem="$(appify_host_artifact_problem "$ROOT" "$ARCHITECTURE" || true)"
 if [[ -n "$problem" ]]; then
-  appify_fail "Cannot eject with stale host artifact: $problem. Run Scripts/build-host-artifact.sh first."
+  appify_fail "Cannot eject with stale host artifact for $ARCHITECTURE: $problem. Run Scripts/build-host-artifact.sh first."
 fi
 
 STAGING_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/appify-eject.XXXXXX")"
@@ -79,7 +82,7 @@ rm -rf \
   "$STAGED_APP/.gitignore"
 
 mkdir -p "$STAGED_APP/Contents/MacOS"
-cp "$ROOT/bin/appify-host" "$STAGED_APP/Contents/MacOS/appify-host"
+cp "$HOST_BINARY" "$STAGED_APP/Contents/MacOS/appify-host"
 chmod +x "$STAGED_APP/Contents/MacOS/appify-host"
 
 /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable appify-host" "$STAGED_APP/Contents/Info.plist"

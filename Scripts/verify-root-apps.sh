@@ -99,10 +99,24 @@ if [[ -n "$tracked_stale" ]]; then
   fail "tracked stale AppifyHost copies are not allowed"
 fi
 
-problem="$(appify_host_artifact_problem "$ROOT" || true)"
-if [[ -n "$problem" ]]; then
-  fail "bin/appify-host is not current: $problem"
+tracked_legacy="$(git -C "$ROOT" ls-files 'bin/appify-host' 'bin/appify-host.manifest.json')"
+if [[ -n "$tracked_legacy" ]]; then
+  printf '%s\n' "$tracked_legacy" >&2
+  fail "tracked unqualified AppifyHost artifacts are not allowed"
 fi
+
+for legacy_path in "$ROOT/bin/appify-host" "$ROOT/bin/appify-host.manifest.json"; do
+  [[ ! -e "$legacy_path" ]] || fail "unqualified AppifyHost artifact must not exist: ${legacy_path#$ROOT/}"
+done
+
+host_architectures=(arm64 x86_64)
+for architecture in "${host_architectures[@]}"; do
+  host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
+  problem="$(appify_host_artifact_problem "$ROOT" "$architecture" || true)"
+  if [[ -n "$problem" ]]; then
+    fail "$host_binary_relative is not current: $problem"
+  fi
+done
 
 for app in "${thin_apps[@]}"; do
   app_path="$ROOT/$app"

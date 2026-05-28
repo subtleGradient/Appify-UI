@@ -33,6 +33,57 @@ appify_app_name() {
   fi
 }
 
+appify_host_arch() {
+  local architecture="${1:-}"
+  if [[ -z "$architecture" ]]; then
+    architecture="${APPIFY_HOST_ARCH:-$(uname -m)}"
+  fi
+
+  case "$architecture" in
+    arm64|arm64e)
+      printf 'arm64\n'
+      ;;
+    x86_64|amd64|i386)
+      printf 'x86_64\n'
+      ;;
+    *)
+      printf '%s\n' "$architecture"
+      ;;
+  esac
+}
+
+appify_host_binary_relative_path() {
+  local architecture
+  architecture="$(appify_host_arch "${1:-}")"
+  printf 'bin/appify-host-%s\n' "$architecture"
+}
+
+appify_host_manifest_relative_path() {
+  local architecture
+  architecture="$(appify_host_arch "${1:-}")"
+  printf 'bin/appify-host-%s.manifest.json\n' "$architecture"
+}
+
+appify_host_binary_path() {
+  local root="$1"
+  local architecture="${2:-}"
+  printf '%s/%s\n' "$root" "$(appify_host_binary_relative_path "$architecture")"
+}
+
+appify_host_manifest_path() {
+  local root="$1"
+  local architecture="${2:-}"
+  printf '%s/%s\n' "$root" "$(appify_host_manifest_relative_path "$architecture")"
+}
+
+appify_host_build_output_path() {
+  local source_dir="$1"
+  local configuration="$2"
+  local architecture
+  architecture="$(appify_host_arch "${3:-}")"
+  printf '%s/.build/%s-apple-macosx/%s/appify-host\n' "$source_dir" "$architecture" "$configuration"
+}
+
 appify_source_hash() {
   local source_dir="$1"
 
@@ -72,10 +123,15 @@ appify_manifest_value() {
 
 appify_host_artifact_problem() {
   local root="$1"
+  local architecture
+  architecture="$(appify_host_arch "${2:-}")"
   local source_dir="$root/source/AppifyHost"
-  local host_binary="$root/bin/appify-host"
-  local manifest="$root/bin/appify-host.manifest.json"
-  local current_source_hash manifest_source_hash manifest_binary_hash actual_binary_hash
+  local host_binary_relative manifest_relative host_binary manifest
+  host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
+  manifest_relative="$(appify_host_manifest_relative_path "$architecture")"
+  host_binary="$root/$host_binary_relative"
+  manifest="$root/$manifest_relative"
+  local current_source_hash manifest_source_hash manifest_binary manifest_architecture manifest_binary_hash actual_binary_hash actual_architectures
 
   if [[ ! -f "$source_dir/Package.swift" ]]; then
     printf 'missing canonical source/AppifyHost/Package.swift\n'
@@ -83,12 +139,30 @@ appify_host_artifact_problem() {
   fi
 
   if [[ ! -x "$host_binary" ]]; then
-    printf 'missing executable bin/appify-host\n'
+    printf 'missing executable %s\n' "$host_binary_relative"
     return 1
   fi
 
   if [[ ! -f "$manifest" ]]; then
-    printf 'missing bin/appify-host.manifest.json\n'
+    printf 'missing %s\n' "$manifest_relative"
+    return 1
+  fi
+
+  manifest_binary="$(appify_manifest_value "$manifest" binary)"
+  if [[ "$manifest_binary" != "$host_binary_relative" ]]; then
+    printf 'manifest binary %s does not match expected %s\n' "$manifest_binary" "$host_binary_relative"
+    return 1
+  fi
+
+  manifest_architecture="$(appify_manifest_value "$manifest" architecture)"
+  if [[ "$manifest_architecture" != "$architecture" ]]; then
+    printf 'manifest architecture %s does not match current architecture %s\n' "$manifest_architecture" "$architecture"
+    return 1
+  fi
+
+  actual_architectures="$(lipo -archs "$host_binary" 2>/dev/null || true)"
+  if [[ " $actual_architectures " != *" $architecture "* ]]; then
+    printf '%s architectures %s do not include %s\n' "$host_binary_relative" "${actual_architectures:-unknown}" "$architecture"
     return 1
   fi
 
@@ -102,7 +176,7 @@ appify_host_artifact_problem() {
   manifest_binary_hash="$(appify_manifest_value "$manifest" binaryHash)"
   actual_binary_hash="$(appify_file_hash "$host_binary")"
   if [[ "$manifest_binary_hash" != "$actual_binary_hash" ]]; then
-    printf 'manifest binaryHash %s does not match bin/appify-host hash %s\n' "$manifest_binary_hash" "$actual_binary_hash"
+    printf 'manifest binaryHash %s does not match %s hash %s\n' "$manifest_binary_hash" "$host_binary_relative" "$actual_binary_hash"
     return 1
   fi
 
