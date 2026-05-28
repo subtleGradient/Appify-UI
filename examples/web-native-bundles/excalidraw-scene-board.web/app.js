@@ -100,7 +100,7 @@ function seedScene() {
   return {
     type: "excalidraw",
     version: 2,
-    source: "appify-ui/ideas.web/apps/web/excalidraw-scene-board.web",
+    source: "appify-ui/examples/web-native-bundles/excalidraw-scene-board.web",
     elements: templateElements(0),
     appState: {
       viewBackgroundColor: "#f8faf7",
@@ -142,7 +142,7 @@ function sceneDocument(elements, appState, files) {
   return normalizeScene({
     type: "excalidraw",
     version: 2,
-    source: "appify-ui/ideas.web/apps/web/excalidraw-scene-board.web",
+    source: "appify-ui/examples/web-native-bundles/excalidraw-scene-board.web",
     elements: Array.from(elements || []),
     appState: scrubAppState(appState),
     files: files || {},
@@ -154,7 +154,7 @@ function normalizeScene(value) {
   return {
     type: "excalidraw",
     version: Number(value.version) || 2,
-    source: typeof value.source === "string" ? value.source : "appify-ui/ideas.web/apps/web/excalidraw-scene-board.web",
+    source: typeof value.source === "string" ? value.source : "appify-ui/examples/web-native-bundles/excalidraw-scene-board.web",
     elements: Array.isArray(value.elements) ? value.elements : [],
     appState: scrubAppState(value.appState || {}),
     files: value.files && typeof value.files === "object" ? value.files : {},
