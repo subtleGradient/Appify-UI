@@ -1,19 +1,19 @@
-self.addEventListener("install", (event) => {
+self.oninstall = event => {
   event.waitUntil(self.skipWaiting());
-});
+};
 
-self.addEventListener("activate", (event) => {
+self.onactivate = event => {
   event.waitUntil(self.clients.claim());
-});
+};
 
-self.addEventListener("fetch", (event) => {
+self.onfetch = event => {
   const url = new URL(event.request.url);
   if (event.request.method !== "POST" || !isCompatPostPath(url.pathname)) {
     return;
   }
 
   event.respondWith(redirectPostToShadowPage(event.request));
-});
+};
 
 function isCompatPostPath(pathname) {
   return pathname.endsWith("/posts/create.cgi")
