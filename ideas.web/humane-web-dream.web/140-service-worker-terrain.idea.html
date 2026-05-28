@@ -1,0 +1,629 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Service Worker Terrain</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">humane-web-dream.web / exploratory idea / service workers / 2026-05-28</p>
+        <h1>Service Worker Terrain</h1>
+        <p class="lede">
+          Service workers are browser-managed, origin-scoped event runtimes. They can make a static
+          web bundle feel like a small local web appliance, but they also create durable browser
+          state that can outlive old deployments, old build systems, and old cleverness.
+        </p>
+      </header>
+
+      <nav aria-label="Page links">
+        <a href="000-start-here.html">start</a> /
+        <a href="100-portability.html">portability</a> /
+        <a href="110-uncertainties.html">uncertainties</a> /
+        <a href="120-next-probes.html">next probes</a> /
+        <a href="130-portable-web-trust.idea.html">portable web trust</a>
+      </nav>
+
+      <section aria-labelledby="stance" class="mark">
+        <h2 id="stance">Current Stance</h2>
+        <ul>
+          <li>Read service workers as local HTTP-shaped browser machinery, not as a hidden server.</li>
+          <li>Separate the durable registration from the active worker version and from the temporary JS runtime.</li>
+          <li>Assume old users may carry old registrations, old script URLs, old cache names, and old IndexedDB state.</li>
+          <li>For Web.app, service workers are powerful enough to deserve explicit terrain notes before they become invisible infrastructure.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="objects">
+        <h2 id="objects">Object Map</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Thing</th>
+              <th>Where It Lives</th>
+              <th>What It Means</th>
+              <th>What Can Go Wrong</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>scriptURL</code></td>
+              <td>Server URL such as <code>/sw.js</code>.</td>
+              <td>The canonical URL the browser fetches to install or update a worker version.</td>
+              <td>If that old URL later 404s, the browser may be unable to install a cleanup replacement.</td>
+            </tr>
+            <tr>
+              <td>Registration</td>
+              <td>Browser profile storage, keyed by storage partition, origin, and scope.</td>
+              <td>The durable mapping from scope URL to installing, waiting, and active worker versions.</td>
+              <td>It persists after tabs close and can survive many app releases.</td>
+            </tr>
+            <tr>
+              <td>Worker version</td>
+              <td>Registration slots: <code>installing</code>, <code>waiting</code>, <code>active</code>.</td>
+              <td>One installed incarnation of the worker script.</td>
+              <td>Old active and new installing/waiting versions can overlap and touch the same durable storage.</td>
+            </tr>
+            <tr>
+              <td>Runtime</td>
+              <td>A temporary <code>ServiceWorkerGlobalScope</code> JS universe.</td>
+              <td>The actual running heap and event loop created when events need delivery.</td>
+              <td>Globals are not durable. They vanish when the runtime is stopped and rebuild on the next wake.</td>
+            </tr>
+            <tr>
+              <td>Cache Storage / IndexedDB</td>
+              <td>Browser origin storage.</td>
+              <td>Durable data shared by worker versions and controlled pages.</td>
+              <td>Version races and old migrations can leave durable state newer or older than the active code expects.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="universes">
+        <h2 id="universes">Runtime Universes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Universe</th>
+              <th>Created By</th>
+              <th>DOM?</th>
+              <th>Main Crossing</th>
+              <th>Lifetime Shape</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>Window</code></td>
+              <td>Navigation, iframe, popup.</td>
+              <td>Yes.</td>
+              <td>DOM, same-origin direct access, <code>postMessage</code>.</td>
+              <td>Tied to the document.</td>
+            </tr>
+            <tr>
+              <td><code>DedicatedWorker</code></td>
+              <td><code>new Worker()</code>.</td>
+              <td>No.</td>
+              <td><code>postMessage</code>.</td>
+              <td>Tied to its owner.</td>
+            </tr>
+            <tr>
+              <td><code>SharedWorker</code></td>
+              <td><code>new SharedWorker()</code>.</td>
+              <td>No.</td>
+              <td><code>MessagePort</code>.</td>
+              <td>Shared by same-origin clients while ports remain connected.</td>
+            </tr>
+            <tr>
+              <td><code>ServiceWorker</code></td>
+              <td><code>navigator.serviceWorker.register()</code>.</td>
+              <td>No.</td>
+              <td><code>FetchEvent</code> first, <code>postMessage</code> second.</td>
+              <td>Browser-managed registration plus event-woken runtime.</td>
+            </tr>
+            <tr>
+              <td>Server</td>
+              <td>Outside the browser.</td>
+              <td>No browser DOM.</td>
+              <td>HTTP over a network socket.</td>
+              <td>A process you or a provider run.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="register">
+        <h2 id="register">What Register Means</h2>
+        <p>
+          <code>navigator.serviceWorker.register("/sw.js")</code> asks the browser to create or update
+          a registration for a scope. First time, the browser fetches the script, creates a
+          <code>ServiceWorkerGlobalScope</code>, evaluates top-level code, fires <code>install</code>,
+          then later <code>activate</code>. Later calls return the existing registration unless the
+          browser discovers that the worker script changed.
+        </p>
+        <pre><code>page calls register("/sw.js")
+  -> browser resolves script URL and scope
+  -> browser fetches /sw.js
+  -> browser evaluates top-level sw.js in ServiceWorkerGlobalScope
+  -> install event
+  -> waiting slot if old clients still exist
+  -> activate event
+  -> active slot controls matching future clients</code></pre>
+        <p>
+          MDN documents <a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register"><code>register()</code></a>
+          as creating or updating a service worker registration, and the
+          <a href="https://w3c.github.io/ServiceWorker/">Service Workers specification</a> defines the
+          registration, job, update, install, and activation algorithms.
+        </p>
+      </section>
+
+      <section aria-labelledby="scope">
+        <h2 id="scope">Script URL, Scope, And Header</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Piece</th>
+              <th>Meaning</th>
+              <th>Edge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>scriptURL</code></td>
+              <td>Where the browser gets the worker code.</td>
+              <td>Updates keep checking this exact URL, including old hashed or deep paths.</td>
+            </tr>
+            <tr>
+              <td>Default scope</td>
+              <td>The script URL's directory. <code>/a/b/sw.js</code> defaults to <code>/a/b/</code>.</td>
+              <td>Folder-like only because the default ends in a slash.</td>
+            </tr>
+            <tr>
+              <td>Explicit scope</td>
+              <td>A URL parsed relative to the registering page's base URL.</td>
+              <td><code>{ scope: "foo" }</code> from <code>/a/page.html</code> becomes roughly <code>/a/foo</code>, not relative to the worker script.</td>
+            </tr>
+            <tr>
+              <td><code>Service-Worker-Allowed</code></td>
+              <td>Response header on the worker script that broadens the maximum allowed scope.</td>
+              <td>A deep script cannot claim <code>/</code> unless its response permits it.</td>
+            </tr>
+          </tbody>
+        </table>
+        <pre><code>GET /old/deep/sw-2021.js
+Content-Type: text/javascript
+Service-Worker-Allowed: /
+
+// This deep script may now be registered for scope "/".</code></pre>
+        <p>
+          The header is documented at
+          <a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed">MDN Service-Worker-Allowed</a>.
+          It belongs to the worker script response, not the HTML page.
+        </p>
+      </section>
+
+      <section aria-labelledby="matching">
+        <h2 id="matching">Scope Matching</h2>
+        <p>
+          Scope matching is serialized URL prefix matching. If multiple registrations match one
+          client URL, the longest matching scope wins. This is not a nested layout cascade. Parent
+          and child service workers do not both run for the same page.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Stored Scope</th>
+              <th>Page URL</th>
+              <th>Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>https://site.test/</code></td>
+              <td><code>https://site.test/path/deep/page.html</code></td>
+              <td>Matches.</td>
+            </tr>
+            <tr>
+              <td><code>https://site.test/path/deep/</code></td>
+              <td><code>https://site.test/path/deep/page.html</code></td>
+              <td>Matches and beats root because it is longer.</td>
+            </tr>
+            <tr>
+              <td><code>https://site.test/app</code></td>
+              <td><code>https://site.test/apple</code></td>
+              <td>Can match because the serialized URL starts with <code>/app</code>.</td>
+            </tr>
+            <tr>
+              <td><code>https://site.test/page.html?v=1</code></td>
+              <td><code>https://site.test/page.html?v=123</code></td>
+              <td>Can match because <code>?v=123</code> starts with <code>?v=1</code>.</td>
+            </tr>
+            <tr>
+              <td><code>https://site.test/page.html?v=1</code></td>
+              <td><code>https://site.test/page.html?x=0&amp;v=1</code></td>
+              <td>Does not match because query order changes the serialized prefix.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="control">
+        <h2 id="control">Control Does Not Require Fetch Handling</h2>
+        <p>
+          A controlled page is a <code>Window</code> client associated with the active registration
+          selected by its URL. The worker can control a page even if it never registered a
+          <code>fetch</code> handler. In that case normal requests go through the normal network path,
+          but <code>navigator.serviceWorker.controller</code> can still exist and message the active
+          worker.
+        </p>
+        <pre><code>page URL is inside winning scope
+  + active worker version exists
+  + page was born under that registration
+  = navigator.serviceWorker.controller is non-null</code></pre>
+      </section>
+
+      <section aria-labelledby="fetch">
+        <h2 id="fetch">Fetch Crossing</h2>
+        <p>
+          A controlled page does ordinary web things: navigation, images, scripts, styles, forms,
+          <code>fetch()</code>, and XHR. The browser's fetch machinery may deliver those requests as
+          <code>FetchEvent</code> objects to the active service worker runtime.
+        </p>
+        <pre><code>controlled page makes Request
+  -> selected service worker receives FetchEvent
+  -> handler may call event.respondWith(responsePromise)
+  -> otherwise request proceeds on the normal path</code></pre>
+        <pre><code>/*
+  globalThis here is ServiceWorkerGlobalScope, not Window.
+  This assignment runs during top-level script evaluation.
+*/
+globalThis.onfetch = event =&gt; {
+  /*
+    event.request may represent navigation, CSS, JS, image, form, fetch(), or XHR.
+  */
+  if (event.request.mode !== "navigate") return;
+
+  /*
+    respondWith() is the point where this worker supplies the HTTP-shaped answer.
+  */
+  event.respondWith(fetch(event.request));
+};</code></pre>
+      </section>
+
+      <section aria-labelledby="move-zero">
+        <h2 id="move-zero">Move 0: Top-Level Script Evaluation</h2>
+        <p>
+          Before an event can be delivered, the browser must have a running service worker runtime.
+          If one is not already alive, the browser creates a fresh
+          <code>ServiceWorkerGlobalScope</code>, evaluates top-level <code>sw.js</code>, then dispatches
+          the waking event.
+        </p>
+        <pre><code>request needs worker
+  -> no runtime alive
+  -> create ServiceWorkerGlobalScope
+  -> evaluate sw.js top-level
+  -> var abc = doExpensiveThing()
+  -> globalThis.onfetch = handler
+  -> dispatch FetchEvent</code></pre>
+        <p>
+          Top-level work runs once per runtime start, not once forever and not necessarily once per
+          request. If the browser stops the runtime between events, top-level work runs again on the
+          next wake. A huge global object lives only in that temporary heap; durable data belongs in
+          IndexedDB, Cache Storage, or another storage surface.
+        </p>
+      </section>
+
+      <section aria-labelledby="lifecycle">
+        <h2 id="lifecycle">Lifecycle States</h2>
+        <pre><code>[new bytes found]
+  -> installing
+      -> install succeeds
+          -> waiting
+              -> old controlled clients go away, or skipWaiting()
+                  -> activating
+                      -> activated
+  -> install fails
+      -> redundant
+
+old active worker
+  -> remains active while new worker waits
+  -> becomes redundant after replacement</code></pre>
+        <table>
+          <thead>
+            <tr>
+              <th>State</th>
+              <th>Meaning</th>
+              <th>Edge</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>installing</code></td>
+              <td>New script version is being admitted.</td>
+              <td>If top-level evaluation or install lifetime work fails, the candidate is discarded.</td>
+            </tr>
+            <tr>
+              <td><code>waiting</code></td>
+              <td>New worker installed, but old active clients still exist.</td>
+              <td>This prevents a page from being half-controlled by old and new worker code by default.</td>
+            </tr>
+            <tr>
+              <td><code>active</code></td>
+              <td>The version that controls matching future clients.</td>
+              <td><code>active.state</code> does not prove the runtime is currently awake.</td>
+            </tr>
+            <tr>
+              <td><code>redundant</code></td>
+              <td>A version that has failed or been replaced.</td>
+              <td>Durable storage it wrote may remain.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="updates">
+        <h2 id="updates">Versioning And Updates</h2>
+        <p>
+          The browser's service-worker versioning is based on fetching the registration's
+          <code>scriptURL</code> and checking whether the script resources differ. Your own
+          <code>CACHE_VERSION</code> string is only application data unless the served worker bytes
+          actually change.
+        </p>
+        <table>
+          <thead>
+            <tr>
+              <th>Mechanic</th>
+              <th>What Happens</th>
+              <th>Failure Mode</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Same bytes</td>
+              <td>No new worker version installs.</td>
+              <td>Changing only cached assets does not update the worker brain.</td>
+            </tr>
+            <tr>
+              <td>Different bytes</td>
+              <td>New version enters <code>installing</code>.</td>
+              <td>New code may wait behind old controlled pages.</td>
+            </tr>
+            <tr>
+              <td><code>importScripts()</code></td>
+              <td>Imported scripts participate in update behavior, with cache use affected by <code>updateViaCache</code>.</td>
+              <td>A CDN-stale import can keep old logic alive or split populations.</td>
+            </tr>
+            <tr>
+              <td><code>updateViaCache</code></td>
+              <td>Controls whether HTTP cache is consulted for the main script and imports during update checks.</td>
+              <td><code>all</code> can make update checks more cache-shaped than expected.</td>
+            </tr>
+            <tr>
+              <td><code>skipWaiting()</code></td>
+              <td>Moves a newly installed worker past the waiting ledge.</td>
+              <td>Old page JS can suddenly speak to new worker logic.</td>
+            </tr>
+            <tr>
+              <td><code>clients.claim()</code></td>
+              <td>Active worker claims currently open in-scope clients.</td>
+              <td>Pages that were born uncontrolled can change controller mid-life.</td>
+            </tr>
+          </tbody>
+        </table>
+        <p>
+          See <a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/updateViaCache">MDN updateViaCache</a>
+          and the specification's update algorithm for the exact update-check surface.
+        </p>
+      </section>
+
+      <section aria-labelledby="overlap">
+        <h2 id="overlap">Overlapping Versions</h2>
+        <pre><code>active v1 handles current pages
+installing v2 runs top-level code and install event
+v1 and v2 have separate heaps
+v1 and v2 can both touch Cache Storage and IndexedDB
+v2 waits until old clients leave, unless skipWaiting() is called</code></pre>
+        <p>
+          This is the central race shape: separate JS universes, shared durable storage. The browser
+          serializes some lifecycle jobs, but it does not make application-level cache names, database
+          migrations, or old/new response formats coherent.
+        </p>
+      </section>
+
+      <section aria-labelledby="hyperslice">
+        <h2 id="hyperslice">Hyperslice Of Cute Failure Modes</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Razor</th>
+              <th>Half A</th>
+              <th>Half B</th>
+              <th>Over-Clever Failure</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Scope shape</td>
+              <td>Folder-like <code>/app/</code>.</td>
+              <td>Prefix-weird <code>/app</code>, <code>?v=1</code>.</td>
+              <td><code>/apple</code> or <code>?v=123</code> unexpectedly matches.</td>
+            </tr>
+            <tr>
+              <td>Scope depth</td>
+              <td>Root scope.</td>
+              <td>Nested scope.</td>
+              <td>Deepest matching registration wins, so root cleanup can miss deep registrations.</td>
+            </tr>
+            <tr>
+              <td>Script URL</td>
+              <td>Stable <code>/sw.js</code>.</td>
+              <td>Hashed, generated, or per-user URL.</td>
+              <td>Old users keep checking a dead old URL forever.</td>
+            </tr>
+            <tr>
+              <td>Response source</td>
+              <td>Network-first.</td>
+              <td>Cache-first app shell.</td>
+              <td>New cleanup JS never reaches the page because old HTML is served from cache.</td>
+            </tr>
+            <tr>
+              <td>Activation</td>
+              <td>Wait for old clients.</td>
+              <td><code>skipWaiting()</code>.</td>
+              <td>Mixed old page runtime with new worker responses.</td>
+            </tr>
+            <tr>
+              <td>Claiming</td>
+              <td>Next navigation only.</td>
+              <td><code>clients.claim()</code>.</td>
+              <td>Current open pages suddenly become controlled.</td>
+            </tr>
+            <tr>
+              <td>Storage ownership</td>
+              <td>One version writes.</td>
+              <td>Old and new versions both write.</td>
+              <td>Migrations, cache deletes, and response schemas race.</td>
+            </tr>
+            <tr>
+              <td>Fetch policy</td>
+              <td>Narrow routes.</td>
+              <td>Catch-all.</td>
+              <td>APIs, OAuth callbacks, logout, HTML, assets, and forms receive the same fallback.</td>
+            </tr>
+            <tr>
+              <td>Recovery path</td>
+              <td>Old script URL still served.</td>
+              <td>Old script URL gone.</td>
+              <td>The browser cannot fetch the cleanup replacement for that registration.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="inspection">
+        <h2 id="inspection">Inspection</h2>
+        <p>
+          From any fresh page that actually reaches new code, inspect the registration table for the
+          current origin and storage partition:
+        </p>
+        <pre><code>/*
+  getRegistrations() returns this origin's service worker registrations
+  visible to the current storage partition.
+*/
+navigator.serviceWorker.getRegistrations().then(registrations =&gt; {
+  console.table(registrations.map(registration =&gt; ({
+    scope: registration.scope,
+    installing: registration.installing &amp;&amp; registration.installing.scriptURL,
+    waiting: registration.waiting &amp;&amp; registration.waiting.scriptURL,
+    active: registration.active &amp;&amp; registration.active.scriptURL
+  })));
+});
+
+/*
+  controller is only the winning active worker for this page URL.
+*/
+console.log(navigator.serviceWorker.controller &amp;&amp; {
+  scriptURL: navigator.serviceWorker.controller.scriptURL,
+  state: navigator.serviceWorker.controller.state
+});</code></pre>
+        <p>
+          Chrome exposes registration status, source, start/stop, update, unregister, and bypass
+          controls under DevTools Application &gt; Service Workers. See
+          <a href="https://developer.chrome.com/docs/devtools/progressive-web-apps">Chrome DevTools PWA debugging</a>.
+        </p>
+      </section>
+
+      <section aria-labelledby="server-logs">
+        <h2 id="server-logs">Server Log Recovery Signals</h2>
+        <p>
+          If new page code cannot load because an old worker serves an old app shell, server logs may
+          be the only primitive mark. Watch for missing worker script requests:
+        </p>
+        <pre><code>GET /sw-2021.js                 404
+GET /assets/sw.abcd1234.js      404
+GET /old/pwa/service-worker.js  404
+GET /app/sw.js?v=17             404</code></pre>
+        <p>
+          Do not rely on visible redirects for worker-script recovery. The update fetch for the
+          top-level service worker script treats redirects as failure in the specification. Serve a
+          real JavaScript response at the exact old URL instead.
+        </p>
+      </section>
+
+      <section aria-labelledby="cleanup">
+        <h2 id="cleanup">Cleanup Worker Shape</h2>
+        <p>
+          For each old <code>scriptURL</code>, internally rewrite that exact URL to a cleanup worker
+          response. Keep the browser-visible URL unchanged.
+        </p>
+        <pre><code>HTTP/1.1 200 OK
+Content-Type: text/javascript; charset=utf-8
+Cache-Control: no-cache, no-store, must-revalidate
+Service-Worker-Allowed: /
+
+/*
+  This runs in ServiceWorkerGlobalScope, not Window.
+  It replaces an old worker at this exact scriptURL, then unregisters.
+*/
+globalThis.oninstall = event =&gt; {
+  /*
+    skipWaiting() moves this cleanup version past the waiting ledge.
+  */
+  globalThis.skipWaiting();
+};
+
+globalThis.onactivate = event =&gt; {
+  /*
+    unregister() removes this scope registration from browser storage.
+  */
+  event.waitUntil(globalThis.registration.unregister());
+};</code></pre>
+        <table>
+          <thead>
+            <tr>
+              <th>Server Response</th>
+              <th>Likely Result</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>200</code> valid JavaScript at old URL.</td>
+              <td>Browser can install cleanup replacement.</td>
+            </tr>
+            <tr>
+              <td><code>301</code> or <code>302</code>.</td>
+              <td>Update can fail because redirects are not accepted for the top-level worker script.</td>
+            </tr>
+            <tr>
+              <td>HTML fallback.</td>
+              <td>MIME check fails; old active worker may remain.</td>
+            </tr>
+            <tr>
+              <td><code>404</code>.</td>
+              <td>Update fails; old active worker may remain.</td>
+            </tr>
+            <tr>
+              <td>Missing broad enough <code>Service-Worker-Allowed</code>.</td>
+              <td>Broad old scopes may fail update with the cleanup script.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="references">
+        <h2 id="references">References</h2>
+        <ul>
+          <li><a href="https://w3c.github.io/ServiceWorker/">Service Workers specification</a>: lifecycle, registration, scope matching, update, redirects, and script checks.</li>
+          <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/Service_Worker_API/Using_Service_Workers">MDN: Using service workers</a>: install, activate, fetch, and lifecycle overview.</li>
+          <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerContainer/register">MDN: ServiceWorkerContainer.register()</a>: scope, script URL, and registration behavior.</li>
+          <li><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Service-Worker-Allowed">MDN: Service-Worker-Allowed</a>: broadening maximum scope.</li>
+          <li><a href="https://developer.mozilla.org/en-US/docs/Web/API/ServiceWorkerRegistration/updateViaCache">MDN: updateViaCache</a>: HTTP cache behavior during update checks.</li>
+          <li><a href="../../web.app.web/SPEC/native-web-compatibility.spec.html">Native Web Compatibility</a>: local Web.app compatibility surface that already names service workers, <code>Request</code>, and <code>Response</code>.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
