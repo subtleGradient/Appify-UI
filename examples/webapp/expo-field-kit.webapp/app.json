@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Expo Field Kit",
+    "slug": "expo-field-kit",
+    "version": "0.1.0",
+    "orientation": "default",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}

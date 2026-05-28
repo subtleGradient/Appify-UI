@@ -1,0 +1,17 @@
+{
+  "name": "appify-next-scenario-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev -H 127.0.0.1",
+    "build": "next build",
+    "start": "next start -H 127.0.0.1"
+  },
+  "dependencies": {
+    "lucide-react": "latest",
+    "next": "^16.1.5",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  }
+}

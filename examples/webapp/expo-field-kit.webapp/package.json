@@ -1,0 +1,20 @@
+{
+  "name": "appify-expo-field-kit",
+  "version": "0.1.0",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "dev": "expo start --web --localhost --port 8090",
+    "export:web": "expo export --platform web --output-dir dist"
+  },
+  "dependencies": {
+    "@expo/metro-runtime": "latest",
+    "expo": "~56.0.0",
+    "lucide-react-native": "latest",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.85.3",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "~0.21.0"
+  }
+}

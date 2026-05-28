@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>110 - Webapp Dev Sidebar</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 78rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 0.65rem; border-block-start: 1px solid color-mix(in oklch, CanvasText 12%, transparent); text-align: left; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 0.85rem; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">ideas.web/appdev / Webapp dev chrome / 2026-05-27</p>
+        <h1>Webapp Dev Sidebar</h1>
+        <p class="lede">
+          Expo proves that <code>.webapp</code> is not always a pure browser loop. Some package dev servers are also terminal UIs, so Webapp may eventually need a native split between lifecycle output and the rendered local URL.
+        </p>
+      </header>
+
+      <nav aria-label="Appdev idea notes">
+        <strong>Sequence:</strong>
+        <a href="000.idea.html">seed</a> /
+        <a href="100-web-bundle-composition.idea.html">web bundle composition</a>
+      </nav>
+
+      <section aria-labelledby="idea">
+        <h2 id="idea">Idea</h2>
+        <ul>
+          <li>Keep today's default: <code>Webapp.app</code> opens the first loopback URL printed by <code>bun dev</code>.</li>
+          <li>Add an optional macOS sidebar later, not a mandatory IDE shell.</li>
+          <li>The first sidebar should be a read-only lifecycle log backed by <code>.local/dev.log</code>.</li>
+          <li>Promote to an interactive terminal only for packages that prove it is necessary, such as Expo's Terminal UI commands.</li>
+          <li>Use standard macOS sidebar/window chrome so the live web view remains the primary document surface.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="shape">
+        <h2 id="shape">Possible Shape</h2>
+        <ul>
+          <li><code>Web</code>: the rendered stable-origin page.</li>
+          <li><code>Dev</code>: lifecycle log, install/dev status, ready URL, and restart button.</li>
+          <li><code>Terminal</code>: optional TTY view only when the package asks for it or Webapp detects a known TUI-heavy dev server.</li>
+          <li><code>Files</code>: defer. A file browser would pull Webapp toward IDE gravity too early.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="decision-golf">
+        <h2 id="decision-golf">Decision Golf</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Move</th>
+              <th>Calibration</th>
+              <th>Exposure</th>
+              <th>Reactivity</th>
+              <th>Ruin</th>
+              <th>Rigidity</th>
+              <th>Total</th>
+              <th>Read</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Add examples first and leave Webapp chrome alone.</td>
+              <td>-2</td>
+              <td>0</td>
+              <td>-2</td>
+              <td>-1</td>
+              <td>-1</td>
+              <td>-6</td>
+              <td>Best current move: prove where the friction repeats before adding host surface.</td>
+            </tr>
+            <tr>
+              <td>Add read-only log sidebar after examples prove the need.</td>
+              <td>-1</td>
+              <td>0</td>
+              <td>0</td>
+              <td>0</td>
+              <td>1</td>
+              <td>0</td>
+              <td>Solid: useful visibility without making Webapp an IDE.</td>
+            </tr>
+            <tr>
+              <td>Add an always-on interactive terminal next to every WebView.</td>
+              <td>1</td>
+              <td>1</td>
+              <td>1</td>
+              <td>2</td>
+              <td>3</td>
+              <td>8</td>
+              <td>Bad default: too much control surface and product gravity.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="thing-golf">
+        <h2 id="thing-golf">Thing Golf</h2>
+        <ul>
+          <li>Read-only log sidebar: Safety 0, Burden 1, Chaos 0, Betrayal -1, Control 0. The main value is honest lifecycle visibility.</li>
+          <li>Interactive TTY sidebar: Safety 1, Burden 2, Chaos 1, Betrayal 0, Control 2. Useful only if Expo-style terminal commands become common enough.</li>
+          <li>File explorer sidebar: Safety 1, Burden 2, Chaos 2, Betrayal 0, Control 3. Defer because it changes the app from document host to IDE shell.</li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="next">
+        <h2 id="next">Next Probe</h2>
+        <ul>
+          <li>Open the Expo example and inspect whether <code>.local/dev.log</code> is enough.</li>
+          <li>If not, prototype the smallest read-only sidebar against existing Webapp logs.</li>
+          <li>Do not add terminal input until a package needs actual TUI commands after launch.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
