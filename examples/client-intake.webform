@@ -16,7 +16,7 @@
 <textarea>Create a printable intake that survives plain file opening.</textarea>
 </label>
 
-<label><input type=checkbox checked> Ready for review</label>
+<label><input type=checkbox> Ready for review</label>
 
 <label>Risk level
 <select>
@@ -28,7 +28,7 @@
 
 <section contenteditable=true>
 <h2>Rich Notes</h2>
-<p>This editable area can hold structured WYSIWYG notes.</p>
+<p><b>This <i>editable</i></b> area can hold structured WYSIWYG notes.</p>
 </section>
 
 </fieldset>
