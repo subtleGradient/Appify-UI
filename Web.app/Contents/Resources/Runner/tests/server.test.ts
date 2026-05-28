@@ -870,6 +870,52 @@ describe("localStorage persistence", () => {
     });
   });
 
+  test("incremental writes do not remap untouched page-relative fallback keys", async () => {
+    const storageFilePath = await resolveLocalStorageFilePath(root);
+    const webspace = testWebSpace();
+    await mkdir(join(root, "examples", "web-native-bundles", "d3-force-lab.web"), { recursive: true });
+    await mkdir(join(root, "examples", "web-native-bundles", "excalidraw-scene-board.web"), { recursive: true });
+    await mkdir(dirname(storageFilePath), { recursive: true });
+    await writeFile(storageFilePath, `${JSON.stringify({
+      schema: 4,
+      entries: [
+        { key: "./graph.json", value: "GRAPH" },
+        { key: "theme", value: "dark" },
+      ],
+      files: [],
+    }, null, 2)}\n`);
+
+    await writeLocalStorageSnapshot(storageFilePath, {
+      schema: 1,
+      entries: [
+        ["./graph.json", "GRAPH"],
+        ["./scene.excalidraw", "SCENE"],
+        ["theme", "dark"],
+      ],
+      touchedKeys: ["./scene.excalidraw"],
+    }, {
+      webspace,
+      pagePath: "/examples/web-native-bundles/excalidraw-scene-board.web/index.html",
+    });
+
+    expect(existsSync(join(root, "examples", "web-native-bundles", "excalidraw-scene-board.web", "graph.json"))).toBe(false);
+    expect(await readFile(join(root, "examples", "web-native-bundles", "excalidraw-scene-board.web", "scene.excalidraw"), "utf8")).toBe("SCENE");
+    expect(JSON.parse(await readFile(storageFilePath, "utf8"))).toEqual({
+      schema: 4,
+      entries: [
+        { key: "./graph.json", value: "GRAPH" },
+        { key: "theme", value: "dark" },
+      ],
+      files: [
+        {
+          key: "./scene.excalidraw",
+          routePath: "/examples/web-native-bundles/excalidraw-scene-board.web/scene.excalidraw",
+          valueType: "text",
+        },
+      ],
+    });
+  });
+
   test("writes supported data URL files and falls back for unsupported data URLs", async () => {
     const storageFilePath = await resolveLocalStorageFilePath(root);
     const pngDataUrl = "data:image/png;base64,iVBORw==";
@@ -1179,7 +1225,9 @@ const x = 1;
     storage.clear();
     expect(storage.length).toBe(0);
     expect(requests).toContain("/_web/persistence/local-storage?page=%2Fstateful.html");
+    expect(requests.some((request) => request.includes('"touchedKeys"'))).toBe(true);
     expect(requests.at(-1)).toContain('"entries":[]');
+    expect(requests.at(-1)).toContain('"clear":true');
     expect(nativeCalls).toEqual([]);
     expect(fakeWindow.localStorage).not.toBe(nativeStorage);
   });

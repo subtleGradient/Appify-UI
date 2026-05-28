@@ -28,6 +28,8 @@ export type RenderOptions = {
 export type LocalStorageSnapshot = {
   schema: 1;
   entries: [string, string][];
+  touchedKeys?: string[];
+  clear?: boolean;
 };
 
 export type PostedRequestPayload = {
@@ -1354,6 +1356,11 @@ export async function writeLocalStorageSnapshot(
   context?: LocalStoragePersistenceContext,
 ): Promise<void> {
   const normalized = normalizeLocalStorageSnapshot(snapshot);
+  if (normalized.touchedKeys !== undefined || normalized.clear === true) {
+    await writeIncrementalLocalStorageSnapshot(storageFilePath, normalized, context);
+    return;
+  }
+
   const existing = await readLocalStorageDiskSnapshotIfExists(storageFilePath);
   const snapshotKeys = new Set(normalized.entries.map(([key]) => key));
   const touchedRoutePaths = new Set<string>();
@@ -1398,6 +1405,81 @@ export async function writeLocalStorageSnapshot(
 
   await mkdir(dirname(storageFilePath), { recursive: true });
   const diskSnapshot: LocalStorageDiskSnapshot = { schema: 4, entries, files: sortedLocalStorageFileEntries(files) };
+  const tempPath = `${storageFilePath}.${crypto.randomUUID()}.tmp`;
+  await writeFile(tempPath, `${JSON.stringify(diskSnapshot, null, 2)}\n`);
+  await rename(tempPath, storageFilePath);
+}
+
+async function writeIncrementalLocalStorageSnapshot(
+  storageFilePath: string,
+  snapshot: LocalStorageSnapshot,
+  context?: LocalStoragePersistenceContext,
+): Promise<void> {
+  const existing = await readLocalStorageDiskSnapshotIfExists(storageFilePath) ?? {
+    schema: 4 as const,
+    entries: [],
+    files: [],
+  };
+  const snapshotEntries = new Map(snapshot.entries);
+  const touchedKeys = new Set(snapshot.touchedKeys ?? snapshot.entries.map(([key]) => key));
+  const entries = snapshot.clear === true
+    ? []
+    : existing.entries.filter((entry) => !touchedKeys.has(entry.key));
+  const files: LocalStorageFileEntry[] = [];
+
+  for (const fileEntry of existing.files) {
+    if (snapshot.clear === true && context !== undefined && await localStorageFileEntryIsVisibleInContext(fileEntry, context)) {
+      continue;
+    }
+    if (touchedKeys.has(fileEntry.key) && context !== undefined) {
+      const target = await resolveStorageFileTarget(context, fileEntry.key);
+      if (target !== null && target.routePath === fileEntry.routePath) {
+        continue;
+      }
+    }
+    files.push(fileEntry);
+  }
+
+  for (const key of [...touchedKeys].sort((left, right) => left.localeCompare(right))) {
+    const value = snapshotEntries.get(key);
+    if (value === undefined) {
+      continue;
+    }
+    if (context !== undefined) {
+      const target = await resolveStorageFileTarget(context, key);
+      if (target !== null) {
+        const valueWrite = storageFileValueFor(value);
+        if (valueWrite !== null && await writeStorageFile(target, valueWrite.contents)) {
+          files.push({
+            key,
+            routePath: target.routePath,
+            ...valueWrite.fileEntry,
+          });
+          continue;
+        }
+      }
+    }
+
+    entries.push(localStorageDiskEntryFor(key, value));
+  }
+
+  await writeLocalStorageDiskSnapshot(storageFilePath, {
+    schema: 4,
+    entries: sortedLocalStorageDiskEntries(entries),
+    files: sortedLocalStorageFileEntries(files),
+  });
+}
+
+async function writeLocalStorageDiskSnapshot(
+  storageFilePath: string,
+  diskSnapshot: LocalStorageDiskSnapshot,
+): Promise<void> {
+  if (diskSnapshot.entries.length === 0 && diskSnapshot.files.length === 0) {
+    await rm(storageFilePath, { force: true });
+    return;
+  }
+
+  await mkdir(dirname(storageFilePath), { recursive: true });
   const tempPath = `${storageFilePath}.${crypto.randomUUID()}.tmp`;
   await writeFile(tempPath, `${JSON.stringify(diskSnapshot, null, 2)}\n`);
   await rename(tempPath, storageFilePath);
@@ -1578,6 +1660,15 @@ function normalizeLocalStorageSnapshot(value: unknown): LocalStorageSnapshot {
     throw new Error("localStorage snapshot entries must be an array.");
   }
 
+  const touchedKeys = (value as { touchedKeys?: unknown }).touchedKeys;
+  if (touchedKeys !== undefined && !Array.isArray(touchedKeys)) {
+    throw new Error("localStorage snapshot touchedKeys must be an array.");
+  }
+  const clear = (value as { clear?: unknown }).clear;
+  if (clear !== undefined && typeof clear !== "boolean") {
+    throw new Error("localStorage snapshot clear must be a boolean.");
+  }
+
   return {
     schema: 1,
     entries: snapshot.entries.map((entry) => {
@@ -1586,6 +1677,13 @@ function normalizeLocalStorageSnapshot(value: unknown): LocalStorageSnapshot {
       }
       return [entry[0], entry[1]];
     }),
+    touchedKeys: touchedKeys?.map((key) => {
+      if (typeof key !== "string") {
+        throw new Error("localStorage snapshot touchedKeys must be strings.");
+      }
+      return key;
+    }),
+    clear,
   };
 }
 
@@ -1755,6 +1853,10 @@ function sortedLocalStorageEntries(entries: [string, string][]): [string, string
 function localStorageDiskEntryFor(key: string, value: string): LocalStorageDiskEntry {
   const json = parsedCanonicalJsonContainer(value);
   return json === null ? { key, value } : { key, json };
+}
+
+function sortedLocalStorageDiskEntries(entries: LocalStorageDiskEntry[]): LocalStorageDiskEntry[] {
+  return [...entries].sort((left, right) => left.key.localeCompare(right.key));
 }
 
 function storageFileValueFor(value: string): {
@@ -2541,8 +2643,11 @@ function localStoragePersistenceClientScript(controlBasePath = "/", controlToken
   };
   const items = new Map();
   const reservedProperties = new Set(["clear", "getItem", "key", "length", "removeItem", "setItem"]);
+  const dirtyKeyVersions = new Map();
   let flushTimer = 0;
   let facade = null;
+  let mutationVersion = 0;
+  let clearVersion = 0;
 
   const escapeHTML = (value) => String(value).replace(/[&<>"]/g, (character) => ({
     "&": "&amp;",
@@ -2577,29 +2682,72 @@ function localStoragePersistenceClientScript(controlBasePath = "/", controlToken
     throw error;
   };
 
-  const snapshot = () => {
+  const markDirty = (key) => {
+    mutationVersion += 1;
+    dirtyKeyVersions.set(String(key), mutationVersion);
+  };
+
+  const markCleared = () => {
+    mutationVersion += 1;
+    clearVersion = mutationVersion;
+    dirtyKeyVersions.clear();
+  };
+
+  const markFlushed = (flushedDirtyKeyVersions, flushedClearVersion) => {
+    for (const [key, version] of flushedDirtyKeyVersions) {
+      if (dirtyKeyVersions.get(key) === version) {
+        dirtyKeyVersions.delete(key);
+      }
+    }
+    if (flushedClearVersion > 0 && clearVersion === flushedClearVersion) {
+      clearVersion = 0;
+    }
+  };
+
+  const pendingSnapshot = () => {
     const entries = [];
     for (const [key, value] of items) {
       entries.push([key, value]);
     }
     entries.sort((left, right) => left[0].localeCompare(right[0]));
-    return JSON.stringify({ schema: 1, entries });
+    const dirtyKeys = Array.from(dirtyKeyVersions.keys()).sort((left, right) => left.localeCompare(right));
+    const payload = { schema: 1, entries };
+    if (dirtyKeys.length > 0) {
+      payload.touchedKeys = dirtyKeys;
+    }
+    if (clearVersion > 0) {
+      payload.clear = true;
+    }
+    return {
+      body: JSON.stringify(payload),
+      dirtyKeyVersions: new Map(dirtyKeyVersions),
+      clearVersion,
+    };
   };
 
   const flush = (keepalive = false) => {
     window.clearTimeout(flushTimer);
-    const body = snapshot();
+    if (dirtyKeyVersions.size === 0 && clearVersion === 0) return;
+    const pending = pendingSnapshot();
     if (keepalive && navigator.sendBeacon) {
-      const blob = new Blob([body], { type: "application/json" });
-      if (navigator.sendBeacon(endpointForPage(), blob)) return;
+      const blob = new Blob([pending.body], { type: "application/json" });
+      if (navigator.sendBeacon(endpointForPage(), blob)) {
+        markFlushed(pending.dirtyKeyVersions, pending.clearVersion);
+        return;
+      }
     }
     fetch(endpointForPage(), {
       method: "POST",
       headers: controlToken
         ? { "Content-Type": "application/json", "X-Web-App-Control-Token": controlToken }
         : { "Content-Type": "application/json" },
-      body,
+      body: pending.body,
       keepalive,
+    }).then((response) => {
+      if (!response.ok) {
+        throw new Error("Storage route returned HTTP " + response.status + ".");
+      }
+      markFlushed(pending.dirtyKeyVersions, pending.clearVersion);
     }).catch((error) => console.warn("Web localStorage persistence failed:", error));
   };
 
@@ -2616,15 +2764,20 @@ function localStoragePersistenceClientScript(controlBasePath = "/", controlToken
 
   const getItem = (key) => items.get(String(key)) ?? null;
   const setItem = (key, value) => {
-    items.set(String(key), String(value));
+    const storageKey = String(key);
+    items.set(storageKey, String(value));
+    markDirty(storageKey);
     scheduleFlush();
   };
   const removeItem = (key) => {
-    items.delete(String(key));
+    const storageKey = String(key);
+    items.delete(storageKey);
+    markDirty(storageKey);
     scheduleFlush();
   };
   const clear = () => {
     items.clear();
+    markCleared();
     scheduleFlush();
   };
 
