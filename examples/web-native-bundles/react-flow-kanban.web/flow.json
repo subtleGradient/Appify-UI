@@ -1,0 +1,104 @@
+{
+  "schema": "appify.react-flow-kanban.v1",
+  "title": "Web.app bundle launch board",
+  "nodes": [
+    {
+      "id": "brief",
+      "type": "decision",
+      "position": {
+        "x": 40,
+        "y": 80
+      },
+      "data": {
+        "label": "Bundle contract",
+        "owner": "Design",
+        "status": "accepted",
+        "estimate": 2,
+        "notes": "Static .web packages, no build step, durable state through ./file.ext localStorage keys."
+      }
+    },
+    {
+      "id": "storage",
+      "type": "work",
+      "position": {
+        "x": 380,
+        "y": 40
+      },
+      "data": {
+        "label": "File-backed storage",
+        "owner": "Runner",
+        "status": "active",
+        "estimate": 3,
+        "notes": "Autosave writes the editable flow document to ./flow.json inside Web.app."
+      }
+    },
+    {
+      "id": "cdn",
+      "type": "risk",
+      "position": {
+        "x": 380,
+        "y": 230
+      },
+      "data": {
+        "label": "CDN dependency",
+        "owner": "Examples",
+        "status": "watch",
+        "estimate": 1,
+        "notes": "The bundle remains static, but first load needs network unless dependencies are vendored later."
+      }
+    },
+    {
+      "id": "verify",
+      "type": "work",
+      "position": {
+        "x": 730,
+        "y": 120
+      },
+      "data": {
+        "label": "Open in Web.app",
+        "owner": "QA",
+        "status": "queued",
+        "estimate": 2,
+        "notes": "Move nodes, connect them, reload, and confirm the saved flow round-trips."
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "brief-storage",
+      "source": "brief",
+      "target": "storage",
+      "type": "smoothstep",
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "brief-cdn",
+      "source": "brief",
+      "target": "cdn",
+      "type": "smoothstep",
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "storage-verify",
+      "source": "storage",
+      "target": "verify",
+      "type": "smoothstep",
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    },
+    {
+      "id": "cdn-verify",
+      "source": "cdn",
+      "target": "verify",
+      "type": "smoothstep",
+      "markerEnd": {
+        "type": "arrowclosed"
+      }
+    }
+  ]
+}
