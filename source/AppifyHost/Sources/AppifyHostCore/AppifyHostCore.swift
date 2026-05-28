@@ -754,6 +754,7 @@ public enum ServerCommandBuilder {
 public enum AppifyHostOpenURL {
     public static let outputPrefix = "APPIFY_HOST_OPEN_URL="
     public static let backendOutputPrefix = "APPIFY_HOST_BACKEND_URL="
+    public static let proxyOutputPrefix = "APPIFY_HOST_PROXY_URL="
 
     // For Web.app, a ready URL can be the WebKit-visible stable origin
     // (*.localhost:55555). AppifyHost may route that origin to a separate
@@ -784,6 +785,15 @@ public enum AppifyHostOpenURL {
         return nil
     }
 
+    public static func extractProxy(from line: String) -> URL? {
+        let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.hasPrefix(proxyOutputPrefix) {
+            return URL(string: String(trimmed.dropFirst(proxyOutputPrefix.count)))
+        }
+
+        return nil
+    }
+
     public static func validateReadyURL(_ url: URL, documentURL: URL, bundleURL: URL) throws -> URL {
         guard let scheme = url.scheme?.lowercased() else {
             throw AppifyHostError.invalidOpenURL("URL has no scheme.")
@@ -808,6 +818,27 @@ public enum AppifyHostOpenURL {
         }
         try validateLoopbackBackendURL(url)
         return url
+    }
+
+    public static func validateProxyURL(_ url: URL) throws -> URL {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https"
+        else {
+            throw AppifyHostError.invalidOpenURL("Proxy URLs must be HTTP(S) loopback URLs.")
+        }
+        try validateLoopbackBackendURL(url)
+        return url
+    }
+
+    public static func requiresProxyMapping(_ url: URL) -> Bool {
+        guard let scheme = url.scheme?.lowercased(),
+              scheme == "http" || scheme == "https",
+              let host = url.host(percentEncoded: false)?.lowercased()
+        else {
+            return false
+        }
+
+        return host.hasSuffix(".localhost") && (url.port ?? (scheme == "https" ? 443 : 80)) == 55555
     }
 
     public static func visibleWebspaceDataStoreIdentifier(for url: URL) -> UUID? {

@@ -412,6 +412,17 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertThrowsError(try AppifyHostOpenURL.validateBackendURL(URL(string: "https://example.com/apps/dashboard.web/")!))
     }
 
+    func testExtractsAndValidatesProxyURLs() throws {
+        let proxyURL = try XCTUnwrap(AppifyHostOpenURL.extractProxy(from: "APPIFY_HOST_PROXY_URL=http://127.0.0.1:49153/"))
+        XCTAssertEqual(try AppifyHostOpenURL.validateProxyURL(proxyURL), proxyURL)
+
+        let stableWebspaceURL = URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!
+        XCTAssertTrue(AppifyHostOpenURL.requiresProxyMapping(stableWebspaceURL))
+        XCTAssertFalse(AppifyHostOpenURL.requiresProxyMapping(proxyURL))
+        XCTAssertThrowsError(try AppifyHostOpenURL.validateProxyURL(stableWebspaceURL))
+        XCTAssertThrowsError(try AppifyHostOpenURL.validateProxyURL(URL(string: "https://example.com/proxy")!))
+    }
+
     func testDerivesStableVisibleWebspaceDataStoreIdentifiers() throws {
         let visibleA = URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!
         let visibleB = URL(string: "http://repo--a1b2c3d4.localhost:55555/other.web/")!

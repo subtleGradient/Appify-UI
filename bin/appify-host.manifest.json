@@ -3,8 +3,8 @@
   "product": "appify-host",
   "configuration": "release",
   "source": "source/AppifyHost",
-  "sourceHash": "969abe3f568d1ecbdbc65fce57ea8dd6827aa580f424dc1c0050c56d126716c1",
+  "sourceHash": "8a7008ef41204234a96e953aacae09ab34227607cb3c96ed43457fb3e5defe08",
   "binary": "bin/appify-host",
-  "binaryHash": "c7168a93949857ca6d4fbfc3f6589e323094625c1853c67182c3313eb14a8558",
+  "binaryHash": "5e6a278e2a5fe79f86852d850faa84c098c9afc9aa3debe848cc696dc113a672",
   "architecture": "arm64"
 }

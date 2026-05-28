@@ -1,8 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { connect as connectTCP } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { startVisibleOriginConnectTunnel } from "../src/connectTunnel";
 import {
   buildHtmlRoutes,
   contentTypeFor,
@@ -56,6 +58,43 @@ function testWebSpace(rootPath = root) {
 }
 
 const repoRoot = join(import.meta.dir, "../../../../..");
+
+async function rawTCPRequest(url: URL, requestText: string): Promise<string> {
+  return await new Promise((resolvePromise, reject) => {
+    const chunks: Buffer[] = [];
+    const socket = connectTCP(Number(url.port), url.hostname, () => {
+      socket.write(requestText);
+    });
+    let settled = false;
+    let idleTimer: ReturnType<typeof setTimeout> | null = null;
+    const settle = (error?: Error) => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer);
+      }
+      socket.destroy();
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolvePromise(Buffer.concat(chunks).toString("utf8"));
+    };
+
+    socket.setTimeout(5_000, () => settle(new Error("TCP request timed out.")));
+    socket.on("data", (chunk) => {
+      chunks.push(Buffer.from(chunk));
+      if (idleTimer !== null) {
+        clearTimeout(idleTimer);
+      }
+      idleTimer = setTimeout(() => settle(), 50);
+    });
+    socket.on("error", settle);
+    socket.on("close", () => settle());
+  });
+}
 
 describe("web package resolution", () => {
   test("resolves .web files and empty packages to their parent directory", async () => {
@@ -335,6 +374,63 @@ describe("web package resolution", () => {
     expect(backendServerURL.hostname).toBe("127.0.0.1");
     expect(backendServerURL.port).toBe(String(backendPort));
     expect(backendServerURL.pathname).toBe(visibleWebspaceURL.pathname);
+  });
+
+  test("stable webspace CONNECT tunnel uses an ephemeral port and preserves the visible host", async () => {
+    const visibleWebspaceURL = new URL("http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/");
+    const backendServer = Bun.serve({
+      hostname: "127.0.0.1",
+      port: await resolveServerPort(),
+      idleTimeout: 0,
+      fetch(request) {
+        return Response.json({
+          url: request.url,
+          host: request.headers.get("Host"),
+        });
+      },
+    });
+    const tunnel = await startVisibleOriginConnectTunnel({
+      visibleOriginURL: visibleWebspaceURL,
+      backendURL: backendServer.url,
+    });
+
+    try {
+      expect(tunnel.url.hostname).toBe("127.0.0.1");
+      expect(tunnel.url.port).not.toBe("55555");
+      expect(tunnel.url.port).not.toBe(String(backendServer.port));
+
+      const response = await rawTCPRequest(
+        tunnel.url,
+        [
+          `CONNECT ${visibleWebspaceURL.host} HTTP/1.1`,
+          `Host: ${visibleWebspaceURL.host}`,
+          "",
+          `GET /apps/dashboard.web/index.html?x=1 HTTP/1.1`,
+          `Host: ${visibleWebspaceURL.host}`,
+          "Connection: close",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      expect(response).toContain("HTTP/1.1 200 Connection Established");
+      expect(response).toContain("HTTP/1.1 200 OK");
+      expect(response).toContain('"url":"http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/index.html?x=1"');
+      expect(response).toContain('"host":"repo--a1b2c3d4.localhost:55555"');
+
+      const rejected = await rawTCPRequest(
+        tunnel.url,
+        [
+          "CONNECT other.localhost:55555 HTTP/1.1",
+          "Host: other.localhost:55555",
+          "",
+          "",
+        ].join("\r\n"),
+      );
+      expect(rejected).toContain("HTTP/1.1 403 Forbidden");
+    } finally {
+      await tunnel.close();
+      backendServer.stop(true);
+    }
   });
 
   test("rejects path traversal and symlinks", async () => {

@@ -53,6 +53,10 @@ ephemeral private loopback port and let AppifyHost route the visible stable
 origin to that backend. For example, WebKit should see
 `http://appify-ui--6e3025a4.localhost:55555/ideas.web/`, while AppifyHost may
 transport the request to `http://127.0.0.1:<ephemeral>/ideas.web/`.
+When WebKit requires an HTTP CONNECT proxy, the Runner may also bind a second
+ephemeral loopback tunnel that accepts only the matching stable webspace host
+and forwards to the backend. That tunnel is still private transport; Web.app
+must never bind TCP port `55555`.
 
 Compatibility behavior is example-driven. Server-ish affordances such as fossil
 CGI URLs, form POST handling, SSI, or old AJAX expectations must start with a
@@ -69,6 +73,7 @@ checked-in red-case `.web` bundle and follow
 
 Copy `Web.app`, rename the bundle, update `Contents/Info.plist`, and tailor the
 runner to the static package shape you want. Keep the ready line:
-`APPIFY_HOST_OPEN_URL=`.
+`APPIFY_HOST_OPEN_URL=`. For stable Web.app origins, also keep
+`APPIFY_HOST_BACKEND_URL=` and `APPIFY_HOST_PROXY_URL=`.
 
 Credits: Bun serves the local package.

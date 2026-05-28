@@ -213,6 +213,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private var activeReadyURL: URL?
     private var pendingBackendURL: URL?
     private var activeBackendURL: URL?
+    private var pendingProxyURL: URL?
+    private var activeProxyURL: URL?
     private var pendingDeepLinkRoute: String?
     private var didLoadServerURL = false
     private var isClosing = false
@@ -274,6 +276,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         activeDocumentURL = resolvedDocumentURL(documentURL)
         pendingBackendURL = nil
         activeBackendURL = nil
+        pendingProxyURL = nil
+        activeProxyURL = nil
         pendingDeepLinkRoute = initialRoute
         updateWindowDocumentIdentity()
         loadStatusPage(
@@ -573,6 +577,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         activeReadyURL = nil
         pendingBackendURL = nil
         activeBackendURL = nil
+        pendingProxyURL = nil
+        activeProxyURL = nil
         didLoadServerURL = false
 
         guard let activeDocumentURL else {
@@ -781,6 +787,16 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             return
         }
 
+        if let proxyURL = AppifyHostOpenURL.extractProxy(from: line) {
+            do {
+                pendingProxyURL = try AppifyHostOpenURL.validateProxyURL(proxyURL)
+            } catch {
+                showError(title: "Proxy URL Was Rejected", message: String(describing: error))
+                stopServer()
+            }
+            return
+        }
+
         guard let openURL = AppifyHostOpenURL.extract(from: line) else {
             return
         }
@@ -796,6 +812,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
                 bundleURL: configuration.bundleURL
             )
             let backendURL = try pendingBackendURL.map(AppifyHostOpenURL.validateBackendURL)
+            let proxyURL = try pendingProxyURL.map(AppifyHostOpenURL.validateProxyURL)
+            if AppifyHostOpenURL.requiresProxyMapping(safeURL) && proxyURL == nil {
+                throw AppifyHostError.invalidOpenURL("Stable webspace origins require APPIFY_HOST_PROXY_URL.")
+            }
             let loadURL = try AppifyHostOpenURL.readyURL(safeURL, routedTo: pendingDeepLinkRoute)
             guard AppifyHostOpenURL.isAllowedNavigation(
                 loadURL,
@@ -811,10 +831,16 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             pendingDeepLinkRoute = nil
             activeReadyURL = safeURL
             activeBackendURL = backendURL
+            activeProxyURL = proxyURL
             didLoadServerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
-            loadWebView(url: loadURL, visibleWebspaceURL: safeURL, backendServerURL: backendURL)
+            loadWebView(
+                url: loadURL,
+                visibleWebspaceURL: safeURL,
+                proxyServerURL: proxyURL,
+                backendServerURL: backendURL
+            )
         } catch {
             showError(title: "Server URL Was Rejected", message: String(describing: error))
             stopServer()
@@ -981,11 +1007,12 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         window?.contentView = container
     }
 
-    private func loadWebView(url: URL, visibleWebspaceURL: URL, backendServerURL: URL?) {
+    private func loadWebView(url: URL, visibleWebspaceURL: URL, proxyServerURL: URL?, backendServerURL: URL?) {
         let webViewConfiguration = WKWebViewConfiguration()
         PrivateWebKitInspector.enableDeveloperExtras(for: webViewConfiguration.preferences)
         webViewConfiguration.websiteDataStore = websiteDataStore(
             visibleWebspaceURL: visibleWebspaceURL,
+            proxyServerURL: proxyServerURL,
             backendServerURL: backendServerURL
         )
         webViewConfiguration.preferences.javaScriptCanOpenWindowsAutomatically = false
@@ -1022,7 +1049,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         webView.load(URLRequest(url: url))
     }
 
-    private func websiteDataStore(visibleWebspaceURL: URL, backendServerURL: URL?) -> WKWebsiteDataStore {
+    private func websiteDataStore(
+        visibleWebspaceURL: URL,
+        proxyServerURL: URL?,
+        backendServerURL: URL?
+    ) -> WKWebsiteDataStore {
         let dataStore: WKWebsiteDataStore
         if configuration.webViewDataStore == .nonPersistent {
             dataStore = .nonPersistent()
@@ -1035,6 +1066,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         routeVisibleOriginThroughBackend(
             dataStore: dataStore,
             visibleWebspaceURL: visibleWebspaceURL,
+            proxyServerURL: proxyServerURL,
             backendServerURL: backendServerURL
         )
         return dataStore
@@ -1043,23 +1075,25 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private func routeVisibleOriginThroughBackend(
         dataStore: WKWebsiteDataStore,
         visibleWebspaceURL: URL,
+        proxyServerURL: URL?,
         backendServerURL: URL?
     ) {
-        guard let backendServerURL,
+        guard let proxyServerURL,
               let visibleHost = visibleWebspaceURL.host(percentEncoded: false),
-              let backendHost = backendServerURL.host(percentEncoded: false),
-              let backendPort = backendServerURL.port,
-              let proxyPort = NWEndpoint.Port(rawValue: UInt16(backendPort))
+              let proxyHost = proxyServerURL.host(percentEncoded: false),
+              let proxyServerPort = proxyServerURL.port,
+              let proxyPort = NWEndpoint.Port(rawValue: UInt16(proxyServerPort))
         else {
             dataStore.proxyConfigurations = []
             return
         }
 
-        var proxy = ProxyConfiguration(httpCONNECTProxy: .hostPort(host: NWEndpoint.Host(backendHost), port: proxyPort))
+        var proxy = ProxyConfiguration(httpCONNECTProxy: .hostPort(host: NWEndpoint.Host(proxyHost), port: proxyPort))
         proxy.matchDomains = [visibleHost]
         proxy.allowFailover = false
         dataStore.proxyConfigurations = [proxy]
-        writeLog("Routing visible origin \(visibleWebspaceURL.originDescription) through backend \(backendServerURL.originDescription)\n")
+        let backendDescription = backendServerURL?.originDescription ?? "unknown backend"
+        writeLog("Routing visible origin \(visibleWebspaceURL.originDescription) through proxy \(proxyServerURL.originDescription) to backend \(backendDescription)\n")
     }
 
     private var shouldWaitForInitialContentFit: Bool {

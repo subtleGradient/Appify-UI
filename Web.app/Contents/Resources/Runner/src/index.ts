@@ -1,5 +1,7 @@
 import { watch } from "node:fs";
+import type { FSWatcher } from "node:fs";
 import { basename, resolve } from "node:path";
+import { startVisibleOriginConnectTunnel } from "./connectTunnel";
 import {
   buildHtmlRoutes,
   createDirectoryListingResponse,
@@ -42,21 +44,16 @@ const routes = {
 };
 const liveReloadPath = "/_web/live-reload";
 const liveReloadVersionPath = "/_web/live-reload-version";
+let watcher: FSWatcher | null = null;
 
 if (hmrEnabled) {
   try {
-    const watcher = watch(webspace.activeRootPath, { recursive: true }, (_eventType, fileName) => {
+    watcher = watch(webspace.activeRootPath, { recursive: true }, (_eventType, fileName) => {
       if (isIgnoredReloadPath(webspace.activeRootPath, fileName)) {
         return;
       }
       reloader.broadcast();
     });
-    for (const signal of ["SIGTERM", "SIGINT"] as const) {
-      process.on(signal, () => {
-        watcher.close();
-        process.exit(0);
-      });
-    }
   } catch (error) {
     console.error(`Web live reload watcher could not start for ${webspace.activeRootPath}:`, error);
   }
@@ -154,9 +151,24 @@ const server = Bun.serve({
   },
 });
 
+const visibleWebspaceURL = stableWebSpaceURL(webspace);
+const connectTunnel = await startVisibleOriginConnectTunnel({
+  visibleOriginURL: visibleWebspaceURL,
+  backendURL: server.url,
+});
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.on(signal, async () => {
+    watcher?.close();
+    await connectTunnel.close();
+    server.stop(true);
+    process.exit(0);
+  });
+}
+
 console.log(`Web serving ${resolve(webspace.activeRootPath)} from ${resolve(webspace.webspaceRootPath)} (${webspace.webspaceKind})`);
 console.log(`APPIFY_HOST_BACKEND_URL=${new URL(webspace.activeBasePath, server.url).href}`);
-console.log(`APPIFY_HOST_OPEN_URL=${stableWebSpaceURL(webspace).href}`);
+console.log(`APPIFY_HOST_PROXY_URL=${connectTunnel.url.href}`);
+console.log(`APPIFY_HOST_OPEN_URL=${visibleWebspaceURL.href}`);
 
 function isPathInside(rootPath: string, candidatePath: string): boolean {
   const relativePath = candidatePath === rootPath ? "" : candidatePath.slice(rootPath.length);

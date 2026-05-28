@@ -94,7 +94,7 @@
         <ul>
           <li><code>55555</code> is part of the browser origin contract, not the Bun listen-port contract.</li>
           <li>AppifyHost should map visible requests to the hidden backend, preferably with <code>WKWebsiteDataStore.proxyConfigurations</code> on macOS 14 and newer.</li>
-          <li>Directly binding <code>55555</code> is only acceptable as an explicitly named diagnostic fallback while the AppifyHost mapping is unavailable.</li>
+          <li>Directly binding <code>55555</code> is not part of the design; Web.app must not depend on a real TCP listener on that port.</li>
           <li>A port conflict on <code>55555</code> should not normally stop Web.app from opening, because the backend should not need that port.</li>
         </ul>
       </section>
@@ -308,9 +308,10 @@ localStorage.setItem(`${scope}:view`, JSON.stringify(view))
         <ul>
           <li>AppifyHost owns the visible <code>*.localhost:55555</code> origin and maps stable webspace hostnames to hidden dynamic backend URLs.</li>
           <li>The Bun Runner should bind an ephemeral loopback port by default; <code>55555</code> is the WebKit origin port, not the Runner listen port.</li>
+          <li>If WebKit routing requires an HTTP CONNECT proxy, the Runner may bind a second ephemeral loopback tunnel that only accepts the exact stable webspace host and forwards to the backend.</li>
           <li>Prefer names such as <code>visibleWebspaceURL</code>, <code>backendServerURL</code>, and <code>routeVisibleOriginThroughBackend</code> so code does not blur the two layers.</li>
           <li>Hostnames are deterministic: <code>&lt;safe-webspace-name&gt;--&lt;short-root-hash&gt;.localhost</code>.</li>
-          <li>If direct binding of <code>55555</code> remains during migration, mark it as a temporary diagnostic fallback and keep it out of the stable design contract.</li>
+          <li>Do not introduce a real listener on <code>55555</code>, even as a migration shortcut.</li>
           <li>Web.app should use a persistent WebKit website data store for native site-specific persistence.</li>
           <li><code>/_web/*</code> write and control routes should require same-origin checks plus an unguessable per-document control token.</li>
           <li>Do not patch normal web APIs such as <code>fetch</code>, Workers, IndexedDB, CacheStorage, cookies, OPFS, service workers, dialogs, or <code>window.open</code> merely to police native browser behavior.</li>
