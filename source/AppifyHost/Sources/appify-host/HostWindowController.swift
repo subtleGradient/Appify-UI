@@ -300,6 +300,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         guard let window else {
             return
         }
+        guard configuration.showBackForwardButtons else {
+            window.toolbar = nil
+            return
+        }
 
         let toolbar = NSToolbar(identifier: Self.toolbarIdentifier)
         toolbar.delegate = self
@@ -314,14 +318,22 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [
+        guard configuration.showBackForwardButtons else {
+            return []
+        }
+
+        return [
             Self.backForwardToolbarItemIdentifier,
             .flexibleSpace,
         ]
     }
 
     func toolbarDefaultItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
-        [
+        guard configuration.showBackForwardButtons else {
+            return []
+        }
+
+        return [
             Self.backForwardToolbarItemIdentifier,
             .flexibleSpace,
         ]
@@ -598,6 +610,11 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     }
 
     private func updateWindowRouteSubtitle(for url: URL?) {
+        guard configuration.showURLSubtitle else {
+            window?.subtitle = ""
+            return
+        }
+
         window?.subtitle = routeSubtitle(for: url)
     }
 

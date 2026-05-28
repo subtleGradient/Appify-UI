@@ -49,6 +49,10 @@
 		</dict>
 		<key>LogName</key>
 		<string>LazyGit</string>
+		<key>ShowBackForwardButtons</key>
+		<false/>
+		<key>ShowURLSubtitle</key>
+		<false/>
 		<key>ServerArguments</key>
 		<array/>
 		<key>ServerExecutable</key>

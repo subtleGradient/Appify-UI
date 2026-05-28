@@ -20,6 +20,8 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var startupTimeoutSeconds: TimeInterval
     public var webViewDataStore: AppifyHostWebViewDataStore
     public var windowContentSizing: AppifyHostWindowContentSizing
+    public var showURLSubtitle: Bool
+    public var showBackForwardButtons: Bool
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
     public var firstLaunchHelp: AppifyHostFirstLaunchHelp?
@@ -44,6 +46,8 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         startupTimeoutSeconds: TimeInterval,
         webViewDataStore: AppifyHostWebViewDataStore,
         windowContentSizing: AppifyHostWindowContentSizing,
+        showURLSubtitle: Bool = true,
+        showBackForwardButtons: Bool = true,
         restrictNavigationToReadyURLScope: Bool,
         aboutNotice: AppifyHostAboutNotice?,
         firstLaunchHelp: AppifyHostFirstLaunchHelp?,
@@ -67,6 +71,8 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.startupTimeoutSeconds = startupTimeoutSeconds
         self.webViewDataStore = webViewDataStore
         self.windowContentSizing = windowContentSizing
+        self.showURLSubtitle = showURLSubtitle
+        self.showBackForwardButtons = showBackForwardButtons
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
         self.firstLaunchHelp = firstLaunchHelp
@@ -338,6 +344,8 @@ public enum AppifyHostConfigurationLoader {
         } else {
             startupTimeoutSeconds = 20
         }
+        let showURLSubtitle = boolValue(hostSettings["ShowURLSubtitle"]) ?? true
+        let showBackForwardButtons = boolValue(hostSettings["ShowBackForwardButtons"]) ?? true
         let restrictNavigation = boolValue(hostSettings["RestrictNavigationToReadyURLScope"]) ?? true
         let aboutNotice = parseAboutNotice(from: hostSettings)
         let firstLaunchHelp = try parseFirstLaunchHelp(from: hostSettings, appName: appName)
@@ -371,6 +379,8 @@ public enum AppifyHostConfigurationLoader {
             startupTimeoutSeconds: startupTimeoutSeconds,
             webViewDataStore: webViewDataStore,
             windowContentSizing: windowContentSizing,
+            showURLSubtitle: showURLSubtitle,
+            showBackForwardButtons: showBackForwardButtons,
             restrictNavigationToReadyURLScope: restrictNavigation,
             aboutNotice: aboutNotice,
             firstLaunchHelp: firstLaunchHelp,

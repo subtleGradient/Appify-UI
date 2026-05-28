@@ -523,11 +523,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         mainMenu.addItem(viewMenuItem)
         let viewMenu = NSMenu(title: "View")
         viewMenuItem.submenu = viewMenu
-        let backItem = viewMenu.addItem(withTitle: "Back", action: #selector(goBackInWebViewFromMenu(_:)), keyEquivalent: "[")
-        backItem.target = self
-        let forwardItem = viewMenu.addItem(withTitle: "Forward", action: #selector(goForwardInWebViewFromMenu(_:)), keyEquivalent: "]")
-        forwardItem.target = self
-        viewMenu.addItem(.separator())
+        if configuration.showBackForwardButtons {
+            let backItem = viewMenu.addItem(withTitle: "Back", action: #selector(goBackInWebViewFromMenu(_:)), keyEquivalent: "[")
+            backItem.target = self
+            let forwardItem = viewMenu.addItem(withTitle: "Forward", action: #selector(goForwardInWebViewFromMenu(_:)), keyEquivalent: "]")
+            forwardItem.target = self
+            viewMenu.addItem(.separator())
+        }
         let reloadItem = viewMenu.addItem(withTitle: "Reload", action: #selector(reloadWebViewFromMenu(_:)), keyEquivalent: "r")
         reloadItem.target = self
         viewMenu.addItem(.separator())

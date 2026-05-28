@@ -24,6 +24,8 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.startupTimeoutSeconds, 20)
         XCTAssertEqual(config.webViewDataStore, .persistent)
         XCTAssertEqual(config.windowContentSizing, .automatic)
+        XCTAssertTrue(config.showURLSubtitle)
+        XCTAssertTrue(config.showBackForwardButtons)
         XCTAssertEqual(config.aboutNotice?.message, "Example host notice.")
         XCTAssertEqual(config.aboutNotice?.links, [
             AppifyHostAboutLink(title: "Example Project", url: "https://example.com"),
@@ -112,6 +114,22 @@ final class AppifyHostCoreTests: XCTestCase {
         )
 
         XCTAssertEqual(config.windowContentSizing, .disabled)
+    }
+
+    func testLoadsDisabledWindowNavigationChrome() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["ShowURLSubtitle"] = false
+        hostSettings["ShowBackForwardButtons"] = false
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Applications/SketchPad.app")
+        )
+
+        XCTAssertFalse(config.showURLSubtitle)
+        XCTAssertFalse(config.showBackForwardButtons)
     }
 
     func testRejectsInvalidFirstLaunchHelpURL() throws {
