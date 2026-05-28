@@ -233,6 +233,9 @@ export async function resolveServerPort(configuredPort = process.env.PORT): Prom
 }
 
 export function stableWebSpaceHostname(webspaceRootPath: string): string {
+  // Webapp.app has a parallel stable-origin helper for dev-server packages.
+  // Check stableWebappHostname/stableWebappURL before changing hostname shape,
+  // hash length, or the fixed visible port contract here.
   const root = resolve(webspaceRootPath);
   const rawName = basename(root).toLowerCase();
   const safeName = rawName

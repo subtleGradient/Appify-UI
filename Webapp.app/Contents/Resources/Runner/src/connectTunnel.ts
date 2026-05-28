@@ -1,5 +1,8 @@
 import { createConnection, createServer, type Server, type Socket } from "node:net";
 
+// Keep this transport in sync with Web.app/Contents/Resources/Runner/src/connectTunnel.ts.
+// The app bundles eject independently, so this code is duplicated deliberately
+// instead of imported across app directories.
 const MAX_CONNECT_HEADER_BYTES = 16 * 1024;
 
 export interface VisibleOriginConnectTunnel {

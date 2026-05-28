@@ -252,6 +252,9 @@ export function resolveBunExecutable(environment: Record<string, string | undefi
 }
 
 export function stableWebappHostname(documentPath: string): string {
+  // Web.app has the sibling stable-origin helper for static webspaces.
+  // Check stableWebSpaceHostname/stableWebSpaceURL before changing hostname
+  // shape, hash length, or the fixed visible port contract here.
   const root = resolve(documentPath);
   const rawName = basename(root, ".webapp").toLowerCase();
   const safeName = rawName
