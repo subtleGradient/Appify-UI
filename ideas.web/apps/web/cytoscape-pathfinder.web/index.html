@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>cytoscape-pathfinder.web</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div>
+          <strong>Cytoscape Pathfinder</strong>
+          <span id="status">Opening</span>
+        </div>
+        <div class="actions">
+          <button id="add-node" type="button">Node</button>
+          <button id="add-edge" type="button">Edge</button>
+          <button id="delete-selected" type="button">Delete</button>
+          <button id="layout" type="button">Layout</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="export" type="button">Export</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="graph-panel" aria-label="Cytoscape graph">
+          <div id="cy"></div>
+        </section>
+
+        <aside class="inspector" aria-label="Network controls">
+          <label>
+            Selected label
+            <input id="label" />
+          </label>
+          <label>
+            Selected role
+            <select id="role">
+              <option value="service">service</option>
+              <option value="storage">storage</option>
+              <option value="runtime">runtime</option>
+              <option value="risk">risk</option>
+            </select>
+          </label>
+          <label>
+            Selected weight
+            <input id="weight" type="number" min="1" max="20" step="1" />
+          </label>
+          <div class="link-editor">
+            <label>From <select id="edge-source"></select></label>
+            <label>To <select id="edge-target"></select></label>
+          </div>
+          <div class="link-editor">
+            <label>Path from <select id="path-source"></select></label>
+            <label>Path to <select id="path-target"></select></label>
+          </div>
+          <label>
+            Role filter
+            <select id="filter">
+              <option value="all">all</option>
+              <option value="service">service</option>
+              <option value="storage">storage</option>
+              <option value="runtime">runtime</option>
+              <option value="risk">risk</option>
+            </select>
+          </label>
+          <button id="find-path" type="button">Find shortest path</button>
+          <dl class="stats">
+            <div><dt>Nodes</dt><dd id="node-count">0</dd></div>
+            <div><dt>Edges</dt><dd id="edge-count">0</dd></div>
+            <div><dt>Path</dt><dd id="path-summary">none</dd></div>
+            <div><dt>Storage</dt><dd>./network.cy.json</dd></div>
+          </dl>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

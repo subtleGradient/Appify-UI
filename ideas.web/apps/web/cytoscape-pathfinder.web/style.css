@@ -1,0 +1,156 @@
+:root {
+  color-scheme: light dark;
+  --line: color-mix(in oklch, CanvasText 15%, transparent);
+  --muted: color-mix(in oklch, CanvasText 62%, transparent);
+  --panel: color-mix(in oklch, Canvas 94%, CanvasText 6%);
+  font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: Canvas;
+  color: CanvasText;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: ButtonFace;
+  color: ButtonText;
+  padding: 0.45rem 0.7rem;
+}
+
+.app-shell {
+  min-block-size: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.toolbar strong {
+  display: block;
+}
+
+#status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workspace {
+  min-block-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 25rem);
+}
+
+.graph-panel {
+  min-width: 0;
+  min-height: 0;
+  background:
+    radial-gradient(circle at center, color-mix(in oklch, CanvasText 9%, transparent) 1px, transparent 1px),
+    Canvas;
+  background-size: 30px 30px;
+}
+
+#cy {
+  inline-size: 100%;
+  block-size: 100%;
+  display: block;
+}
+
+.inspector {
+  min-width: 0;
+  padding: 1rem;
+  border-inline-start: 1px solid var(--line);
+  background: color-mix(in oklch, Canvas 97%, CanvasText 3%);
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+}
+
+.inspector label,
+.link-editor {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 650;
+}
+
+.link-editor {
+  grid-template-columns: 1fr 1fr;
+}
+
+.inspector input,
+.inspector select {
+  inline-size: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+  padding: 0.45rem;
+}
+
+.stats {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding-block-start: 0.75rem;
+  border-block-start: 1px solid var(--line);
+}
+
+.stats div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.stats dt {
+  color: var(--muted);
+}
+
+.stats dd {
+  margin: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-align: end;
+}
+
+@media (max-width: 900px) {
+  .toolbar,
+  .workspace {
+    display: block;
+  }
+
+  .graph-panel {
+    block-size: 58vh;
+  }
+
+  .inspector {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--line);
+  }
+}

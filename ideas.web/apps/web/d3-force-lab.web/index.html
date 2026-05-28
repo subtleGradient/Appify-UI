@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>d3-force-lab.web</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div>
+          <strong>D3 Force Lab</strong>
+          <span id="status">Opening</span>
+        </div>
+        <div class="actions">
+          <button id="add-node" type="button">Node</button>
+          <button id="add-link" type="button">Link</button>
+          <button id="pin-selected" type="button">Pin</button>
+          <button id="delete-selected" type="button">Delete</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="export" type="button">Export</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="graph-panel" aria-label="Force-directed graph">
+          <svg id="graph" viewBox="0 0 1200 780" role="img" aria-label="Editable D3 force graph"></svg>
+        </section>
+
+        <aside class="inspector" aria-label="Graph controls">
+          <label>
+            Graph title
+            <input id="title" />
+          </label>
+          <label>
+            Selected label
+            <input id="node-label" />
+          </label>
+          <label>
+            Selected group
+            <select id="node-group">
+              <option value="product">product</option>
+              <option value="runtime">runtime</option>
+              <option value="risk">risk</option>
+              <option value="evidence">evidence</option>
+            </select>
+          </label>
+          <div class="link-editor">
+            <label>From <select id="link-source"></select></label>
+            <label>To <select id="link-target"></select></label>
+          </div>
+          <label>
+            Charge
+            <input id="charge" type="range" min="-700" max="-80" step="10" />
+          </label>
+          <label>
+            Link distance
+            <input id="distance" type="range" min="70" max="260" step="5" />
+          </label>
+          <label>
+            Collision
+            <input id="collision" type="range" min="18" max="80" step="2" />
+          </label>
+          <dl class="stats">
+            <div><dt>Nodes</dt><dd id="node-count">0</dd></div>
+            <div><dt>Links</dt><dd id="link-count">0</dd></div>
+            <div><dt>Degree</dt><dd id="degree">0</dd></div>
+            <div><dt>Storage</dt><dd>./graph.json</dd></div>
+          </dl>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

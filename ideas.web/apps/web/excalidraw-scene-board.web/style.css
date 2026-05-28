@@ -1,0 +1,82 @@
+:root {
+  color-scheme: light dark;
+  --line: color-mix(in oklch, CanvasText 15%, transparent);
+  --muted: color-mix(in oklch, CanvasText 62%, transparent);
+  --panel: color-mix(in oklch, Canvas 94%, CanvasText 6%);
+  font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: Canvas;
+  color: CanvasText;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body,
+#root {
+  margin: 0;
+  min-block-size: 100vh;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: ButtonFace;
+  color: ButtonText;
+  font: inherit;
+  padding: 0.45rem 0.7rem;
+}
+
+.app-shell {
+  min-block-size: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--panel);
+  z-index: 2;
+}
+
+.toolbar strong {
+  display: block;
+}
+
+#status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.canvas-wrap {
+  min-width: 0;
+  min-height: 0;
+}
+
+.excalidraw {
+  --color-primary: #3c6fb6;
+  --color-primary-darker: #2f5c96;
+  --color-primary-darkest: #254a79;
+  --color-primary-light: #dbeafe;
+}
+
+@media (max-width: 720px) {
+  .toolbar {
+    display: block;
+  }
+
+  .actions {
+    margin-block-start: 0.75rem;
+  }
+}

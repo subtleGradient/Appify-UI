@@ -1,0 +1,228 @@
+:root {
+  color-scheme: light dark;
+  --line: color-mix(in oklch, CanvasText 15%, transparent);
+  --muted: color-mix(in oklch, CanvasText 62%, transparent);
+  --panel: color-mix(in oklch, Canvas 94%, CanvasText 6%);
+  --input: #2f8f6b;
+  --multiply: #3c6fb6;
+  --add: #9867b8;
+  --clamp: #b87915;
+  --output: #b84646;
+  font: 15px/1.45 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: Canvas;
+  color: CanvasText;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-block-size: 100vh;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: ButtonFace;
+  color: ButtonText;
+  padding: 0.45rem 0.7rem;
+}
+
+.app-shell {
+  min-block-size: 100vh;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-block-end: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.toolbar strong {
+  display: block;
+}
+
+#status {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workspace {
+  min-block-size: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 25rem);
+}
+
+.canvas-panel {
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background:
+    linear-gradient(color-mix(in oklch, CanvasText 8%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in oklch, CanvasText 8%, transparent) 1px, transparent 1px),
+    Canvas;
+  background-size: 30px 30px;
+}
+
+.canvas {
+  position: relative;
+  inline-size: 1320px;
+  block-size: 780px;
+}
+
+.edges,
+.nodes {
+  position: absolute;
+  inset: 0;
+}
+
+.edges {
+  inline-size: 1320px;
+  block-size: 780px;
+  pointer-events: none;
+}
+
+.edges path {
+  fill: none;
+  stroke: color-mix(in oklch, CanvasText 48%, transparent);
+  stroke-width: 2.5;
+}
+
+.node {
+  position: absolute;
+  inline-size: 180px;
+  min-block-size: 116px;
+  border: 1px solid var(--line);
+  border-top: 0.45rem solid var(--add);
+  border-radius: 8px;
+  background: Canvas;
+  box-shadow: 0 12px 24px color-mix(in oklch, CanvasText 14%, transparent);
+  padding: 0.7rem;
+  cursor: grab;
+}
+
+.node.input {
+  border-top-color: var(--input);
+}
+
+.node.multiply {
+  border-top-color: var(--multiply);
+}
+
+.node.clamp {
+  border-top-color: var(--clamp);
+}
+
+.node.output {
+  border-top-color: var(--output);
+}
+
+.node.selected {
+  outline: 3px solid color-mix(in oklch, LinkText 58%, transparent);
+}
+
+.kind {
+  color: var(--muted);
+  font: 0.74rem/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  text-transform: uppercase;
+}
+
+.node h2 {
+  margin: 0.35rem 0 0.65rem;
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.node p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.inspector {
+  min-width: 0;
+  padding: 1rem;
+  border-inline-start: 1px solid var(--line);
+  background: color-mix(in oklch, Canvas 97%, CanvasText 3%);
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+}
+
+.runtime {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.inspector label,
+.link-editor {
+  display: grid;
+  gap: 0.35rem;
+  font-weight: 650;
+}
+
+.link-editor {
+  grid-template-columns: 1fr 1fr;
+}
+
+.link-editor button {
+  grid-column: 1 / -1;
+}
+
+.inspector input,
+.inspector select {
+  inline-size: 100%;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: Canvas;
+  color: CanvasText;
+  padding: 0.45rem;
+}
+
+#result {
+  min-block-size: 5rem;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: Canvas;
+  padding: 0.75rem;
+  font: 0.88rem/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+@media (max-width: 900px) {
+  .toolbar,
+  .workspace {
+    display: block;
+  }
+
+  .canvas-panel {
+    block-size: 58vh;
+  }
+
+  .inspector {
+    border-inline-start: 0;
+    border-block-start: 1px solid var(--line);
+  }
+}

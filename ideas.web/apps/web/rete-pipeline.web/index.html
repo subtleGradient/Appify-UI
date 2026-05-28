@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>rete-pipeline.web</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div>
+          <strong>Rete Pipeline</strong>
+          <span id="status">Opening</span>
+        </div>
+        <div class="actions">
+          <button id="add-input" type="button">Input</button>
+          <button id="add-multiply" type="button">Multiply</button>
+          <button id="add-add" type="button">Add</button>
+          <button id="add-clamp" type="button">Clamp</button>
+          <button id="add-output" type="button">Output</button>
+          <button id="reset" type="button">Reset</button>
+          <button id="export" type="button">Export</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="canvas-panel" aria-label="Rete pipeline editor">
+          <div id="canvas" class="canvas">
+            <svg id="edges" class="edges" aria-hidden="true"></svg>
+            <div id="nodes" class="nodes"></div>
+          </div>
+        </section>
+
+        <aside class="inspector" aria-label="Pipeline inspector">
+          <p id="rete-runtime" class="runtime">Loading Rete core</p>
+          <label>
+            Selected label
+            <input id="node-label" />
+          </label>
+          <label>
+            Numeric value
+            <input id="node-value" type="number" step="0.1" />
+          </label>
+          <label>
+            Factor
+            <input id="node-factor" type="number" step="0.1" />
+          </label>
+          <label>
+            Clamp min
+            <input id="node-min" type="number" step="0.1" />
+          </label>
+          <label>
+            Clamp max
+            <input id="node-max" type="number" step="0.1" />
+          </label>
+          <div class="link-editor">
+            <label>From <select id="link-source"></select></label>
+            <label>To <select id="link-target"></select></label>
+            <button id="connect" type="button">Connect</button>
+          </div>
+          <button id="delete-selected" type="button">Delete selected</button>
+          <pre id="result" aria-label="Pipeline result"></pre>
+        </aside>
+      </section>
+    </main>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

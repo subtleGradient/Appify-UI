@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Web-Native Bundle Examples</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { margin: 0; background: Canvas; color: CanvasText; font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.5; }
+      main { max-inline-size: 82rem; margin-inline: auto; padding: clamp(1rem, 4vw, 3rem); display: grid; gap: 1.25rem; }
+      nav, section { border: 1px solid color-mix(in oklch, CanvasText 14%, transparent); border-radius: 0.75rem; padding: 1rem; }
+      h1, h2, p { margin: 0; }
+      h1 { font-size: clamp(2rem, 5vw, 4rem); line-height: 0.95; letter-spacing: 0; }
+      h2 { font-size: 1.2rem; }
+      a { color: LinkText; }
+      ul { margin-block: 0; padding-inline-start: 1.25rem; }
+      table { border-collapse: collapse; inline-size: 100%; font-size: 0.9rem; }
+      th, td { border-block-start: 1px solid color-mix(in oklch, CanvasText 14%, transparent); padding: 0.5rem; text-align: start; vertical-align: top; }
+      th { color: color-mix(in oklch, CanvasText 72%, transparent); font-weight: 650; }
+      code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+      .lede { color: color-mix(in oklch, CanvasText 68%, transparent); font-size: 1.08rem; max-inline-size: 66rem; }
+      .tag { font: 0.78rem ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: color-mix(in oklch, CanvasText 64%, transparent); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <p class="tag">Web.app static package probes / 2026-05-28</p>
+        <h1>Web-Native Bundle Examples</h1>
+        <p class="lede">
+          Five non-trivial <code>.web</code> packages that exercise modern browser libraries without npm installs, build steps, custom protocols, or server code. Each package persists its durable document through a strict <code>./file.ext</code> localStorage key that Web.app can back with a real package file.
+        </p>
+      </header>
+
+      <nav aria-label="Atlas links">
+        <strong>Atlas links:</strong>
+        <a href="top-picks.html">web top picks</a> /
+        <a href="canvas-and-editors.html">canvas/editors</a> /
+        <a href="sdk-bundle-hosts/index.html">SDK bundle hosts</a> /
+        <a href="../../appdev/100-web-bundle-composition.idea.html">bundle composition</a> /
+        <a href="../../../web.app.web/SPEC/stable-webspace-origins.spec.html">stable origins spec</a> /
+        <a href="../index.html">atlas index</a>
+      </nav>
+
+      <section aria-labelledby="examples">
+        <h2 id="examples">Runnable Bundles</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Bundle</th>
+              <th>Library</th>
+              <th>Workflow</th>
+              <th>Durable key</th>
+              <th>Web-native shape</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><a href="react-flow-kanban.web/">react-flow-kanban.web</a></td>
+              <td>React Flow</td>
+              <td>Controlled node board with custom nodes, edge creation, inspector edits, layout, reset, and JSON export.</td>
+              <td><code>./flow.json</code></td>
+              <td>React and <code>@xyflow/react</code> load from CDN ESM/import-map URLs.</td>
+            </tr>
+            <tr>
+              <td><a href="d3-force-lab.web/">d3-force-lab.web</a></td>
+              <td>D3</td>
+              <td>Force-directed graph editor with drag, zoom, add/delete, link creation, force sliders, pinning, and export.</td>
+              <td><code>./graph.json</code></td>
+              <td>D3 loads as a browser ES module from jsDelivr.</td>
+            </tr>
+            <tr>
+              <td><a href="excalidraw-scene-board.web/">excalidraw-scene-board.web</a></td>
+              <td>Excalidraw</td>
+              <td>Scene board with Excalidraw editing, template insertion, reset, autosave, and scene export.</td>
+              <td><code>./scene.excalidraw</code></td>
+              <td>React and Excalidraw load from CDN ESM/import-map URLs.</td>
+            </tr>
+            <tr>
+              <td><a href="rete-pipeline.web/">rete-pipeline.web</a></td>
+              <td>Rete.js</td>
+              <td>Numeric pipeline editor with draggable nodes, connections, evaluation, Rete core validation, and export.</td>
+              <td><code>./pipeline.rete.json</code></td>
+              <td>Rete core loads from CDN; the renderer stays native DOM and SVG.</td>
+            </tr>
+            <tr>
+              <td><a href="cytoscape-pathfinder.web/">cytoscape-pathfinder.web</a></td>
+              <td>Cytoscape.js</td>
+              <td>Network editor with role filters, weighted edges, layout, shortest-path highlighting, and export.</td>
+              <td><code>./network.cy.json</code></td>
+              <td>Cytoscape.js loads from its browser ES module distribution on jsDelivr.</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section aria-labelledby="contract">
+        <h2 id="contract">Shared Contract</h2>
+        <ul>
+          <li>Every bundle is a directory ending in <code>.web</code> with plain <code>index.html</code>, <code>style.css</code>, <code>app.js</code>, and <code>README.md</code>.</li>
+          <li>There is no package manager metadata, no build output, no server endpoint, and no dependency install step.</li>
+          <li>The durable state key starts with <code>./</code> and ends with a real extension so Web.app can route it to a writable file inside the opened package.</li>
+          <li>Opening the same files in an ordinary browser still works as a static site; persistence falls back to normal origin localStorage.</li>
+        </ul>
+      </section>
+    </main>
+  </body>
+</html>
