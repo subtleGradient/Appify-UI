@@ -1,0 +1,17 @@
+{
+  "name": "appify-lazygit-wterm",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "env -u PORT bun src/server.ts",
+    "test": "bun test tests/*.test.ts"
+  },
+  "dependencies": {
+    "@wterm/dom": "^0.3.0",
+    "@wterm/ghostty": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

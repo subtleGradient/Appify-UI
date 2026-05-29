@@ -1,0 +1,127 @@
+:root {
+  color-scheme: dark light;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #080a0d;
+  color: #f4f7f5;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0) 180px),
+    #080a0d;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-rows: 38px minmax(0, 1fr);
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(20, 24, 27, 0.94);
+  color: #f7faf8;
+}
+
+.brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+
+.brand-mark {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  background: #35d07f;
+  box-shadow: 0 0 18px rgba(53, 208, 127, 0.65);
+}
+
+h1 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.connection-status {
+  margin: 0;
+  flex: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 4px 8px;
+  color: rgba(244, 247, 245, 0.8);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.connection-status[data-state="connected"] {
+  border-color: rgba(53, 208, 127, 0.36);
+  color: #aaf2c8;
+}
+
+.connection-status[data-state="connection-error"],
+.connection-status[data-state="disconnected"] {
+  border-color: rgba(255, 102, 102, 0.36);
+  color: #ffb2b2;
+}
+
+.terminal-shell {
+  min-height: 0;
+  background: #050608;
+}
+
+.terminal {
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .app-shell {
+    grid-template-rows: 42px minmax(0, 1fr);
+  }
+
+  .topbar {
+    padding: 0 10px;
+  }
+
+  h1 {
+    font-size: 14px;
+  }
+
+  .connection-status {
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+}
