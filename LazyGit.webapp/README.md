@@ -26,7 +26,9 @@ secret in a URL, query parameter, or JavaScript global.
 
 This protects the local PTY from cross-site WebSocket hijacking and accidental
 token leakage. It does not protect against script that is already executing in
-the same origin.
+the same origin. The CSP allows inline style attributes because wterm renders
+terminal color and cell backgrounds from ANSI SGR state as per-cell styles;
+scripts remain nonce-gated.
 
 ## Development
 

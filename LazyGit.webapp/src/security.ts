@@ -31,7 +31,7 @@ export function contentSecurityPolicy(requestURL: URL, nonce: string): string {
   return [
     "default-src 'none'",
     `script-src 'nonce-${nonce}' 'wasm-unsafe-eval'`,
-    "style-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
     `connect-src 'self' ${webSocketOriginFor(requestURL)}`,
     "img-src 'self' data:",
     "font-src 'self'",

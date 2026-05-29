@@ -31,10 +31,11 @@ describe("local browser authority", () => {
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("script-src 'nonce-");
     expect(csp).toContain("'wasm-unsafe-eval'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
     expect(csp).toContain("connect-src 'self' ws://127.0.0.1:");
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
-    expect(csp).not.toContain("'unsafe-inline'");
+    expect(scriptDirective(csp)).not.toContain("'unsafe-inline'");
     expect(csp).not.toContain("'unsafe-eval'");
   });
 
@@ -88,6 +89,7 @@ describe("security helpers", () => {
     const csp = contentSecurityPolicy(new URL("http://lazy--abcd.localhost:55555/"), "nonce");
     expect(csp).toContain("connect-src 'self' ws://lazy--abcd.localhost:55555");
     expect(csp).toContain("script-src 'nonce-nonce' 'wasm-unsafe-eval'");
+    expect(csp).toContain("style-src 'self' 'unsafe-inline'");
   });
 
   test("uses no-store text/html headers for the shell", () => {
@@ -133,4 +135,8 @@ async function createTestServer(): Promise<LazyGitWebappServer> {
     clientAssets: { js: "export {};", css: "" },
     resolveTool: (name) => name === "nix-shell" ? null : `/tools/${name}`,
   });
+}
+
+function scriptDirective(csp: string): string {
+  return csp.split(";").map((directive) => directive.trim()).find((directive) => directive.startsWith("script-src ")) ?? "";
 }
