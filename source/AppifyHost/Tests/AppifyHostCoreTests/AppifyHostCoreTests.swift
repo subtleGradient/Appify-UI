@@ -32,6 +32,7 @@ final class AppifyHostCoreTests: XCTestCase {
             AppifyHostAboutLink(title: "Example License", url: "https://example.com/license"),
         ])
         XCTAssertNil(config.firstLaunchHelp)
+        XCTAssertNil(config.installPrompt)
         XCTAssertNil(config.sourceReference)
         XCTAssertEqual(config.serverDirectoryURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer")
         XCTAssertEqual(config.serverExecutableURL.path, "/Applications/SketchPad.app/Contents/Resources/AppServer/main.sh")
@@ -100,6 +101,111 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertEqual(config.sourceReference?.commit, "abc123")
         XCTAssertEqual(config.sourceReference?.appPath, "SketchPad.app")
         XCTAssertEqual(config.sourceReference?.sourceDirectory, "Contents/Resources/Runner")
+    }
+
+    func testLoadsInstallPromptConfiguration() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["InstallPrompt"] = [
+            "Mode": "promptWhenExternal",
+            "PreferredInstallDirectory": "/Applications",
+            "AllowRunInPlace": false,
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Volumes/SketchPad/SketchPad.app")
+        )
+
+        XCTAssertEqual(config.installPrompt?.mode, .promptWhenExternal)
+        XCTAssertEqual(config.installPrompt?.preferredInstallDirectory, "/Applications")
+        XCTAssertEqual(config.installPrompt?.allowRunInPlace, false)
+    }
+
+    func testInstallPromptDefaultsOptionalValues() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["InstallPrompt"] = [:]
+        plist["AppifyHost"] = hostSettings
+
+        let config = try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Volumes/SketchPad/SketchPad.app")
+        )
+
+        XCTAssertEqual(config.installPrompt?.mode, .promptWhenExternal)
+        XCTAssertEqual(config.installPrompt?.preferredInstallDirectory, "/Applications")
+        XCTAssertEqual(config.installPrompt?.allowRunInPlace, true)
+    }
+
+    func testRejectsInvalidInstallPromptConfiguration() throws {
+        var plist = sampleInfoPlist(documentMode: "contentPackage")
+        var hostSettings = try XCTUnwrap(plist["AppifyHost"] as? [String: Any])
+        hostSettings["InstallPrompt"] = [
+            "Mode": "always",
+            "PreferredInstallDirectory": "Applications",
+        ]
+        plist["AppifyHost"] = hostSettings
+
+        XCTAssertThrowsError(try AppifyHostConfigurationLoader.load(
+            infoDictionary: plist,
+            bundleURL: URL(fileURLWithPath: "/Volumes/SketchPad/SketchPad.app")
+        ))
+    }
+
+    func testInstallPromptPolicyOnlyPromptsForDistributionLocations() {
+        let prompt = AppifyHostInstallPrompt(mode: .promptWhenExternal)
+        XCTAssertFalse(AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: nil,
+            locationFacts: AppifyHostInstallLocationFacts(
+                path: "/Volumes/SketchPad/SketchPad.app",
+                volumePath: "/Volumes/SketchPad",
+                isReadOnly: true,
+                isRemovable: false,
+                isEjectable: false
+            )
+        ))
+        XCTAssertFalse(AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: prompt,
+            locationFacts: AppifyHostInstallLocationFacts(
+                path: "/Applications/SketchPad.app",
+                volumePath: "/",
+                isReadOnly: false,
+                isRemovable: false,
+                isEjectable: false
+            )
+        ))
+        XCTAssertTrue(AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: prompt,
+            locationFacts: AppifyHostInstallLocationFacts(
+                path: "/Volumes/SketchPad/SketchPad.app",
+                volumePath: "/Volumes/SketchPad",
+                isReadOnly: false,
+                isRemovable: false,
+                isEjectable: false
+            )
+        ))
+        XCTAssertTrue(AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: prompt,
+            locationFacts: AppifyHostInstallLocationFacts(
+                path: "/private/tmp/SketchPad.app",
+                volumePath: "/",
+                isReadOnly: false,
+                isRemovable: true,
+                isEjectable: false
+            )
+        ))
+        XCTAssertTrue(AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: prompt,
+            locationFacts: AppifyHostInstallLocationFacts(
+                path: "/private/tmp/SketchPad.app",
+                volumePath: "/",
+                isReadOnly: true,
+                isRemovable: false,
+                isEjectable: false
+            )
+        ))
     }
 
     func testLoadsDisabledWindowContentSizing() throws {

@@ -30,6 +30,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
     private var terminateAfterHostWindowsClose = false
     private weak var openRecentMenu: NSMenu?
 
+    @MainActor
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSWindow.allowsAutomaticWindowTabbing = true
 
@@ -37,6 +38,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
             configuration = try AppifyHostRuntime.loadConfiguration()
         } catch {
             showFatalConfigurationError(error)
+            return
+        }
+
+        guard let configuration else {
+            showFatalConfigurationError(AppifyHostError.invalidInfoPlist("The app configuration did not load."))
+            return
+        }
+
+        if handleInstallPromptIfNeeded(configuration: configuration) {
             return
         }
 
@@ -714,6 +724,228 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSOpenSavePanelDelegat
         help: AppifyHostFirstLaunchHelp
     ) -> String {
         "AppifyHost.FirstLaunchHelp.\(configuration.bundleIdentifier).\(help.url.absoluteString)"
+    }
+
+    private enum InstallPromptChoice {
+        case install
+        case runInPlace
+        case quit
+    }
+
+    @discardableResult
+    @MainActor
+    private func handleInstallPromptIfNeeded(configuration: AppifyHostConfiguration) -> Bool {
+        guard let prompt = configuration.installPrompt else {
+            return false
+        }
+
+        let facts = installLocationFacts(for: configuration.bundleURL)
+        guard AppifyHostInstallPromptPolicy.shouldPrompt(
+            installPrompt: prompt,
+            locationFacts: facts
+        ) else {
+            return false
+        }
+
+        switch showInstallPrompt(configuration: configuration, prompt: prompt, facts: facts) {
+        case .runInPlace:
+            return false
+
+        case .quit:
+            NSApp.terminate(nil)
+            return true
+
+        case .install:
+            do {
+                let installedURL = try installAppBundle(configuration: configuration, prompt: prompt)
+                guard NSWorkspace.shared.open(installedURL) else {
+                    throw installPromptError("macOS refused to relaunch \(configuration.appName) from \(installedURL.path).")
+                }
+                NSApp.terminate(nil)
+                return true
+            } catch {
+                showAlert(title: "Could Not Install \(configuration.appName)", message: String(describing: error))
+                if prompt.allowRunInPlace {
+                    return false
+                }
+                NSApp.terminate(nil)
+                return true
+            }
+        }
+    }
+
+    private func installLocationFacts(for bundleURL: URL) -> AppifyHostInstallLocationFacts {
+        let standardizedURL = bundleURL.standardizedFileURL
+        let values = try? standardizedURL.resourceValues(forKeys: [
+            .volumeURLKey,
+            .volumeIsReadOnlyKey,
+            .volumeIsRemovableKey,
+            .volumeIsEjectableKey,
+        ])
+
+        return AppifyHostInstallLocationFacts(
+            path: standardizedURL.path,
+            volumePath: values?.volume?.standardizedFileURL.path,
+            isReadOnly: values?.volumeIsReadOnly ?? false,
+            isRemovable: values?.volumeIsRemovable ?? false,
+            isEjectable: values?.volumeIsEjectable ?? false
+        )
+    }
+
+    private func showInstallPrompt(
+        configuration: AppifyHostConfiguration,
+        prompt: AppifyHostInstallPrompt,
+        facts: AppifyHostInstallLocationFacts
+    ) -> InstallPromptChoice {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = "Install \(configuration.appName)?"
+        alert.informativeText = """
+        \(configuration.appName) is running from \(installSourceDescription(facts)). It will work better after it is installed on this Mac.
+        """
+        alert.addButton(withTitle: "Install and Relaunch")
+        if prompt.allowRunInPlace {
+            alert.addButton(withTitle: "Run From Here")
+            alert.addButton(withTitle: "Quit")
+        } else {
+            alert.addButton(withTitle: "Quit")
+        }
+
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            return .install
+        case .alertSecondButtonReturn:
+            return prompt.allowRunInPlace ? .runInPlace : .quit
+        default:
+            return .quit
+        }
+    }
+
+    private func installSourceDescription(_ facts: AppifyHostInstallLocationFacts) -> String {
+        let source = facts.volumePath ?? facts.path
+        if source == "/Volumes" || source.hasPrefix("/Volumes/") {
+            return source
+        }
+        if facts.isReadOnly {
+            return "a read-only volume"
+        }
+        if facts.isRemovable || facts.isEjectable {
+            return "external media"
+        }
+        return source
+    }
+
+    private func installAppBundle(
+        configuration: AppifyHostConfiguration,
+        prompt: AppifyHostInstallPrompt
+    ) throws -> URL {
+        let fileManager = FileManager.default
+        let installDirectory = try writableInstallDirectory(for: prompt)
+        let destinationURL = installDirectory
+            .appendingPathComponent(configuration.bundleURL.lastPathComponent, isDirectory: true)
+            .standardizedFileURL
+
+        if destinationURL.path == configuration.bundleURL.standardizedFileURL.path {
+            return destinationURL
+        }
+
+        var isDirectory: ObjCBool = false
+        if fileManager.fileExists(atPath: destinationURL.path, isDirectory: &isDirectory) {
+            guard isDirectory.boolValue else {
+                throw installPromptError("A file already exists at \(destinationURL.path).")
+            }
+            try validateReplaceableApp(at: destinationURL, configuration: configuration)
+            guard confirmReplaceInstalledApp(configuration: configuration, destinationURL: destinationURL) else {
+                throw installPromptError("Installation was canceled.")
+            }
+            try fileManager.removeItem(at: destinationURL)
+        }
+
+        try fileManager.copyItem(at: configuration.bundleURL, to: destinationURL)
+        clearQuarantineAttribute(at: destinationURL)
+        return destinationURL
+    }
+
+    private func writableInstallDirectory(for prompt: AppifyHostInstallPrompt) throws -> URL {
+        let fileManager = FileManager.default
+        let preferredURL = URL(fileURLWithPath: prompt.preferredInstallDirectory, isDirectory: true).standardizedFileURL
+        let userApplicationsURL = fileManager.homeDirectoryForCurrentUser
+            .appendingPathComponent("Applications", isDirectory: true)
+            .standardizedFileURL
+        var seen = Set<String>()
+        let candidates = [preferredURL, userApplicationsURL].filter { url in
+            if seen.contains(url.path) {
+                return false
+            }
+            seen.insert(url.path)
+            return true
+        }
+
+        for candidate in candidates {
+            var isDirectory: ObjCBool = false
+            if fileManager.fileExists(atPath: candidate.path, isDirectory: &isDirectory) {
+                if isDirectory.boolValue && fileManager.isWritableFile(atPath: candidate.path) {
+                    return candidate
+                }
+                continue
+            }
+
+            do {
+                try fileManager.createDirectory(at: candidate, withIntermediateDirectories: true)
+                if fileManager.isWritableFile(atPath: candidate.path) {
+                    return candidate
+                }
+            } catch {
+                continue
+            }
+        }
+
+        throw installPromptError("No writable Applications folder was available.")
+    }
+
+    private func validateReplaceableApp(at destinationURL: URL, configuration: AppifyHostConfiguration) throws {
+        guard let bundle = Bundle(url: destinationURL),
+              bundle.bundleIdentifier == configuration.bundleIdentifier
+        else {
+            throw installPromptError("The existing app at \(destinationURL.path) has a different bundle identifier.")
+        }
+    }
+
+    private func confirmReplaceInstalledApp(configuration: AppifyHostConfiguration, destinationURL: URL) -> Bool {
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Replace Installed \(configuration.appName)?"
+        alert.informativeText = """
+        An app with the same bundle identifier already exists here:
+
+        \(destinationURL.path)
+        """
+        alert.addButton(withTitle: "Replace")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn
+    }
+
+    private func clearQuarantineAttribute(at url: URL) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        process.arguments = ["-dr", "com.apple.quarantine", url.path]
+        process.standardOutput = Pipe()
+        process.standardError = Pipe()
+
+        do {
+            try process.run()
+            process.waitUntilExit()
+        } catch {
+            return
+        }
+    }
+
+    private func installPromptError(_ message: String) -> NSError {
+        NSError(
+            domain: "AppifyHost.InstallPrompt",
+            code: 1,
+            userInfo: [NSLocalizedDescriptionKey: message]
+        )
     }
 
     @MainActor

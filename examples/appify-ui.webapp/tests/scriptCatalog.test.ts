@@ -18,6 +18,7 @@ describe("script catalog", () => {
       "build-host-artifact",
       "eject-app",
       "build-app-from-root",
+      "package-disk",
       "appify-host-launcher",
       "appify-host-lib",
     ]);
@@ -71,6 +72,53 @@ describe("script catalog", () => {
     expect(command.env.APPIFY_UI_BUILD_SIGN).toBe("Developer ID Application: Example");
   });
 
+  test("builds package-disk command with disk output and notarization inputs", () => {
+    const command = buildCommandForScript({
+      scriptId: "package-disk",
+      sourceApp: "WebFormer.app",
+      outputPath: "/private/tmp/WebFormer.dmg",
+      outputKind: "dmg",
+      volumeName: "WebFormer Installer",
+      signMode: "identity",
+      signIdentity: "Developer ID Application: Example",
+      notaryProfile: "example-notary",
+    }, repoRoot);
+
+    expect(command.command).toBe(join(repoRoot, "Scripts", "package-disk.sh"));
+    expect(command.args).toEqual([
+      join(repoRoot, "WebFormer.app"),
+      "--output",
+      "/private/tmp/WebFormer.dmg",
+      "--output-kind",
+      "dmg",
+      "--sign",
+      "Developer ID Application: Example",
+      "--volume-name",
+      "WebFormer Installer",
+      "--notary-profile",
+      "example-notary",
+    ]);
+  });
+
+  test("builds package-disk media-folder command", () => {
+    const command = buildCommandForScript({
+      scriptId: "package-disk",
+      sourceApp: "Webapp.app",
+      outputPath: "/private/tmp/Webapp-media",
+      outputKind: "media-folder",
+      signMode: "no-sign",
+    }, repoRoot);
+
+    expect(command.args).toEqual([
+      join(repoRoot, "Webapp.app"),
+      "--output",
+      "/private/tmp/Webapp-media",
+      "--output-kind",
+      "media-folder",
+      "--no-sign",
+    ]);
+  });
+
   test("rejects arbitrary source apps and repo-local outputs", () => {
     expect(() => buildCommandForScript({
       scriptId: "eject-app",
@@ -83,5 +131,19 @@ describe("script catalog", () => {
       sourceApp: "Webapp.app",
       outputPath: resolve(repoRoot, "dist", "Webapp.app"),
     }, repoRoot)).toThrow("outside the repository");
+
+    expect(() => buildCommandForScript({
+      scriptId: "package-disk",
+      sourceApp: "Webapp.app",
+      outputPath: resolve(repoRoot, "dist", "Webapp.dmg"),
+      outputKind: "dmg",
+    }, repoRoot)).toThrow("outside the repository");
+
+    expect(() => buildCommandForScript({
+      scriptId: "package-disk",
+      sourceApp: "Webapp.app",
+      outputPath: "/private/tmp/Webapp.app",
+      outputKind: "media-folder",
+    }, repoRoot)).toThrow("media-folder");
   });
 });

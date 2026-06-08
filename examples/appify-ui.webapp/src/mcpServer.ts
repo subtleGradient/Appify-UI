@@ -19,8 +19,11 @@ const runScriptInputSchema = {
   scriptId: z.enum(ROOT_SCRIPT_IDS),
   sourceApp: z.string().optional(),
   outputPath: z.string().optional(),
+  outputKind: z.enum(["dmg", "media-folder"]).optional(),
+  volumeName: z.string().optional(),
   signMode: z.enum(["ad-hoc", "no-sign", "identity"]).optional(),
   signIdentity: z.string().optional(),
+  notaryProfile: z.string().optional(),
   documentPath: z.string().optional(),
 };
 

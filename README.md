@@ -126,6 +126,50 @@ Create a standalone distributable app from a root app:
 Scripts/eject-app.sh WebFormer.app --output /private/tmp/WebFormer.app --sign -
 ```
 
+Create a downloadable DMG or a staged USB/SD media folder from the same app:
+
+```sh
+Scripts/package-disk.sh WebFormer.app \
+  --output /private/tmp/WebFormer.dmg \
+  --output-kind dmg \
+  --volume-name WebFormer \
+  --sign "Developer ID Application: Example Team (TEAMID)" \
+  --notary-profile example-notary
+
+Scripts/package-disk.sh WebFormer.app \
+  --output /private/tmp/WebFormer-media \
+  --output-kind media-folder \
+  --sign "Developer ID Application: Example Team (TEAMID)" \
+  --notary-profile example-notary
+```
+
+The disk packager stages one Mac-native install volume layout: the standalone
+app, an `/Applications` symlink for drag-install DMGs, and optional README,
+license, icon, or Finder background assets. DMGs are compressed with `hdiutil`,
+verified, and, when Developer ID signing/notarization is enabled, notarized and
+stapled. The media-folder output is the same volume content ready to copy onto
+USB or SD media. macOS does not provide a dependable modern autorun flow for
+inserted physical media, so the supported physical-media UX is open the volume,
+then double-click the app or installer affordance.
+
+Apps that should not run forever from removable media can opt into a native
+install-and-relaunch prompt in `Contents/Info.plist`:
+
+```plist
+<key>AppifyHost</key>
+<dict>
+  <key>InstallPrompt</key>
+  <dict>
+    <key>Mode</key>
+    <string>promptWhenExternal</string>
+    <key>PreferredInstallDirectory</key>
+    <string>/Applications</string>
+    <key>AllowRunInPlace</key>
+    <true/>
+  </dict>
+</dict>
+```
+
 For any root app, the app-local build script is now an eject wrapper:
 
 ```sh

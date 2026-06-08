@@ -6,12 +6,14 @@ export const ROOT_SCRIPT_IDS = [
   "build-host-artifact",
   "eject-app",
   "build-app-from-root",
+  "package-disk",
   "appify-host-launcher",
   "appify-host-lib",
 ] as const;
 
 export type RootScriptId = typeof ROOT_SCRIPT_IDS[number];
 export type SignMode = "ad-hoc" | "no-sign" | "identity";
+export type DiskOutputKind = "dmg" | "media-folder";
 
 export type ScriptInputField = {
   name: string;
@@ -35,8 +37,11 @@ export type RunScriptInput = {
   scriptId: RootScriptId;
   sourceApp?: string;
   outputPath?: string;
+  outputKind?: DiskOutputKind;
+  volumeName?: string;
   signMode?: SignMode;
   signIdentity?: string;
+  notaryProfile?: string;
   documentPath?: string;
 };
 
@@ -75,6 +80,25 @@ const outputPathField: ScriptInputField = {
   required: true,
   placeholder: "/private/tmp/WebFormer.app",
 };
+const diskOutputPathField: ScriptInputField = {
+  name: "outputPath",
+  label: "Output path",
+  type: "path",
+  required: true,
+  placeholder: "/private/tmp/WebFormer.dmg",
+};
+const outputKindField: ScriptInputField = {
+  name: "outputKind",
+  label: "Output kind",
+  type: "text",
+  placeholder: "dmg",
+};
+const volumeNameField: ScriptInputField = {
+  name: "volumeName",
+  label: "Volume name",
+  type: "text",
+  placeholder: "Defaults to app name",
+};
 const signModeField: ScriptInputField = {
   name: "signMode",
   label: "Sign mode",
@@ -86,6 +110,12 @@ const signIdentityField: ScriptInputField = {
   label: "Signing identity",
   type: "text",
   placeholder: "Developer ID Application: ...",
+};
+const notaryProfileField: ScriptInputField = {
+  name: "notaryProfile",
+  label: "Notary profile",
+  type: "text",
+  placeholder: "Optional keychain profile",
 };
 
 export function listRootScripts(repoRoot: string): ScriptCatalogEntry[] {
@@ -121,6 +151,15 @@ export function listRootScripts(repoRoot: string): ScriptCatalogEntry[] {
       description: "Runs the shared root-app eject wrapper with Appify UI controlled output and sign settings.",
       runnable: true,
       inputs: [sourceAppField, outputPathField, signModeField, signIdentityField],
+    },
+    {
+      id: "package-disk",
+      title: "Package Disk Image",
+      path: "Scripts/package-disk.sh",
+      description: "Creates a staged install volume as a DMG or media folder from a checked-in root app.",
+      runnable: true,
+      longRunning: true,
+      inputs: [sourceAppField, diskOutputPathField, outputKindField, volumeNameField, signModeField, signIdentityField, notaryProfileField],
     },
     {
       id: "appify-host-launcher",
@@ -208,6 +247,29 @@ export function buildCommandForScript(input: RunScriptInput, repoRoot: string): 
       };
     }
 
+    case "package-disk": {
+      const sourceApp = validateRootApp(input.sourceApp, repoRoot);
+      const outputKind = validateDiskOutputKind(input.outputKind);
+      const outputPath = validateDiskOutputPath(input.outputPath, repoRoot, outputKind);
+      const signArgs = signArguments(input.signMode, input.signIdentity);
+      const args = [sourceApp, "--output", outputPath, "--output-kind", outputKind, ...signArgs];
+      const volumeName = validateOptionalText(input.volumeName, "volumeName");
+      const notaryProfile = validateOptionalText(input.notaryProfile, "notaryProfile");
+      if (volumeName) {
+        args.push("--volume-name", volumeName);
+      }
+      if (notaryProfile) {
+        args.push("--notary-profile", notaryProfile);
+      }
+      return {
+        command: scriptPath,
+        args,
+        cwd: repoRoot,
+        env,
+        longRunning: true,
+      };
+    }
+
     case "appify-host-launcher": {
       const sourceApp = validateRootApp(input.sourceApp, repoRoot);
       const args = [sourceApp];
@@ -261,11 +323,50 @@ function validateOutputPath(outputPath: string | undefined, repoRoot: string): s
   return resolved;
 }
 
+function validateDiskOutputKind(outputKind: DiskOutputKind | undefined): DiskOutputKind {
+  switch (outputKind?.trim() || "dmg") {
+    case "dmg":
+      return "dmg";
+    case "media-folder":
+      return "media-folder";
+    default:
+      throw new Error("outputKind must be dmg or media-folder.");
+  }
+}
+
+function validateDiskOutputPath(outputPath: string | undefined, repoRoot: string, outputKind: DiskOutputKind): string {
+  if (!outputPath?.trim()) {
+    throw new Error("outputPath is required.");
+  }
+  const resolved = resolve(repoRoot, outputPath);
+  if (resolved === repoRoot || resolved.startsWith(`${repoRoot}/`)) {
+    throw new Error("outputPath must be outside the repository.");
+  }
+  if (outputKind === "dmg" && !resolved.endsWith(".dmg")) {
+    throw new Error("DMG outputPath must end with .dmg.");
+  }
+  if (outputKind === "media-folder" && resolved.endsWith(".app")) {
+    throw new Error("media-folder outputPath must not end with .app.");
+  }
+  return resolved;
+}
+
 function validateOptionalPath(path: string | undefined, repoRoot: string): string | undefined {
   if (!path?.trim()) {
     return undefined;
   }
   return resolve(repoRoot, path);
+}
+
+function validateOptionalText(value: string | undefined, fieldName: string): string | undefined {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return undefined;
+  }
+  if (trimmed.includes("\n") || trimmed.includes("\0")) {
+    throw new Error(`${fieldName} must be a single line.`);
+  }
+  return trimmed;
 }
 
 function signArguments(signMode: SignMode | undefined, signIdentity: string | undefined): string[] {

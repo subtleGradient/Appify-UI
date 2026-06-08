@@ -25,6 +25,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
     public var restrictNavigationToReadyURLScope: Bool
     public var aboutNotice: AppifyHostAboutNotice?
     public var firstLaunchHelp: AppifyHostFirstLaunchHelp?
+    public var installPrompt: AppifyHostInstallPrompt?
     public var sourceReference: AppifyHostSourceReference?
 
     public init(
@@ -51,6 +52,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         restrictNavigationToReadyURLScope: Bool,
         aboutNotice: AppifyHostAboutNotice?,
         firstLaunchHelp: AppifyHostFirstLaunchHelp?,
+        installPrompt: AppifyHostInstallPrompt?,
         sourceReference: AppifyHostSourceReference?
     ) {
         self.appName = appName
@@ -76,6 +78,7 @@ public struct AppifyHostConfiguration: Equatable, Sendable {
         self.restrictNavigationToReadyURLScope = restrictNavigationToReadyURLScope
         self.aboutNotice = aboutNotice
         self.firstLaunchHelp = firstLaunchHelp
+        self.installPrompt = installPrompt
         self.sourceReference = sourceReference
     }
 
@@ -243,6 +246,76 @@ public struct AppifyHostFirstLaunchHelp: Equatable, Sendable {
     }
 }
 
+public enum AppifyHostInstallPromptMode: String, Equatable, Sendable {
+    case promptWhenExternal
+}
+
+public struct AppifyHostInstallPrompt: Equatable, Sendable {
+    public var mode: AppifyHostInstallPromptMode
+    public var preferredInstallDirectory: String
+    public var allowRunInPlace: Bool
+
+    public init(
+        mode: AppifyHostInstallPromptMode,
+        preferredInstallDirectory: String = "/Applications",
+        allowRunInPlace: Bool = true
+    ) {
+        self.mode = mode
+        self.preferredInstallDirectory = preferredInstallDirectory
+        self.allowRunInPlace = allowRunInPlace
+    }
+}
+
+public struct AppifyHostInstallLocationFacts: Equatable, Sendable {
+    public var path: String
+    public var volumePath: String?
+    public var isReadOnly: Bool
+    public var isRemovable: Bool
+    public var isEjectable: Bool
+
+    public init(
+        path: String,
+        volumePath: String?,
+        isReadOnly: Bool,
+        isRemovable: Bool,
+        isEjectable: Bool
+    ) {
+        self.path = path
+        self.volumePath = volumePath
+        self.isReadOnly = isReadOnly
+        self.isRemovable = isRemovable
+        self.isEjectable = isEjectable
+    }
+}
+
+public enum AppifyHostInstallPromptPolicy {
+    public static func shouldPrompt(
+        installPrompt: AppifyHostInstallPrompt?,
+        locationFacts: AppifyHostInstallLocationFacts
+    ) -> Bool {
+        guard let installPrompt else {
+            return false
+        }
+
+        switch installPrompt.mode {
+        case .promptWhenExternal:
+            return isDistributionLikeLocation(locationFacts)
+        }
+    }
+
+    public static func isDistributionLikeLocation(_ facts: AppifyHostInstallLocationFacts) -> Bool {
+        facts.isReadOnly
+            || facts.isRemovable
+            || facts.isEjectable
+            || isVolumesPath(facts.path)
+            || facts.volumePath.map(isVolumesPath) == true
+    }
+
+    private static func isVolumesPath(_ path: String) -> Bool {
+        path == "/Volumes" || path.hasPrefix("/Volumes/")
+    }
+}
+
 public struct AppifyHostSourceReference: Equatable, Sendable {
     public var repositoryURL: String?
     public var commit: String?
@@ -349,6 +422,7 @@ public enum AppifyHostConfigurationLoader {
         let restrictNavigation = boolValue(hostSettings["RestrictNavigationToReadyURLScope"]) ?? true
         let aboutNotice = parseAboutNotice(from: hostSettings)
         let firstLaunchHelp = try parseFirstLaunchHelp(from: hostSettings, appName: appName)
+        let installPrompt = try parseInstallPrompt(from: hostSettings)
         let sourceReference = parseSourceReference(from: hostSettings)
 
         guard !documentExtensions.isEmpty else {
@@ -384,6 +458,7 @@ public enum AppifyHostConfigurationLoader {
             restrictNavigationToReadyURLScope: restrictNavigation,
             aboutNotice: aboutNotice,
             firstLaunchHelp: firstLaunchHelp,
+            installPrompt: installPrompt,
             sourceReference: sourceReference
         )
     }
@@ -529,6 +604,32 @@ public enum AppifyHostConfigurationLoader {
         return AppifyHostFirstLaunchHelp(
             url: url,
             windowTitle: trimmedString(help["WindowTitle"]) ?? "\(appName) Help"
+        )
+    }
+
+    public static func parseInstallPrompt(from hostSettings: [String: Any]) throws -> AppifyHostInstallPrompt? {
+        guard let prompt = hostSettings["InstallPrompt"] as? [String: Any] else {
+            return nil
+        }
+
+        let modeValue = trimmedString(prompt["Mode"]) ?? AppifyHostInstallPromptMode.promptWhenExternal.rawValue
+        guard let mode = AppifyHostInstallPromptMode(rawValue: modeValue) else {
+            throw AppifyHostError.invalidInfoPlist("Unsupported AppifyHost:InstallPrompt:Mode: \(modeValue).")
+        }
+
+        let preferredInstallDirectory = trimmedString(prompt["PreferredInstallDirectory"]) ?? "/Applications"
+        guard preferredInstallDirectory.hasPrefix("/"),
+              preferredInstallDirectory != "/",
+              !preferredInstallDirectory.contains("\0"),
+              preferredInstallDirectory.rangeOfCharacter(from: .newlines) == nil
+        else {
+            throw AppifyHostError.invalidInfoPlist("AppifyHost:InstallPrompt:PreferredInstallDirectory must be an absolute directory path.")
+        }
+
+        return AppifyHostInstallPrompt(
+            mode: mode,
+            preferredInstallDirectory: preferredInstallDirectory,
+            allowRunInPlace: boolValue(prompt["AllowRunInPlace"]) ?? true
         )
     }
 
