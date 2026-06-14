@@ -38,13 +38,18 @@ export default defineToolbarApp({
     style.textContent = `
       astro-dev-toolbar-window {
         color: #e5e7eb;
+        overflow: hidden;
       }
 
       .shell {
+        box-sizing: border-box;
         display: grid;
-        gap: 14px;
-        width: min(680px, calc(100vw - 48px));
-        padding: 4px;
+        grid-template-rows: auto auto auto minmax(0, 1fr);
+        gap: 12px;
+        width: 100%;
+        min-width: 0;
+        max-height: min(432px, calc(100vh - 144px));
+        overflow: auto;
         font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       }
 
@@ -54,6 +59,11 @@ export default defineToolbarApp({
         align-items: center;
         justify-content: space-between;
         gap: 12px;
+        min-width: 0;
+      }
+
+      .header > div {
+        min-width: 0;
       }
 
       .title {
@@ -73,15 +83,16 @@ export default defineToolbarApp({
 
       .commands {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 10px;
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 155px), 1fr));
+        gap: 8px;
+        min-width: 0;
       }
 
       .command {
         display: grid;
         gap: 8px;
         min-width: 0;
-        padding: 12px;
+        padding: 10px;
         border: 1px solid rgba(148, 163, 184, 0.24);
         border-radius: 8px;
         background: rgba(15, 23, 42, 0.7);
@@ -112,8 +123,8 @@ export default defineToolbarApp({
 
       .log {
         box-sizing: border-box;
-        min-height: 180px;
-        max-height: min(360px, 45vh);
+        min-width: 0;
+        min-height: 96px;
         margin: 0;
         overflow: auto;
         white-space: pre-wrap;
