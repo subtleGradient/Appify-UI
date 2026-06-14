@@ -115,6 +115,10 @@ for legacy_path in "$ROOT/bin/appify-host" "$ROOT/bin/appify-host.manifest.json"
   [[ ! -e "$legacy_path" ]] || fail "unqualified AppifyHost artifact must not exist: ${legacy_path#$ROOT/}"
 done
 
+if grep -Eq 'swift[[:space:]]+build|appify_host_artifact_problem' "$ROOT/Scripts/appify-host-launcher.sh"; then
+  fail "appify-host-launcher.sh must not build or fully validate AppifyHost during app startup"
+fi
+
 architecture="$(appify_host_arch)"
 host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
 problem="$(appify_host_artifact_problem "$ROOT" "$architecture" || true)"

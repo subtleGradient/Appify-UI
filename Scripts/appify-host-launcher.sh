@@ -13,24 +13,10 @@ shift
 
 APP_NAME="$(appify_app_name "$APP")"
 ARCHITECTURE="$(appify_host_arch)"
-SOURCE_DIR="$ROOT/source/AppifyHost"
 HOST_BINARY="$(appify_host_binary_path "$ROOT" "$ARCHITECTURE")"
 
-problem="$(appify_host_artifact_problem "$ROOT" "$ARCHITECTURE" || true)"
-if [[ -z "$problem" ]]; then
-  host_to_exec="$HOST_BINARY"
-elif command -v swift >/dev/null 2>&1; then
-  if ! swift build --package-path "$SOURCE_DIR" -c debug --product appify-host --arch "$ARCHITECTURE"; then
-    appify_show_error "Cannot Build $APP_NAME" "The checked-in host artifact for $ARCHITECTURE is stale, and Swift could not build an ephemeral host from source/AppifyHost."
-    exit 1
-  fi
-  host_to_exec="$(appify_host_build_output_path "$SOURCE_DIR" debug "$ARCHITECTURE")"
-  if [[ ! -x "$host_to_exec" ]]; then
-    appify_show_error "Cannot Build $APP_NAME" "Swift reported a successful build for $ARCHITECTURE, but did not produce $host_to_exec."
-    exit 1
-  fi
-else
-  appify_show_error "Cannot Start $APP_NAME" "The checked-in AppifyHost artifact for $ARCHITECTURE is stale: $problem. Run Scripts/build-host-artifact.sh from the repo, or use Scripts/eject-app.sh to create a standalone app."
+if [[ ! -x "$HOST_BINARY" ]]; then
+  appify_show_error "Cannot Start $APP_NAME" "Missing AppifyHost artifact for $ARCHITECTURE at ${HOST_BINARY#$ROOT/}. Run Scripts/build-host-artifact.sh from the repo, or use Scripts/eject-app.sh to create a standalone app."
   exit 1
 fi
 
@@ -39,4 +25,4 @@ if [[ "${APPIFY_HOST_BOOTSTRAP_ONLY:-0}" == "1" ]]; then
 fi
 
 export APPIFY_HOST_BUNDLE_PATH="$APP"
-exec "$host_to_exec" "$@"
+exec "$HOST_BINARY" "$@"
