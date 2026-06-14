@@ -4,7 +4,7 @@ import appifyCommandToolbar from "./src/dev-toolbar/integration";
 
 export default defineConfig({
   site: "https://subtlegradient.github.io",
-  base: "/appify-ui",
+  base: "/Appify-UI",
   output: "static",
   outDir: "../appify-ui.web",
   trailingSlash: "never",

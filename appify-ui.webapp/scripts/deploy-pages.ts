@@ -97,7 +97,7 @@ async function writePublishMetadata(sourceCommit: string): Promise<void> {
   await writeFile(
     join(publishRoot, ".build-info.json"),
     `${JSON.stringify({
-      sourceRepository: "subtleGradient/appify-ui",
+      sourceRepository: "subtleGradient/Appify-UI",
       sourceCommit,
       sourcePackage: "appify-ui.webapp",
       outputPackage: "appify-ui.web",

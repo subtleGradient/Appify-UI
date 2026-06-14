@@ -1,8 +1,8 @@
 export const site = {
   title: "Appify UI",
   description: "Small Mac-shaped hosts for local tools, static web packages, and document-shaped web projects.",
-  githubURL: "https://github.com/subtleGradient/appify-ui",
-  pagesURL: "https://subtlegradient.github.io/appify-ui/",
+  githubURL: "https://github.com/subtleGradient/Appify-UI",
+  pagesURL: "https://subtlegradient.github.io/Appify-UI/",
 };
 
 const baseURL = import.meta.env.BASE_URL.endsWith("/")
