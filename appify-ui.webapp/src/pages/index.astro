@@ -30,6 +30,33 @@ const metrics = [
         <a class="button" href={href("apps.html")}>Browse every app</a>
       </div>
     </section>
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Create an app</p>
+        <h2>AppifyHost turns one local tool into one focused Mac document app.</h2>
+      </div>
+      <div class="comparison-grid inline-comparison">
+        <article class="comparison-panel">
+          <p class="eyebrow">Runtime contract</p>
+          <h3>Bundle a command, declare a document type, print a ready URL.</h3>
+          <p>
+            The shared host in <code>source/AppifyHost</code> handles the native
+            document window, startup, safe URL loading, save hooks, and sizing.
+          </p>
+        </article>
+        <article class="comparison-panel">
+          <p class="eyebrow">Guide</p>
+          <h3>Use the current repo launcher and ejection flow.</h3>
+          <p>
+            The guide covers <code>Info.plist</code>, document modes, app-local
+            servers, AppifyHost browser hooks, and validation checks.
+          </p>
+          <div class="section-actions">
+            <a class="button primary" href={href("host.html")}>Create an AppifyHost app</a>
+          </div>
+        </article>
+      </div>
+    </section>
     <PrincipleList principles={principles} />
     <section class="section-band">
       <div class="section-heading">

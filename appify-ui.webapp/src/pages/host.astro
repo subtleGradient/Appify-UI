@@ -1,0 +1,428 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { href } from "../lib/site";
+
+const bundleTree = `MyTool.app/
+  Contents/
+    Info.plist
+    MacOS/main.sh
+    Resources/AppServer/main.sh
+    Resources/AppServer/your-server-files`;
+
+const plistExample = `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>AppifyHost</key>
+  <dict>
+    <key>DocumentKindEnvironmentValue</key>
+    <string>com.example.mytool.project</string>
+    <key>DocumentMode</key>
+    <string>contentPackage</string>
+    <key>LogName</key>
+    <string>MyTool</string>
+    <key>ServerExecutable</key>
+    <string>main.sh</string>
+    <key>ServerInstallDirectory</key>
+    <string>Contents/Resources/AppServer</string>
+    <key>ServerArguments</key>
+    <array>
+      <string>--document={documentPath}</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>MYTOOL_WORKSPACE</key>
+      <string>{workingDirectory}</string>
+    </dict>
+    <key>StartupTimeoutSeconds</key>
+    <integer>20</integer>
+    <key>WebViewDataStore</key>
+    <string>persistent</string>
+    <key>WindowContentSizing</key>
+    <string>automatic</string>
+    <key>WindowTitlePrefix</key>
+    <string>MyTool</string>
+  </dict>
+
+  <key>CFBundleDisplayName</key>
+  <string>MyTool</string>
+  <key>CFBundleExecutable</key>
+  <string>main.sh</string>
+  <key>CFBundleIdentifier</key>
+  <string>com.example.mytool</string>
+  <key>CFBundleName</key>
+  <string>MyTool</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>14.0</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>mytool</string>
+      </array>
+      <key>CFBundleTypeName</key>
+      <string>MyTool Project</string>
+      <key>CFBundleTypeRole</key>
+      <string>Editor</string>
+      <key>LSHandlerRank</key>
+      <string>Owner</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>com.example.mytool.project</string>
+      </array>
+      <key>LSTypeIsPackage</key>
+      <true/>
+      <key>NSDocumentClass</key>
+      <string>AppifyHostDocument</string>
+    </dict>
+  </array>
+
+  <key>UTExportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>com.example.mytool.project</string>
+      <key>UTTypeDescription</key>
+      <string>MyTool Project</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>com.apple.package</string>
+        <string>public.directory</string>
+      </array>
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>mytool</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>`;
+
+const repoLauncher = `#!/usr/bin/env bash
+set -euo pipefail
+
+APP="$(cd "$(dirname "$0")/../.." && pwd)"
+cursor="$APP"
+while [[ "$cursor" != "/" ]]; do
+  launcher="$cursor/Scripts/appify-host-launcher.sh"
+  if [[ -x "$launcher" ]]; then
+    exec "$launcher" "$APP" "$@"
+  fi
+  cursor="$(dirname "$cursor")"
+done
+
+printf 'Cannot find Appify UI repo launcher for %s. Use Scripts/eject-app.sh for a standalone app.\\n' "$APP" >&2
+exit 1`;
+
+const serverExample = `#!/usr/bin/env bash
+set -euo pipefail
+
+DOCUMENT_PATH="$APPIFY_HOST_DOCUMENT_PATH"
+SERVER_DIR="$APPIFY_HOST_SERVER_DIR"
+
+if [[ -z "$DOCUMENT_PATH" || -z "$SERVER_DIR" ]]; then
+  printf 'AppifyHost document and server paths are required.\\n' >&2
+  exit 1
+fi
+
+cd "$SERVER_DIR"
+./server --document "$DOCUMENT_PATH" &
+server_pid="$!"
+
+# Print the real URL only after the app is ready to load.
+printf 'APPIFY_HOST_OPEN_URL=http://127.0.0.1:8787/\\n'
+
+wait "$server_pid"`;
+
+const browserHooks = `<script>
+  let dirty = false;
+
+  window.AppifyHost = window.AppifyHost || {};
+  window.AppifyHost.isDirty = () => dirty;
+  window.AppifyHost.save = async () => {
+    await persistDocumentState();
+    dirty = false;
+    return true;
+  };
+
+  window.AppifyHost.preferredContentSize = () => ({
+    width: document.documentElement.scrollWidth,
+    height: document.documentElement.scrollHeight,
+  });
+</script>`;
+
+const documentModes = [
+  {
+    name: "contentPackage",
+    shape: "A document package folder.",
+    workingDirectory: "The package itself.",
+    use: "Project-style apps where the document owns assets, previews, caches, or metadata.",
+  },
+  {
+    name: "contentPackageOrFile",
+    shape: "A file or a folder with the same extension.",
+    workingDirectory: "The non-empty folder itself, otherwise the parent folder.",
+    use: "Dual-mode apps such as Web.app that can open package folders and single marker files.",
+  },
+  {
+    name: "folderMarker",
+    shape: "A marker folder.",
+    workingDirectory: "The marker folder's parent.",
+    use: "Repository or workspace hosts where the visible document points at a surrounding folder.",
+  },
+  {
+    name: "fileDocument",
+    shape: "A regular file.",
+    workingDirectory: "The file's parent folder.",
+    use: "Data viewers and editors for `.csv`, `.jsonl`, `.sqlite`, logs, and similar files.",
+  },
+];
+---
+
+<BaseLayout
+  title="Create AppifyHost Apps"
+  current="host"
+  description="How to create a new document-shaped Mac app with the AppifyHost runtime."
+>
+  <main>
+    <section class="page-intro split-intro">
+      <div>
+        <p class="eyebrow">AppifyHost recipe</p>
+        <h1>Create a small Mac app around one local tool.</h1>
+        <p>
+          AppifyHost is the shared native runtime in <code>source/AppifyHost</code>.
+          Your app supplies a macOS bundle, an <code>Info.plist</code> contract,
+          a document type, and an app-local command that opens a loopback or
+          local file URL when it is ready.
+        </p>
+      </div>
+      <div class="guide-summary">
+        <p class="eyebrow">Minimum contract</p>
+        <ol class="step-list">
+          <li>Declare the document extension and UTType.</li>
+          <li>Configure the <code>AppifyHost</code> dictionary.</li>
+          <li>Bundle a server command under <code>Contents/Resources/AppServer</code>.</li>
+          <li>Print <code>APPIFY_HOST_OPEN_URL=...</code> from stdout.</li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section-band guide-grid">
+      <article class="guide-card">
+        <p class="eyebrow">Bundle shape</p>
+        <h2>Start with a normal app bundle.</h2>
+        <p>
+          In this repo, root apps keep a development launcher at
+          <code>Contents/MacOS/main.sh</code>. The launcher finds
+          <code>Scripts/appify-host-launcher.sh</code>, sets
+          <code>APPIFY_HOST_BUNDLE_PATH</code>, and execs the built host binary
+          from <code>bin/appify-host-$arch</code>.
+        </p>
+        <p>
+          For a standalone copy, <code>Scripts/eject-app.sh</code> replaces that
+          launcher with <code>Contents/MacOS/appify-host</code> and rewrites
+          <code>CFBundleExecutable</code>.
+        </p>
+      </article>
+      <pre class="code-block"><code>{bundleTree}</code></pre>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Info.plist</p>
+        <h2>The plist is the app contract.</h2>
+      </div>
+      <div class="guide-layout">
+        <div class="guide-main">
+          <p>
+            AppifyHost reads <code>Contents/Info.plist</code>, requires an
+            <code>AppifyHost</code> dictionary, and requires at least one
+            document filename extension from <code>CFBundleDocumentTypes</code>
+            or matching UTType declarations. Keep the document type focused:
+            one app should own one clear class of local document.
+          </p>
+          <pre class="code-block"><code>{plistExample}</code></pre>
+        </div>
+        <aside class="guide-aside">
+          <h3>Required in practice</h3>
+          <ul class="compact-list">
+            <li><code>AppifyHost</code> dictionary.</li>
+            <li><code>DocumentMode</code> matching the document shape.</li>
+            <li><code>ServerInstallDirectory</code> and <code>ServerExecutable</code>.</li>
+            <li><code>CFBundleDocumentTypes</code> with an extension.</li>
+            <li><code>NSDocumentClass</code> set to <code>AppifyHostDocument</code>.</li>
+          </ul>
+          <h3>Useful defaults</h3>
+          <ul class="compact-list">
+            <li><code>DocumentMode</code>: <code>contentPackage</code>.</li>
+            <li><code>ServerInstallDirectory</code>: <code>Contents/Resources/AppServer</code>.</li>
+            <li><code>ServerExecutable</code>: <code>main.sh</code>.</li>
+            <li><code>StartupTimeoutSeconds</code>: <code>20</code>.</li>
+            <li><code>WebViewDataStore</code>: <code>persistent</code>.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Launch path</p>
+        <h2>The repo launcher is intentionally thin.</h2>
+      </div>
+      <div class="guide-layout">
+        <div class="guide-main">
+          <p>
+            Use this shape for checked-in root apps while iterating inside this
+            repo. It keeps the built AppifyHost artifact out of every app bundle
+            and makes a stale host binary obvious.
+          </p>
+          <pre class="code-block"><code>{repoLauncher}</code></pre>
+        </div>
+        <aside class="guide-aside">
+          <h3>Build and eject</h3>
+          <ul class="compact-list">
+            <li>Run <code>Scripts/build-host-artifact.sh</code> after changing <code>source/AppifyHost</code>.</li>
+            <li>Run <code>Scripts/eject-app.sh Root.app --output Standalone.app</code> when you need a self-contained app.</li>
+            <li>The ejected app stores source metadata under <code>AppifyHost:SourceReference</code>.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Server command</p>
+        <h2>Your app-local server owns the actual product behavior.</h2>
+      </div>
+      <div class="guide-layout">
+        <div class="guide-main">
+          <p>
+            AppifyHost starts the configured executable with
+            <code>Contents/Resources/AppServer</code> as the current directory.
+            The server may open a loopback HTTP(S) URL or a local file URL under
+            the document or app bundle. It must print exactly one ready line
+            before the startup timeout.
+          </p>
+          <pre class="code-block"><code>{serverExample}</code></pre>
+        </div>
+        <aside class="guide-aside">
+          <h3>Environment from AppifyHost</h3>
+          <ul class="compact-list">
+            <li><code>APPIFY_HOST_BUNDLE_ID</code></li>
+            <li><code>APPIFY_HOST_APP_NAME</code></li>
+            <li><code>APPIFY_HOST_DOCUMENT_PATH</code></li>
+            <li><code>APPIFY_HOST_WORKING_DIRECTORY</code></li>
+            <li><code>APPIFY_HOST_DOCUMENT_KIND</code></li>
+            <li><code>APPIFY_HOST_BUNDLE_PATH</code></li>
+            <li><code>APPIFY_HOST_SERVER_DIR</code></li>
+          </ul>
+          <h3>Optional stdout lines</h3>
+          <ul class="compact-list">
+            <li><code>APPIFY_HOST_BACKEND_URL=...</code> for an internal loopback backend.</li>
+            <li><code>APPIFY_HOST_PROXY_URL=...</code> for stable <code>*.localhost:55555</code> webspace routing.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Document modes</p>
+        <h2>Pick the storage shape before writing UI.</h2>
+      </div>
+      <div class="mode-grid">
+        {documentModes.map((mode) => (
+          <article class="mode-card">
+            <h3><code>{mode.name}</code></h3>
+            <dl>
+              <div>
+                <dt>Shape</dt>
+                <dd>{mode.shape}</dd>
+              </div>
+              <div>
+                <dt>Working directory</dt>
+                <dd>{mode.workingDirectory}</dd>
+              </div>
+              <div>
+                <dt>Use when</dt>
+                <dd>{mode.use}</dd>
+              </div>
+            </dl>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Browser contract</p>
+        <h2>The page can cooperate with native save and sizing.</h2>
+      </div>
+      <div class="guide-layout">
+        <div class="guide-main">
+          <p>
+            AppifyHost can ask the loaded page whether it is dirty, call a save
+            hook before native save completes, and measure preferred content
+            size. Most static pages need none of this. Editors should implement
+            the hooks explicitly.
+          </p>
+          <pre class="code-block"><code>{browserHooks}</code></pre>
+        </div>
+        <aside class="guide-aside">
+          <h3>Window fitting</h3>
+          <ul class="compact-list">
+            <li>Leave <code>WindowContentSizing</code> as <code>automatic</code> for content-sized tools.</li>
+            <li>Expose <code>window.AppifyHostPreferredContentSize</code> or <code>window.AppifyHost.preferredContentSize</code> when automatic measurement needs help.</li>
+            <li>Mark the important root with <code>data-appify-window-fit</code> or <code>data-appify-fit-root</code>.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Validation checklist</p>
+        <h2>Fail fast before you polish the shell.</h2>
+      </div>
+      <div class="checklist-grid">
+        <article class="guide-card">
+          <h3>Plist</h3>
+          <ul class="compact-list">
+            <li><code>plutil -lint MyTool.app/Contents/Info.plist</code> passes.</li>
+            <li>The document extension appears in both <code>CFBundleDocumentTypes</code> and the UTType declaration.</li>
+            <li><code>ServerExecutable</code> is a relative path token, not an absolute path.</li>
+          </ul>
+        </article>
+        <article class="guide-card">
+          <h3>Runtime</h3>
+          <ul class="compact-list">
+            <li><code>Contents/Resources/AppServer/main.sh</code> is executable.</li>
+            <li>The server prints <code>APPIFY_HOST_OPEN_URL=</code> only after it can serve the page.</li>
+            <li>The ready URL is loopback HTTP(S) or a local file URL under the document or app bundle.</li>
+          </ul>
+        </article>
+        <article class="guide-card">
+          <h3>Repo flow</h3>
+          <ul class="compact-list">
+            <li><code>Scripts/build-host-artifact.sh</code> is current for the machine architecture.</li>
+            <li><code>Scripts/verify-root-apps.sh</code> still accepts the app shape.</li>
+            <li><code>Scripts/eject-app.sh</code> can create a standalone app when needed.</li>
+          </ul>
+        </article>
+      </div>
+      <div class="section-actions">
+        <a class="button primary" href={href("apps.html")}>Compare existing apps</a>
+        <a class="button" href={href("web.html")}>Review .web packages</a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

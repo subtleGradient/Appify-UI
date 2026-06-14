@@ -5,7 +5,7 @@ import { href, site } from "../lib/site";
 type Props = {
   title?: string;
   description?: string;
-  current?: "home" | "apps" | "web" | "examples";
+  current?: "home" | "apps" | "web" | "host" | "examples";
 };
 
 const {
@@ -20,6 +20,7 @@ const navItems = [
   { id: "home", label: "Overview", url: href() },
   { id: "apps", label: "Apps", url: href("apps.html") },
   { id: "web", label: "Web Packages", url: href("web.html") },
+  { id: "host", label: "AppifyHost", url: href("host.html") },
   { id: "examples", label: "Examples", url: href("examples.html") },
 ];
 ---
