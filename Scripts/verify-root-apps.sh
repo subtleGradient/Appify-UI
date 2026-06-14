@@ -144,6 +144,9 @@ for app in "${thin_apps[@]}"; do
   executable="$(plutil -extract CFBundleExecutable raw "$app_path/Contents/Info.plist")"
   [[ "$executable" == "main.sh" ]] \
     || fail "$app CFBundleExecutable should be main.sh, got $executable"
+  native_execution="$(plutil -extract LSRequiresNativeExecution raw "$app_path/Contents/Info.plist" 2>/dev/null || true)"
+  [[ "$native_execution" == "true" ]] \
+    || fail "$app should set LSRequiresNativeExecution to true so LaunchServices does not use Rosetta"
   [[ -x "$app_path/Contents/MacOS/main.sh" ]] \
     || fail "$app is missing executable Contents/MacOS/main.sh"
   cmp -s "$expected_shim" "$app_path/Contents/MacOS/main.sh" \

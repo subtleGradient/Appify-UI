@@ -36,10 +36,10 @@
 			<key>Message</key>
 			<string>LazyGit opens .lazygit marker packages and shows lazygit for the marker's parent git repository in a local WebKit terminal.</string>
 		</dict>
-		<key>DocumentMode</key>
-		<string>folderMarker</string>
 		<key>DocumentKindEnvironmentValue</key>
 		<string>com.subtlegradient.lazygit</string>
+		<key>DocumentMode</key>
+		<string>folderMarker</string>
 		<key>EnvironmentVariables</key>
 		<dict>
 			<key>LAZYGIT_APP_PACKAGE</key>
@@ -49,16 +49,16 @@
 		</dict>
 		<key>LogName</key>
 		<string>LazyGit</string>
-		<key>ShowBackForwardButtons</key>
-		<false/>
-		<key>ShowURLSubtitle</key>
-		<false/>
 		<key>ServerArguments</key>
 		<array/>
 		<key>ServerExecutable</key>
 		<string>main.sh</string>
 		<key>ServerInstallDirectory</key>
 		<string>Contents/Resources/AppServer</string>
+		<key>ShowBackForwardButtons</key>
+		<false/>
+		<key>ShowURLSubtitle</key>
+		<false/>
 		<key>StartupTimeoutSeconds</key>
 		<integer>900</integer>
 		<key>WebViewDataStore</key>
@@ -113,6 +113,8 @@
 	<string>0.1.0</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>LSRequiresNativeExecution</key>
+	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

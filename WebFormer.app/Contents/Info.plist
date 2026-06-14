@@ -86,6 +86,8 @@
 	<string>0.1.0</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>LSRequiresNativeExecution</key>
+	<true/>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>
