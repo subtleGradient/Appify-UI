@@ -17,7 +17,7 @@
     <rect x="676" y="188" width="230" height="132" rx="14" fill="#fff7dd" stroke="#a16207" stroke-width="3"/>
     <text x="702" y="237" fill="#573a06" font-size="24" font-weight="800">Pages</text>
     <text x="702" y="267" fill="#573a06" font-size="16">gh-pages branch root</text>
-    <text x="702" y="291" fill="#573a06" font-size="16">/appify-ui base URL</text>
+    <text x="702" y="291" fill="#573a06" font-size="16">/Appify-UI base URL</text>
     <path d="M314 254h48" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
     <path d="m354 240 16 14-16 14" fill="none" stroke="#191a18" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
     <path d="M614 254h48" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
