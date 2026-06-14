@@ -1,0 +1,25 @@
+{
+  "name": "appify-astro-blog",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "ASTRO_TELEMETRY_DISABLED=1 astro dev --host 127.0.0.1",
+    "build": "ASTRO_TELEMETRY_DISABLED=1 astro build",
+    "preview": "ASTRO_TELEMETRY_DISABLED=1 astro preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@astrojs/react": "^5.0.7",
+    "@astrojs/rss": "^4.0.18",
+    "astro": "^6.4.6",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3"
+  },
+  "prettier": {
+    "semi": false
+  }
+}

@@ -3,7 +3,8 @@
 These `.webapp` packages are normal local web projects that can be opened with
 `Webapp.app`. Each package declares a `bun dev` script, so the Webapp runner can
 install dependencies, start the framework dev server, and open the first local
-URL it prints.
+URL it prints. Packages that support a static export write sibling `.web`
+folders for `Web.app`.
 
 ## Packages
 
@@ -13,6 +14,9 @@ URL it prints.
   bundle decisions and mitigation toggles.
 - `expo-field-kit.webapp`: an Expo Web / React Native Web dispatch board with
   native-style controls, segmented modes, and responsive split panes.
+- `astro-blog.webapp`: an Astro content blog with static React JSX composition,
+  one hydrated React island, and a build that exports sibling `astro-blog.web`
+  output for `Web.app`.
 
 ## Try One
 
@@ -25,5 +29,11 @@ bun dev
 
 Or open the `.webapp` package with `Webapp.app` and let the app run those steps.
 
+For packages with static export support:
+
+```sh
+bun run build
+```
+
 The packages intentionally do not commit `node_modules`, `.next`, `.expo`,
-`dist`, or other generated state.
+`.astro`, generated `.web` output, or other generated state.

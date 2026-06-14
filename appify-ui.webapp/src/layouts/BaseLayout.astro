@@ -1,0 +1,56 @@
+---
+import "../styles/global.css";
+import { href, site } from "../lib/site";
+
+type Props = {
+  title?: string;
+  description?: string;
+  current?: "home" | "apps" | "web" | "examples";
+};
+
+const {
+  title = site.title,
+  description = site.description,
+  current = "home",
+} = Astro.props;
+
+const pageTitle = title === site.title ? site.title : `${title} - ${site.title}`;
+
+const navItems = [
+  { id: "home", label: "Overview", url: href() },
+  { id: "apps", label: "Apps", url: href("apps.html") },
+  { id: "web", label: "Web Packages", url: href("web.html") },
+  { id: "examples", label: "Examples", url: href("examples.html") },
+];
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="color-scheme" content="light dark" />
+    <title>{pageTitle}</title>
+    <link rel="icon" type="image/svg+xml" href={href("appify-mark.svg")} />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href={href()} aria-label="Appify UI home">
+        <img src={href("appify-mark.svg")} alt="" width="32" height="32" />
+        <span>Appify UI</span>
+      </a>
+      <nav class="site-nav" aria-label="Primary">
+        {navItems.map((item) => (
+          <a href={item.url} aria-current={item.id === current ? "page" : undefined}>{item.label}</a>
+        ))}
+      </nav>
+      <a class="source-link" href={site.githubURL}>GitHub</a>
+    </header>
+    <slot />
+    <footer class="site-footer">
+      <p>Built from <code>appify-ui.webapp</code> into <code>appify-ui.web</code>.</p>
+      <a href={site.githubURL}>subtleGradient/appify-ui</a>
+    </footer>
+  </body>
+</html>

@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import AppGrid from "../components/AppGrid.jsx";
+import AppSearchIsland from "../components/AppSearchIsland.jsx";
+import { apps } from "../data/apps";
+---
+
+<BaseLayout title="Apps" current="apps" description="The Appify UI root app catalog.">
+  <main>
+    <section class="page-intro">
+      <p class="eyebrow">App catalog</p>
+      <h1>Focused document hosts, not one generic runtime.</h1>
+      <p>
+        These are the repo-bound root apps. Most are thin native shells over an
+        app-local runner or a command-line tool.
+      </p>
+    </section>
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Static React output</p>
+        <h2>The catalog below renders as HTML at build time.</h2>
+      </div>
+      <AppGrid apps={apps} />
+    </section>
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">React island</p>
+        <h2>This finder hydrates on the client.</h2>
+      </div>
+      <AppSearchIsland apps={apps} client:load />
+    </section>
+  </main>
+</BaseLayout>

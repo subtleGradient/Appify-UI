@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 980 700" role="img" aria-labelledby="title desc">
+  <title id="title">Appify UI package flow</title>
+  <desc id="desc">A diagram showing .webapp source packages, static .web artifacts, focused Mac app hosts, and the shared AppifyHost layer.</desc>
+  <rect width="980" height="700" rx="26" fill="#f5f4ef"/>
+  <rect x="36" y="38" width="908" height="624" rx="20" fill="#ffffff" stroke="#dad7ca" stroke-width="2"/>
+  <text x="76" y="98" fill="#191a18" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="34" font-weight="800">Appify UI object map</text>
+  <text x="76" y="133" fill="#66665e" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="18">Source packages build artifacts; native hosts keep document identity focused.</text>
+  <g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif">
+    <rect x="76" y="188" width="230" height="132" rx="14" fill="#e8f7f4" stroke="#0f766e" stroke-width="3"/>
+    <text x="102" y="237" fill="#0f3936" font-size="24" font-weight="800">.webapp</text>
+    <text x="102" y="267" fill="#0f3936" font-size="16">Astro source package</text>
+    <text x="102" y="291" fill="#0f3936" font-size="16">framework boundary</text>
+    <rect x="376" y="188" width="230" height="132" rx="14" fill="#eff5ff" stroke="#2563eb" stroke-width="3"/>
+    <text x="402" y="237" fill="#17306a" font-size="24" font-weight="800">.web</text>
+    <text x="402" y="267" fill="#17306a" font-size="16">Static artifact folder</text>
+    <text x="402" y="291" fill="#17306a" font-size="16">HTML, CSS, JS, data</text>
+    <rect x="676" y="188" width="230" height="132" rx="14" fill="#fff7dd" stroke="#a16207" stroke-width="3"/>
+    <text x="702" y="237" fill="#573a06" font-size="24" font-weight="800">Pages</text>
+    <text x="702" y="267" fill="#573a06" font-size="16">gh-pages branch root</text>
+    <text x="702" y="291" fill="#573a06" font-size="16">/appify-ui base URL</text>
+    <path d="M314 254h48" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
+    <path d="m354 240 16 14-16 14" fill="none" stroke="#191a18" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M614 254h48" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
+    <path d="m654 240 16 14-16 14" fill="none" stroke="#191a18" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="76" y="398" width="830" height="154" rx="16" fill="#191a18"/>
+    <text x="108" y="448" fill="#f2f1ea" font-size="25" font-weight="800">Focused Mac hosts</text>
+    <text x="108" y="480" fill="#aaa89e" font-size="17">Web.app, Webapp.app, WebFormer.app, TLCanvas.app, JSONCanvas.app, Scripts.app, and TUI wrappers</text>
+    <rect x="108" y="510" width="176" height="42" rx="10" fill="#40d4bf"/>
+    <text x="130" y="538" fill="#08201d" font-size="15" font-weight="800">AppifyHost</text>
+    <rect x="302" y="510" width="188" height="42" rx="10" fill="#79a7ff"/>
+    <text x="324" y="538" fill="#0b1736" font-size="15" font-weight="800">Document URLs</text>
+    <rect x="508" y="510" width="160" height="42" rx="10" fill="#ff8a7d"/>
+    <text x="530" y="538" fill="#39100c" font-size="15" font-weight="800">Bun runners</text>
+    <rect x="686" y="510" width="188" height="42" rx="10" fill="#f4c152"/>
+    <text x="708" y="538" fill="#302005" font-size="15" font-weight="800">Static artifacts</text>
+  </g>
+</svg>

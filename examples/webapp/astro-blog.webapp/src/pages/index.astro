@@ -1,0 +1,32 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import HeroPanel from "../components/HeroPanel.jsx";
+import PostFinderIsland from "../components/PostFinderIsland.jsx";
+import PostGrid from "../components/PostGrid.jsx";
+import TagRail from "../components/TagRail.jsx";
+import { getPosts, getTags } from "../lib/blog";
+
+const posts = await getPosts();
+const tags = await getTags();
+const finderPosts = posts.map((post) => ({
+  title: post.data.title,
+  slug: post.data.slug,
+  description: post.data.description,
+  tags: post.data.tags,
+}));
+---
+
+<BaseLayout>
+  <main>
+    <HeroPanel postCount={posts.length} tagCount={tags.length} />
+    <section class="section">
+      <h2>Static React components</h2>
+      <TagRail tags={tags} />
+      <PostGrid posts={posts} />
+    </section>
+    <section class="section">
+      <h2>Hydrated React island</h2>
+      <PostFinderIsland posts={finderPosts} client:load />
+    </section>
+  </main>
+</BaseLayout>

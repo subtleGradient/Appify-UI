@@ -1,0 +1,42 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import Hero from "../components/Hero.jsx";
+import MetricStrip from "../components/MetricStrip.jsx";
+import AppGrid from "../components/AppGrid.jsx";
+import PrincipleList from "../components/PrincipleList.jsx";
+import ExampleList from "../components/ExampleList.jsx";
+import { apps, examples, principles } from "../data/apps";
+import { href, site } from "../lib/site";
+
+const metrics = [
+  { label: "root app bundles", value: "11" },
+  { label: "static document shape", value: ".web" },
+  { label: "source package shape", value: ".webapp" },
+  { label: "shared native host", value: "1" },
+];
+---
+
+<BaseLayout current="home">
+  <main>
+    <Hero githubURL={site.githubURL} mapURL={href("appify-map.svg")} />
+    <MetricStrip items={metrics} />
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Root apps</p>
+        <h2>Each host owns a clear document boundary.</h2>
+      </div>
+      <AppGrid apps={apps.slice(0, 6)} />
+      <div class="section-actions">
+        <a class="button" href={href("apps.html")}>Browse every app</a>
+      </div>
+    </section>
+    <PrincipleList principles={principles} />
+    <section class="section-band">
+      <div class="section-heading">
+        <p class="eyebrow">Framework examples</p>
+        <h2>Webapp source folders can still export static .web packages.</h2>
+      </div>
+      <ExampleList examples={examples} />
+    </section>
+  </main>
+</BaseLayout>

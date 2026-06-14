@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PostGrid from "../../components/PostGrid.jsx";
+import { getPosts, getTags, postsForTag } from "../../lib/blog";
+
+export async function getStaticPaths() {
+  const [posts, tags] = await Promise.all([getPosts(), getTags()]);
+  return tags.map((tag) => ({
+    params: { tag },
+    props: { tag, posts: postsForTag(posts, tag) },
+  }));
+}
+
+const { tag, posts } = Astro.props;
+---
+
+<BaseLayout title={`#${tag}`}>
+  <main class="section">
+    <h1>#{tag}</h1>
+    <PostGrid posts={posts} />
+  </main>
+</BaseLayout>

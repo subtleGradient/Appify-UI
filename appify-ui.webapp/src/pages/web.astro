@@ -1,0 +1,58 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { href } from "../lib/site";
+---
+
+<BaseLayout title="Web Packages" current="web" description="How .web artifacts and .webapp source packages split runtime from authoring.">
+  <main>
+    <section class="page-intro split-intro">
+      <div>
+        <p class="eyebrow">Two package contracts</p>
+        <h1>`.web` is the artifact. `.webapp` is the source package.</h1>
+        <p>
+          Web.app keeps static browser-native bundles simple. Astro keeps this
+          site authored as a normal framework project.
+        </p>
+      </div>
+      <img class="intro-map" src={href("appify-map.svg")} alt="Source package and static package flow." />
+    </section>
+    <section class="comparison-grid">
+      <article class="comparison-panel">
+        <p class="eyebrow">.web</p>
+        <h2>Static, inspectable, openable</h2>
+        <p>
+          A `.web` folder contains the thing that runs: HTML, CSS, JavaScript,
+          data, assets, and relative package links. No install step is part of
+          the document contract.
+        </p>
+        <ul class="compact-list">
+          <li>Serves static folders and marker files.</li>
+          <li>Can mount peer `.web` packages under stable routes.</li>
+          <li>Keeps generated artifacts separate from source tooling.</li>
+        </ul>
+      </article>
+      <article class="comparison-panel">
+        <p class="eyebrow">.webapp</p>
+        <h2>Framework source boundary</h2>
+        <p>
+          A `.webapp` package can be Astro or another local web project. It owns
+          dependencies and build scripts, then emits a static `.web` sibling
+          when the runtime should be plain web files.
+        </p>
+        <ul class="compact-list">
+          <li>Keeps source tooling out of `.web` artifacts.</li>
+          <li>Works with package scripts and framework dev servers.</li>
+          <li>Supports deploy-by-branch without custom GitHub workflows.</li>
+        </ul>
+      </article>
+    </section>
+    <section class="section-band">
+      <div class="workflow-steps">
+        <div><code>appify-ui.webapp</code><span>Astro source package</span></div>
+        <div><code>bun run build</code><span>Static build step</span></div>
+        <div><code>appify-ui.web</code><span>Generated Pages artifact</span></div>
+        <div><code>gh-pages</code><span>Branch publish target</span></div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

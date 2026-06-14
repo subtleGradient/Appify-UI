@@ -1,0 +1,14 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import TagRail from "../../components/TagRail.jsx";
+import { getTags } from "../../lib/blog";
+
+const tags = await getTags();
+---
+
+<BaseLayout title="Tags">
+  <main class="section">
+    <h1>Tags</h1>
+    <TagRail tags={tags} />
+  </main>
+</BaseLayout>

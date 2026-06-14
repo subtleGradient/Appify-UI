@@ -1,0 +1,21 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ExampleList from "../components/ExampleList.jsx";
+import { examples } from "../data/apps";
+---
+
+<BaseLayout title="Examples" current="examples" description="Framework and static .web examples in Appify UI.">
+  <main>
+    <section class="page-intro">
+      <p class="eyebrow">Examples</p>
+      <h1>Framework probes stay package-shaped.</h1>
+      <p>
+        The examples prove that modern web tooling can live inside `.webapp`
+        source packages while still producing static `.web` artifacts.
+      </p>
+    </section>
+    <section class="section-band">
+      <ExampleList examples={examples} />
+    </section>
+  </main>
+</BaseLayout>

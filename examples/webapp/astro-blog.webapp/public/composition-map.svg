@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 360" role="img" aria-label="Astro composition map">
+  <rect width="760" height="360" rx="18" fill="#f6f5ef"/>
+  <rect x="38" y="42" width="190" height="110" rx="12" fill="#e8f7f4" stroke="#0f766e" stroke-width="3"/>
+  <text x="64" y="92" fill="#0f3936" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="24" font-weight="800">.webapp</text>
+  <text x="64" y="122" fill="#0f3936" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="16">Astro source</text>
+  <rect x="284" y="42" width="190" height="110" rx="12" fill="#eff5ff" stroke="#2563eb" stroke-width="3"/>
+  <text x="310" y="92" fill="#17306a" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="24" font-weight="800">React JSX</text>
+  <text x="310" y="122" fill="#17306a" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="16">Static by default</text>
+  <rect x="530" y="42" width="190" height="110" rx="12" fill="#fff7dd" stroke="#a16207" stroke-width="3"/>
+  <text x="556" y="92" fill="#573a06" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="24" font-weight="800">.web</text>
+  <text x="556" y="122" fill="#573a06" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="16">Static export</text>
+  <path d="M238 97h36" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
+  <path d="m266 84 15 13-15 13" fill="none" stroke="#191a18" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M484 97h36" stroke="#191a18" stroke-width="4" stroke-linecap="round"/>
+  <path d="m512 84 15 13-15 13" fill="none" stroke="#191a18" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="116" y="228" width="528" height="76" rx="14" fill="#191a18"/>
+  <text x="154" y="276" fill="#f4f1e8" font-family="-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif" font-size="22" font-weight="800">One hydrated finder island ships client JavaScript.</text>
+</svg>

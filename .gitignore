@@ -2,6 +2,7 @@
 .DS_Store
 *.app.log
 .local/
+appify-ui.web/
 .build/
 bin/appify-host-x86_64
 bin/appify-host-x86_64.manifest.json
