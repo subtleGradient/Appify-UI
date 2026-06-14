@@ -119,6 +119,17 @@ if grep -Eq 'swift[[:space:]]+build|appify_host_artifact_problem' "$ROOT/Scripts
   fail "appify-host-launcher.sh must not build or fully validate AppifyHost during app startup"
 fi
 
+[[ "$(appify_host_arch arm64e)" == "arm64" ]] \
+  || fail "appify_host_arch should normalize arm64e to arm64"
+[[ "$(appify_host_arch amd64)" == "x86_64" ]] \
+  || fail "appify_host_arch should normalize amd64 to x86_64"
+[[ "$(APPIFY_HOST_ARCH=x86_64 appify_host_arch)" == "x86_64" ]] \
+  || fail "APPIFY_HOST_ARCH should override default architecture detection"
+if [[ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true)" == "1" ]]; then
+  [[ "$(APPIFY_HOST_ARCH= appify_host_arch)" == "arm64" ]] \
+    || fail "Apple Silicon should default to arm64 even if the launcher process is translated"
+fi
+
 architecture="$(appify_host_arch)"
 host_binary_relative="$(appify_host_binary_relative_path "$architecture")"
 problem="$(appify_host_artifact_problem "$ROOT" "$architecture" || true)"

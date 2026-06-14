@@ -36,7 +36,7 @@ appify_app_name() {
 appify_host_arch() {
   local architecture="${1:-}"
   if [[ -z "$architecture" ]]; then
-    architecture="${APPIFY_HOST_ARCH:-$(uname -m)}"
+    architecture="${APPIFY_HOST_ARCH:-$(appify_host_default_arch)}"
   fi
 
   case "$architecture" in
@@ -50,6 +50,15 @@ appify_host_arch() {
       printf '%s\n' "$architecture"
       ;;
   esac
+}
+
+appify_host_default_arch() {
+  if [[ "$(/usr/sbin/sysctl -n hw.optional.arm64 2>/dev/null || true)" == "1" ]]; then
+    printf 'arm64\n'
+    return 0
+  fi
+
+  uname -m
 }
 
 appify_host_binary_relative_path() {
