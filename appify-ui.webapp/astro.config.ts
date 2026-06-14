@@ -1,5 +1,6 @@
 import react from "@astrojs/react";
 import { defineConfig } from "astro/config";
+import appifyCommandToolbar from "./src/dev-toolbar/integration";
 
 export default defineConfig({
   site: "https://subtlegradient.github.io",
@@ -10,5 +11,5 @@ export default defineConfig({
   build: {
     format: "file",
   },
-  integrations: [react()],
+  integrations: [react(), appifyCommandToolbar()],
 });
