@@ -38,6 +38,11 @@ code {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+:not(pre) > code {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .site-header {
   position: sticky;
   top: 0;
@@ -136,6 +141,7 @@ h2,
 h3,
 p {
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 h1 {
@@ -344,6 +350,7 @@ h3 {
   color: var(--muted);
   font-size: 14px;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .compact-list li + li {
