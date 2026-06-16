@@ -6,3 +6,4 @@ appify-ui.web/
 .build/
 bin/appify-host-x86_64
 bin/appify-host-x86_64.manifest.json
+node_modules
