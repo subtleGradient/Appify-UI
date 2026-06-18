@@ -178,7 +178,7 @@ export function ScenarioLab({ initialSet }) {
               </div>
               <div>
                 <dt>Runtime boundary</dt>
-                <dd>`bun install`, `bun dev`, local URL, stable WebKit origin.</dd>
+                <dd>User-managed install, approved `bun dev`, local URL, stable WebKit origin.</dd>
               </div>
               <div>
                 <dt>Next action</dt>

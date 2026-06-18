@@ -3,8 +3,11 @@
 This folder is the app-specific source for `Webapp.app`.
 
 The Bun runner opens `.webapp` package folders, scaffolds minimal package
-metadata when needed, runs `bun install`, starts `bun dev`, and loads the first
-loopback URL printed by the dev process.
+metadata when needed, asks before first running the package dev server, starts
+`bun --no-install run dev`, and loads the first loopback URL printed by the dev
+process. Dependency installation is left to Bun and the user; Webapp does not
+run `bun install` while opening a package. Dev-server approvals are stored in
+`~/.local/webappapp.json5` using `Bun.JSON5`.
 
 For HTTP loopback dev servers, Webapp uses the same visible-origin pattern as
 Web.app: WebKit loads a stable `*.localhost:55555` URL, while AppifyHost routes
@@ -32,4 +35,4 @@ Copy `Webapp.app`, rename the bundle, update `Contents/Info.plist`, and speciali
 the runner around a framework, template, or dev command. Keep stdout producing a
 ready URL for the shared host.
 
-Credits: Bun provides package install and dev-server execution.
+Credits: Bun provides package resolution and dev-server execution.

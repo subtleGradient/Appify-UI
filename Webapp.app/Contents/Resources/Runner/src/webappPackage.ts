@@ -1,10 +1,11 @@
 import { appendFileSync, existsSync } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { homedir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { startVisibleOriginConnectTunnel, type VisibleOriginConnectTunnel } from "./connectTunnel";
 
-export type CommandPhase = "install" | "dev";
+export type CommandPhase = "dev";
 export type OutputStreamName = "stdout" | "stderr";
 
 export type CommandSpec = {
@@ -34,7 +35,10 @@ export type EnsureWebappPackageResult = {
 };
 
 export type RunWebappLifecycleOptions = {
+  devPermissionApprover?: DevServerPermissionApprover;
   executor?: CommandExecutor;
+  hostBundleIdentifier?: string;
+  permissionStorePath?: string;
   stderr?: OutputWriter;
   stdout?: OutputWriter;
   stableOriginPort?: number;
@@ -46,7 +50,31 @@ export type ConnectTunnelStarter = (options: {
   backendURL: URL;
 }) => Promise<VisibleOriginConnectTunnel>;
 
+export type DevServerPermissionRequest = {
+  command: string[];
+  devScript: string;
+  hostBundleIdentifier: string;
+  packageName: string;
+  packagePath: string;
+};
+
+export type DevServerPermissionApprover = (request: DevServerPermissionRequest) => Promise<boolean>;
+
+type WebappPermissionState = {
+  version: 1;
+  devServers: Record<string, DevServerPermissionRecord>;
+};
+
+type DevServerPermissionRecord = DevServerPermissionRequest & {
+  allowed: true;
+  grantedAt: string;
+};
+
 const STATIC_DEV_SERVER_PATH = ".local/webapp/dev-server.ts";
+const WEBAPP_PERMISSION_STATE_VERSION = 1;
+const WEBAPP_PERMISSION_STORE_PATH = join(homedir(), ".local", "webappapp.json5");
+const DEFAULT_HOST_BUNDLE_IDENTIFIER = "com.subtlegradient.webapp";
+const DEV_COMMAND_ARGS = ["--no-install", "run", "dev"] as const;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0:0:0:0:0:0:0:1"]);
 const HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
 const DEFAULT_STABLE_WEBAPP_PORT = 55555;
@@ -125,6 +153,10 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
   const stderr = options.stderr ?? process.stderr;
   const tunnelStarter = options.tunnelStarter ?? startVisibleOriginConnectTunnel;
   const stableOriginPort = options.stableOriginPort ?? DEFAULT_STABLE_WEBAPP_PORT;
+  const devCommand = webappDevCommand();
+  const permissionRequest = devServerPermissionRequest(documentPath, webappPackage.devScript, devCommand, {
+    hostBundleIdentifier: options.hostBundleIdentifier ?? process.env.APPIFY_HOST_BUNDLE_ID ?? DEFAULT_HOST_BUNDLE_IDENTIFIER,
+  });
   let openURLWasEmitted = false;
   let devOutputBuffer = "";
   let readyEmissionError: Error | null = null;
@@ -187,16 +219,20 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
   };
 
   const childEnv = childEnvironment(documentPath, logPath);
-  const installExitCode = await executor(
-    { phase: "install", command: "bun", args: ["install"], cwd: documentPath, env: childEnv },
-    (stream, chunk) => tee("install", stream, chunk),
-  );
-  if (installExitCode !== 0) {
-    return installExitCode;
+
+  const permissionStorePath = options.permissionStorePath ?? defaultWebappPermissionStorePath();
+  if (!await hasApprovedDevServerPermission(permissionStorePath, permissionRequest)) {
+    const approver = options.devPermissionApprover ?? defaultDevServerPermissionApprover;
+    const approved = await approver(permissionRequest);
+    if (!approved) {
+      writeError("Webapp did not run bun dev because dev-server permission was not granted.\n");
+      return 1;
+    }
+    await rememberApprovedDevServerPermission(permissionStorePath, permissionRequest);
   }
 
   const devExitCode = await executor(
-    { phase: "dev", command: "bun", args: ["dev"], cwd: documentPath, env: childEnv },
+    { phase: "dev", command: "bun", args: devCommand, cwd: documentPath, env: childEnv },
     (stream, chunk) => tee("dev", stream, chunk),
   );
 
@@ -277,6 +313,52 @@ export function stableWebappURL(documentPath: string, backendURL: URL, port = DE
 
 export function defaultStableWebappPort(): number {
   return DEFAULT_STABLE_WEBAPP_PORT;
+}
+
+export function defaultWebappPermissionStorePath(): string {
+  return WEBAPP_PERMISSION_STORE_PATH;
+}
+
+export function webappDevCommand(): string[] {
+  return [...DEV_COMMAND_ARGS];
+}
+
+export function devServerPermissionRequest(
+  documentPath: string,
+  devScript: string,
+  command: string[] = webappDevCommand(),
+  options: { hostBundleIdentifier?: string } = {},
+): DevServerPermissionRequest {
+  const packagePath = resolve(documentPath);
+  return {
+    command: [...command],
+    devScript,
+    hostBundleIdentifier: options.hostBundleIdentifier ?? DEFAULT_HOST_BUNDLE_IDENTIFIER,
+    packageName: basename(packagePath, ".webapp"),
+    packagePath,
+  };
+}
+
+export async function hasApprovedDevServerPermission(
+  permissionStorePath: string,
+  request: DevServerPermissionRequest,
+): Promise<boolean> {
+  const state = await readWebappPermissionState(permissionStorePath);
+  const record = state.devServers[devServerPermissionKey(request)];
+  return recordMatchesDevServerPermissionRequest(record, request);
+}
+
+export async function rememberApprovedDevServerPermission(
+  permissionStorePath: string,
+  request: DevServerPermissionRequest,
+): Promise<void> {
+  const state = await readWebappPermissionState(permissionStorePath);
+  state.devServers[devServerPermissionKey(request)] = {
+    ...request,
+    allowed: true,
+    grantedAt: new Date().toISOString(),
+  };
+  await writeWebappPermissionState(permissionStorePath, state);
 }
 
 export function isStableOriginMappableBackendURL(url: URL): boolean {
@@ -524,6 +606,126 @@ function devLogPath(documentPath: string): string {
   return join(documentPath, ".local", "dev.log");
 }
 
+async function defaultDevServerPermissionApprover(request: DevServerPermissionRequest): Promise<boolean> {
+  const message = [
+    "This .webapp package wants to run a local dev server.",
+    "",
+    `Package: ${request.packagePath}`,
+    `Command: bun ${request.command.join(" ")}`,
+    `scripts.dev: ${request.devScript}`,
+    "",
+    "Only run this if you trust the package code.",
+  ].join("\n");
+  const script = [
+    `display dialog ${appleScriptString(message)}`,
+    `with title ${appleScriptString("Run Webapp Dev Server?")}`,
+    `buttons {"Cancel", "Run Dev Server"}`,
+    `default button "Run Dev Server"`,
+    `cancel button "Cancel"`,
+    `with icon caution`,
+  ].join(" ");
+
+  const child = Bun.spawn({
+    cmd: ["/usr/bin/osascript", "-e", script],
+    stdout: "ignore",
+    stderr: "ignore",
+  });
+  return await child.exited === 0;
+}
+
+async function readWebappPermissionState(permissionStorePath: string): Promise<WebappPermissionState> {
+  const source = await readFile(permissionStorePath, "utf8").catch((error) => {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  });
+  if (source === null) {
+    return emptyWebappPermissionState();
+  }
+
+  const parsed = safeParseJSON5(source);
+  if (!isRecord(parsed) || parsed.version !== WEBAPP_PERMISSION_STATE_VERSION || !isRecord(parsed.devServers)) {
+    return emptyWebappPermissionState();
+  }
+
+  const devServers: Record<string, DevServerPermissionRecord> = {};
+  for (const [key, value] of Object.entries(parsed.devServers)) {
+    if (isDevServerPermissionRecord(value)) {
+      devServers[key] = value;
+    }
+  }
+
+  return {
+    version: WEBAPP_PERMISSION_STATE_VERSION,
+    devServers,
+  };
+}
+
+async function writeWebappPermissionState(permissionStorePath: string, state: WebappPermissionState): Promise<void> {
+  await mkdir(dirname(permissionStorePath), { recursive: true });
+  await writeFile(permissionStorePath, `${Bun.JSON5.stringify(state, null, 2)}\n`);
+}
+
+function emptyWebappPermissionState(): WebappPermissionState {
+  return {
+    version: WEBAPP_PERMISSION_STATE_VERSION,
+    devServers: {},
+  };
+}
+
+function devServerPermissionKey(request: DevServerPermissionRequest): string {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      command: request.command,
+      devScript: request.devScript,
+      hostBundleIdentifier: request.hostBundleIdentifier,
+      packageName: request.packageName,
+      packagePath: request.packagePath,
+    }))
+    .digest("hex");
+}
+
+function recordMatchesDevServerPermissionRequest(
+  record: DevServerPermissionRecord | undefined,
+  request: DevServerPermissionRequest,
+): boolean {
+  return record?.allowed === true
+    && record.hostBundleIdentifier === request.hostBundleIdentifier
+    && record.packageName === request.packageName
+    && record.packagePath === request.packagePath
+    && record.devScript === request.devScript
+    && arrayEquals(record.command, request.command);
+}
+
+function isDevServerPermissionRecord(value: unknown): value is DevServerPermissionRecord {
+  return isRecord(value)
+    && value.allowed === true
+    && typeof value.hostBundleIdentifier === "string"
+    && typeof value.packageName === "string"
+    && typeof value.packagePath === "string"
+    && typeof value.devScript === "string"
+    && Array.isArray(value.command)
+    && value.command.every((item) => typeof item === "string")
+    && typeof value.grantedAt === "string";
+}
+
+function arrayEquals(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function appleScriptString(value: string): string {
+  return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\n", "\\n")}"`;
+}
+
+function safeParseJSON5(source: string): unknown {
+  try {
+    return Bun.JSON5.parse(source) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 async function isEmptyDirectory(path: string): Promise<boolean> {
   const entries = await readdir(path);
   return entries.every((entry) => entry === ".DS_Store");
@@ -606,6 +808,10 @@ function stripTrailingURLPunctuation(value: string): string {
     candidate = candidate.slice(0, -1);
   }
   return candidate;
+}
+
+function isNodeError(error: unknown): error is NodeJS.ErrnoException {
+  return error instanceof Error && "code" in error;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

@@ -2,9 +2,9 @@
 
 These `.webapp` packages are normal local web projects that can be opened with
 `Webapp.app`. Each package declares a `bun dev` script, so the Webapp runner can
-install dependencies, start the framework dev server, and open the first local
-URL it prints. Packages that support a static export write sibling `.web`
-folders for `Web.app`.
+ask before first execution, start the framework dev server without auto-installing
+dependencies, and open the first local URL it prints. Packages that support a
+static export write sibling `.web` folders for `Web.app`.
 
 ## Packages
 
@@ -27,7 +27,8 @@ bun install
 bun dev
 ```
 
-Or open the `.webapp` package with `Webapp.app` and let the app run those steps.
+After dependencies are installed, open the `.webapp` package with `Webapp.app`
+and approve its dev server when prompted.
 
 For packages with static export support:
 

@@ -5,14 +5,18 @@ import {
   type CommandExecutor,
   type ConnectTunnelStarter,
   defaultStableWebappPort,
+  devServerPermissionRequest,
   ensureWebappPackage,
   firstLoopbackHTTPURL,
+  hasApprovedDevServerPermission,
   isStableOriginMappableBackendURL,
+  rememberApprovedDevServerPermission,
   resolveBunExecutable,
   resolveWebappDocumentPath,
   resolveWebappRunRoot,
   runWebappLifecycle,
   stableWebappURL,
+  webappDevCommand,
 } from "../src/webappPackage";
 
 let root: string;
@@ -115,9 +119,11 @@ describe("webapp package scaffold", () => {
 });
 
 describe("webapp lifecycle", () => {
-  test("runs bun install before bun dev", async () => {
+  test("asks permission before running bun dev without installing dependencies", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const invocations: string[] = [];
+    const permissionStorePath = testPermissionStorePath();
+    const permissionRequests: string[] = [];
     const executor: CommandExecutor = async (spec, onOutput) => {
       invocations.push(`${spec.phase}:${spec.command} ${spec.args.join(" ")}`);
       if (spec.phase === "dev") {
@@ -128,11 +134,25 @@ describe("webapp lifecycle", () => {
 
     const stdout = createCaptureWriter();
     const tunnel = createFakeTunnelStarter();
-    const exitCode = await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
+    const exitCode = await runWebappLifecycle(root, {
+      devPermissionApprover: async (request) => {
+        permissionRequests.push(`${request.packagePath}:${request.devScript}`);
+        return true;
+      },
+      executor,
+      permissionStorePath,
+      stdout,
+      tunnelStarter: tunnel.starter,
+    });
     const expectedOpenURL = stableWebappURL(root, new URL("http://localhost:4173/"));
 
     expect(exitCode).toBe(0);
-    expect(invocations).toEqual(["install:bun install", "dev:bun dev"]);
+    expect(invocations).toEqual(["dev:bun --no-install run dev"]);
+    expect(permissionRequests).toEqual([`${root}:bun .local/webapp/dev-server.ts`]);
+    expect(await hasApprovedDevServerPermission(
+      permissionStorePath,
+      devServerPermissionRequest(root, "bun .local/webapp/dev-server.ts"),
+    )).toBe(true);
     expect(stdout.text).toContain("APPIFY_HOST_BACKEND_URL=http://localhost:4173/");
     expect(stdout.text).toContain("APPIFY_HOST_PROXY_URL=http://127.0.0.1:49153/");
     expect(stdout.text).toContain(`APPIFY_HOST_OPEN_URL=${expectedOpenURL.href}`);
@@ -143,23 +163,27 @@ describe("webapp lifecycle", () => {
     expect(tunnel.closeCount).toBe(1);
   });
 
-  test("failed bun install stops before dev and preserves the log", async () => {
+  test("denied dev permission stops before dev and preserves the log", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const invocations: string[] = [];
-    const executor: CommandExecutor = async (spec, onOutput) => {
+    const executor: CommandExecutor = async (spec) => {
       invocations.push(spec.phase);
-      await onOutput("stderr", "install failed\n");
       return 42;
     };
 
-    const exitCode = await runWebappLifecycle(root, { executor, stderr: createCaptureWriter() });
+    const exitCode = await runWebappLifecycle(root, {
+      devPermissionApprover: async () => false,
+      executor,
+      permissionStorePath: testPermissionStorePath(),
+      stderr: createCaptureWriter(),
+    });
 
-    expect(exitCode).toBe(42);
-    expect(invocations).toEqual(["install"]);
-    expect(await onlyLogText(root)).toContain("install failed");
+    expect(exitCode).toBe(1);
+    expect(invocations).toEqual([]);
+    expect(await onlyLogText(root)).toContain("dev-server permission was not granted");
   });
 
-  test("tees stdout and stderr from install and dev into .local/dev.log", async () => {
+  test("tees stdout and stderr from dev into .local/dev.log", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const executor: CommandExecutor = async (spec, onOutput) => {
       await onOutput("stdout", `${spec.phase} stdout\n`);
@@ -171,23 +195,26 @@ describe("webapp lifecycle", () => {
     };
     const tunnel = createFakeTunnelStarter();
 
-    await runWebappLifecycle(root, { executor, stderr: createCaptureWriter(), stdout: createCaptureWriter(), tunnelStarter: tunnel.starter });
+    await runWebappLifecycle(root, {
+      devPermissionApprover: async () => true,
+      executor,
+      permissionStorePath: testPermissionStorePath(),
+      stderr: createCaptureWriter(),
+      stdout: createCaptureWriter(),
+      tunnelStarter: tunnel.starter,
+    });
     const log = await onlyLogText(root);
 
-    expect(log).toContain("install stdout");
-    expect(log).toContain("install stderr");
     expect(log).toContain("dev stdout");
     expect(log).toContain("dev stderr");
     expect(log).toContain("APPIFY_HOST_BACKEND_URL=http://127.0.0.1:3000/");
     expect(log).toContain(`APPIFY_HOST_OPEN_URL=${stableWebappURL(root, new URL("http://127.0.0.1:3000/")).href}`);
   });
 
-  test("uses the first dev-phase loopback URL and ignores install-phase URLs", async () => {
+  test("uses the first dev-phase loopback URL", async () => {
     await writeFile(join(root, "index.html"), "<h1>Hello</h1>");
     const executor: CommandExecutor = async (spec, onOutput) => {
-      if (spec.phase === "install") {
-        await onOutput("stdout", "install docs http://127.0.0.1:9999/\n");
-      } else {
+      if (spec.phase === "dev") {
         await onOutput("stdout", "first http://localhost:1000/one\nsecond http://localhost:1001/two\n");
       }
       return 0;
@@ -195,11 +222,16 @@ describe("webapp lifecycle", () => {
     const stdout = createCaptureWriter();
     const tunnel = createFakeTunnelStarter();
 
-    await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
+    await runWebappLifecycle(root, {
+      devPermissionApprover: async () => true,
+      executor,
+      permissionStorePath: testPermissionStorePath(),
+      stdout,
+      tunnelStarter: tunnel.starter,
+    });
 
     expect(stdout.text).toContain("APPIFY_HOST_BACKEND_URL=http://localhost:1000/one");
     expect(stdout.text).toContain(`APPIFY_HOST_OPEN_URL=${stableWebappURL(root, new URL("http://localhost:1000/one")).href}`);
-    expect(stdout.text).not.toContain("APPIFY_HOST_OPEN_URL=http://127.0.0.1:9999/");
     expect(stdout.text).not.toContain("APPIFY_HOST_BACKEND_URL=http://localhost:1001/two");
     expect(tunnel.calls.length).toBe(1);
   });
@@ -215,11 +247,110 @@ describe("webapp lifecycle", () => {
     const stdout = createCaptureWriter();
     const tunnel = createFakeTunnelStarter();
 
-    await runWebappLifecycle(root, { executor, stdout, tunnelStarter: tunnel.starter });
+    await runWebappLifecycle(root, {
+      devPermissionApprover: async () => true,
+      executor,
+      permissionStorePath: testPermissionStorePath(),
+      stdout,
+      tunnelStarter: tunnel.starter,
+    });
 
     expect(stdout.text).toContain("APPIFY_HOST_OPEN_URL=https://localhost:3443/");
     expect(stdout.text).not.toContain("APPIFY_HOST_PROXY_URL=");
     expect(tunnel.calls).toEqual([]);
+  });
+
+  test("uses stored dev permission without asking again", async () => {
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "custom",
+      scripts: { dev: "bun custom-dev.ts" },
+    }));
+    const permissionStorePath = testPermissionStorePath();
+    await rememberApprovedDevServerPermission(
+      permissionStorePath,
+      devServerPermissionRequest(root, "bun custom-dev.ts"),
+    );
+    let approvals = 0;
+    const invocations: string[] = [];
+    const executor: CommandExecutor = async (spec) => {
+      invocations.push(`${spec.command} ${spec.args.join(" ")}`);
+      return 0;
+    };
+
+    const exitCode = await runWebappLifecycle(root, {
+      devPermissionApprover: async () => {
+        approvals += 1;
+        return true;
+      },
+      executor,
+      permissionStorePath,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(approvals).toBe(0);
+    expect(invocations).toEqual(["bun --no-install run dev"]);
+  });
+
+  test("asks again when the dev script changes", async () => {
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "custom",
+      scripts: { dev: "bun old-dev.ts" },
+    }));
+    const permissionStorePath = testPermissionStorePath();
+    await rememberApprovedDevServerPermission(
+      permissionStorePath,
+      devServerPermissionRequest(root, "bun old-dev.ts"),
+    );
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "custom",
+      scripts: { dev: "bun new-dev.ts" },
+    }));
+    let approvals = 0;
+    const executor: CommandExecutor = async () => 0;
+
+    const exitCode = await runWebappLifecycle(root, {
+      devPermissionApprover: async () => {
+        approvals += 1;
+        return true;
+      },
+      executor,
+      permissionStorePath,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(approvals).toBe(1);
+    expect(await hasApprovedDevServerPermission(
+      permissionStorePath,
+      devServerPermissionRequest(root, "bun new-dev.ts"),
+    )).toBe(true);
+  });
+
+  test("asks again when the permission store is malformed", async () => {
+    await writeFile(join(root, "package.json"), JSON.stringify({
+      name: "custom",
+      scripts: { dev: "bun custom-dev.ts" },
+    }));
+    const permissionStorePath = testPermissionStorePath();
+    await mkdir(join(root, ".local"), { recursive: true });
+    await writeFile(permissionStorePath, "{not valid");
+    let approvals = 0;
+    const executor: CommandExecutor = async () => 0;
+
+    const exitCode = await runWebappLifecycle(root, {
+      devPermissionApprover: async () => {
+        approvals += 1;
+        return true;
+      },
+      executor,
+      permissionStorePath,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(approvals).toBe(1);
+    expect(await hasApprovedDevServerPermission(
+      permissionStorePath,
+      devServerPermissionRequest(root, "bun custom-dev.ts"),
+    )).toBe(true);
   });
 });
 
@@ -259,6 +390,12 @@ describe("bun executable resolution", () => {
   });
 });
 
+describe("webapp dev command", () => {
+  test("runs dev through Bun without auto-installing dependencies", () => {
+    expect(webappDevCommand()).toEqual(["--no-install", "run", "dev"]);
+  });
+});
+
 function createCaptureWriter() {
   return {
     text: "",
@@ -270,6 +407,10 @@ function createCaptureWriter() {
 
 async function onlyLogText(documentPath: string): Promise<string> {
   return await readFile(join(documentPath, ".local", "dev.log"), "utf8");
+}
+
+function testPermissionStorePath(): string {
+  return join(root, ".local", "test-webappapp.json5");
 }
 
 function createFakeTunnelStarter() {

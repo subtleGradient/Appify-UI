@@ -8,7 +8,7 @@ Expo's dev server is a Terminal UI as well as a web bundler. Today Webapp opens
 the printed local web URL; a future Webapp sidebar could expose the terminal log
 or TTY alongside the WebView.
 
-Run it directly:
+Install dependencies first, then open it with `Webapp.app` or run it directly:
 
 ```sh
 bun install
