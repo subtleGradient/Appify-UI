@@ -82,12 +82,14 @@ the `.web` contract.
 
 [`Webapp.app`](Webapp.app/) opens `.webapp` document packages. A `.webapp`
 package is a normal Bun package folder with a `.webapp` extension. The app
-scaffolds package metadata only when needed, asks before first running the dev
-server, then runs `bun --no-install run dev`, teeing stdio to the package's
-`.local/dev.log` file and loading the first loopback URL printed by the dev
-process. Dev-server approvals are remembered in `~/.local/webappapp.json5`.
-Launching Webapp directly creates an untitled package with a starter
-`index.html`.
+scaffolds package metadata only when needed and uses a native AppifyHost sheet
+before running package code. If dependencies need Webapp-managed installation,
+one prompt approves `bun install` followed by `bun --no-install run dev`;
+otherwise the prompt covers only the dev server. Existing user-managed
+`node_modules` is left alone. Approval state is fingerprinted and stored in
+`~/.local/webappapp.json5`, stdio is teed to `.local/dev.log`, and the first
+loopback URL printed by the dev process is loaded. Launching Webapp directly
+creates an untitled package with a starter `index.html`.
 
 [`WebFormer.app`](WebFormer.app/) opens `.webform` single-file HTML documents. It
 serves the document through an app-local Bun runner, injects runtime save
@@ -109,7 +111,8 @@ read-only SQLite URI.
 
 `source/AppifyHost` is the shared host layer. It knows how to open macOS
 documents, start an app-bundled server command, wait for `APPIFY_HOST_OPEN_URL`,
-validate that URL, and show it in a native WebKit window. It does not know about
+validate that URL, show reusable native gate prompts for trusted app runners,
+and show ready URLs in a native WebKit window. It does not know about
 LazyGit, Scripts, Tabiew, LiteCLI, TLCanvas, Web, WebFormer, Bun, `ttyd`, or
 tldraw.
 

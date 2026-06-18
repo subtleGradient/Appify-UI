@@ -1,11 +1,11 @@
 import { appendFileSync, existsSync } from "node:fs";
-import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rename, stat, unlink, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { basename, dirname, extname, join, relative, resolve, sep } from "node:path";
 import { startVisibleOriginConnectTunnel, type VisibleOriginConnectTunnel } from "./connectTunnel";
 
-export type CommandPhase = "dev";
+export type CommandPhase = "install" | "dev";
 export type OutputStreamName = "stdout" | "stderr";
 
 export type CommandSpec = {
@@ -29,14 +29,19 @@ export type OutputWriter = {
 };
 
 export type EnsureWebappPackageResult = {
+  dependencyFingerprint: string;
   devScript: string;
+  hasInstallableDependencies: boolean;
+  installCommand: string[];
   logPath: string;
+  packageJson: Record<string, unknown>;
   packageJsonPath: string;
+  packageName: string;
 };
 
 export type RunWebappLifecycleOptions = {
-  devPermissionApprover?: DevServerPermissionApprover;
   executor?: CommandExecutor;
+  gateClient?: AppifyHostGateClient;
   hostBundleIdentifier?: string;
   permissionStorePath?: string;
   stderr?: OutputWriter;
@@ -58,11 +63,30 @@ export type DevServerPermissionRequest = {
   packagePath: string;
 };
 
-export type DevServerPermissionApprover = (request: DevServerPermissionRequest) => Promise<boolean>;
+export type InstallAndDevPermissionRequest = DevServerPermissionRequest & {
+  dependencyFingerprint: string;
+  installCommand: string[];
+  installReason: string;
+};
+
+export type AppifyHostGateSeverity = "informational" | "warning" | "critical";
+
+export type AppifyHostGateRequest = {
+  title: string;
+  message: string;
+  details?: string;
+  severity: AppifyHostGateSeverity;
+  approveButtonTitle: string;
+  denyButtonTitle: string;
+};
+
+export type AppifyHostGateClient = (request: AppifyHostGateRequest) => Promise<boolean>;
 
 type WebappPermissionState = {
-  version: 1;
+  version: 2;
   devServers: Record<string, DevServerPermissionRecord>;
+  installAndDev: Record<string, InstallAndDevPermissionRecord>;
+  installMarkers: Record<string, InstallMarkerRecord>;
 };
 
 type DevServerPermissionRecord = DevServerPermissionRequest & {
@@ -70,11 +94,40 @@ type DevServerPermissionRecord = DevServerPermissionRequest & {
   grantedAt: string;
 };
 
+type InstallAndDevPermissionRecord = InstallAndDevPermissionRequest & {
+  allowed: true;
+  grantedAt: string;
+};
+
+type InstallMarkerRecord = {
+  dependencyFingerprint: string;
+  hostBundleIdentifier: string;
+  installCommand: string[];
+  installedAt: string;
+  packageName: string;
+  packagePath: string;
+};
+
+type InstallNeed = {
+  needed: boolean;
+  reason: string;
+};
+
+type GateResponse = {
+  id: string;
+  approved: boolean;
+};
+
 const STATIC_DEV_SERVER_PATH = ".local/webapp/dev-server.ts";
-const WEBAPP_PERMISSION_STATE_VERSION = 1;
+const WEBAPP_PERMISSION_STATE_VERSION = 2;
 const WEBAPP_PERMISSION_STORE_PATH = join(homedir(), ".local", "webappapp.json5");
 const DEFAULT_HOST_BUNDLE_IDENTIFIER = "com.subtlegradient.webapp";
 const DEV_COMMAND_ARGS = ["--no-install", "run", "dev"] as const;
+const INSTALL_COMMAND_ARGS = ["install"] as const;
+const FROZEN_INSTALL_COMMAND_ARGS = ["install", "--frozen-lockfile"] as const;
+const GATE_DIRECTORY_ENV_KEY = "APPIFY_HOST_GATE_DIRECTORY";
+const GATE_TOKEN_ENV_KEY = "APPIFY_HOST_GATE_TOKEN";
+const GATE_TIMEOUT_MS = 295_000;
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]", "0:0:0:0:0:0:0:1"]);
 const HTTP_URL_PATTERN = /https?:\/\/[^\s"'<>]+/gi;
 const DEFAULT_STABLE_WEBAPP_PORT = 55555;
@@ -135,11 +188,17 @@ export async function ensureWebappPackage(documentPath: string): Promise<EnsureW
   }
 
   await writeFile(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+  const lockfileNames = await existingBunLockfileNames(documentPath);
 
   return {
+    dependencyFingerprint: await dependencyFingerprint(documentPath, packageJson),
     devScript: String((packageJson.scripts as Record<string, unknown>).dev),
+    hasInstallableDependencies: hasInstallableDependencies(packageJson),
+    installCommand: webappInstallCommand(lockfileNames),
     logPath,
+    packageJson,
     packageJsonPath,
+    packageName: packageNameFor(documentPath),
   };
 }
 
@@ -154,9 +213,11 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
   const tunnelStarter = options.tunnelStarter ?? startVisibleOriginConnectTunnel;
   const stableOriginPort = options.stableOriginPort ?? DEFAULT_STABLE_WEBAPP_PORT;
   const devCommand = webappDevCommand();
+  const hostBundleIdentifier = options.hostBundleIdentifier ?? process.env.APPIFY_HOST_BUNDLE_ID ?? DEFAULT_HOST_BUNDLE_IDENTIFIER;
   const permissionRequest = devServerPermissionRequest(documentPath, webappPackage.devScript, devCommand, {
-    hostBundleIdentifier: options.hostBundleIdentifier ?? process.env.APPIFY_HOST_BUNDLE_ID ?? DEFAULT_HOST_BUNDLE_IDENTIFIER,
+    hostBundleIdentifier,
   });
+  const installPermissionRequest = installAndDevPermissionRequest(webappPackage, permissionRequest);
   let openURLWasEmitted = false;
   let devOutputBuffer = "";
   let readyEmissionError: Error | null = null;
@@ -221,9 +282,34 @@ export async function runWebappLifecycle(documentPath: string, options: RunWebap
   const childEnv = childEnvironment(documentPath, logPath);
 
   const permissionStorePath = options.permissionStorePath ?? defaultWebappPermissionStorePath();
-  if (!await hasApprovedDevServerPermission(permissionStorePath, permissionRequest)) {
-    const approver = options.devPermissionApprover ?? defaultDevServerPermissionApprover;
-    const approved = await approver(permissionRequest);
+  const gateClient = options.gateClient ?? defaultAppifyHostGateClient;
+  const installNeed = await installNeedForPackage(permissionStorePath, webappPackage, permissionRequest);
+  if (installNeed.needed) {
+    const requestWithReason = {
+      ...installPermissionRequest,
+      installReason: installNeed.reason,
+    };
+    if (!await hasApprovedInstallAndDevPermission(permissionStorePath, requestWithReason)) {
+      const approved = await gateClient(installAndDevGateRequest(requestWithReason));
+      if (!approved) {
+        writeError("Webapp did not run bun install or bun dev because install+dev permission was not granted.\n");
+        return 1;
+      }
+      await rememberApprovedInstallAndDevPermission(permissionStorePath, requestWithReason);
+    }
+
+    const installExitCode = await executor(
+      { phase: "install", command: "bun", args: webappPackage.installCommand, cwd: documentPath, env: childEnv },
+      (stream, chunk) => tee("install", stream, chunk),
+    );
+    if (installExitCode !== 0) {
+      return installExitCode;
+    }
+
+    await rememberSuccessfulInstall(permissionStorePath, requestWithReason);
+    await rememberApprovedDevServerPermission(permissionStorePath, permissionRequest);
+  } else if (!await hasApprovedDevServerPermission(permissionStorePath, permissionRequest)) {
+    const approved = await gateClient(devServerGateRequest(permissionRequest));
     if (!approved) {
       writeError("Webapp did not run bun dev because dev-server permission was not granted.\n");
       return 1;
@@ -254,7 +340,7 @@ export function createBunCommandExecutor(baseEnvironment: Record<string, string 
     const child = Bun.spawn({
       cmd: [spec.command === "bun" ? bunExecutable : spec.command, ...spec.args],
       cwd: spec.cwd,
-      env: { ...baseEnvironment, ...spec.env },
+      env: sanitizeCommandEnvironment(baseEnvironment, spec.env),
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -323,6 +409,10 @@ export function webappDevCommand(): string[] {
   return [...DEV_COMMAND_ARGS];
 }
 
+export function webappInstallCommand(lockfileNames: string[] = []): string[] {
+  return lockfileNames.length > 0 ? [...FROZEN_INSTALL_COMMAND_ARGS] : [...INSTALL_COMMAND_ARGS];
+}
+
 export function devServerPermissionRequest(
   documentPath: string,
   devScript: string,
@@ -336,6 +426,18 @@ export function devServerPermissionRequest(
     hostBundleIdentifier: options.hostBundleIdentifier ?? DEFAULT_HOST_BUNDLE_IDENTIFIER,
     packageName: basename(packagePath, ".webapp"),
     packagePath,
+  };
+}
+
+export function installAndDevPermissionRequest(
+  webappPackage: EnsureWebappPackageResult,
+  devRequest: DevServerPermissionRequest,
+): InstallAndDevPermissionRequest {
+  return {
+    ...devRequest,
+    dependencyFingerprint: webappPackage.dependencyFingerprint,
+    installCommand: [...webappPackage.installCommand],
+    installReason: "",
   };
 }
 
@@ -357,6 +459,44 @@ export async function rememberApprovedDevServerPermission(
     ...request,
     allowed: true,
     grantedAt: new Date().toISOString(),
+  };
+  await writeWebappPermissionState(permissionStorePath, state);
+}
+
+export async function hasApprovedInstallAndDevPermission(
+  permissionStorePath: string,
+  request: InstallAndDevPermissionRequest,
+): Promise<boolean> {
+  const state = await readWebappPermissionState(permissionStorePath);
+  const record = state.installAndDev[installAndDevPermissionKey(request)];
+  return recordMatchesInstallAndDevPermissionRequest(record, request);
+}
+
+export async function rememberApprovedInstallAndDevPermission(
+  permissionStorePath: string,
+  request: InstallAndDevPermissionRequest,
+): Promise<void> {
+  const state = await readWebappPermissionState(permissionStorePath);
+  state.installAndDev[installAndDevPermissionKey(request)] = {
+    ...request,
+    allowed: true,
+    grantedAt: new Date().toISOString(),
+  };
+  await writeWebappPermissionState(permissionStorePath, state);
+}
+
+export async function rememberSuccessfulInstall(
+  permissionStorePath: string,
+  request: InstallAndDevPermissionRequest,
+): Promise<void> {
+  const state = await readWebappPermissionState(permissionStorePath);
+  state.installMarkers[installMarkerKey(request)] = {
+    dependencyFingerprint: request.dependencyFingerprint,
+    hostBundleIdentifier: request.hostBundleIdentifier,
+    installCommand: [...request.installCommand],
+    installedAt: new Date().toISOString(),
+    packageName: request.packageName,
+    packagePath: request.packagePath,
   };
   await writeWebappPermissionState(permissionStorePath, state);
 }
@@ -397,6 +537,74 @@ export function firstLoopbackHTTPURL(text: string): string | null {
   }
 
   return null;
+}
+
+async function installNeedForPackage(
+  permissionStorePath: string,
+  webappPackage: EnsureWebappPackageResult,
+  devRequest: DevServerPermissionRequest,
+): Promise<InstallNeed> {
+  if (!webappPackage.hasInstallableDependencies) {
+    return { needed: false, reason: "This package has no installable dependency fields." };
+  }
+
+  const nodeModules = await stat(join(devRequest.packagePath, "node_modules")).catch(() => null);
+  if (nodeModules === null || !nodeModules.isDirectory()) {
+    return { needed: true, reason: "node_modules is missing for a package with dependencies." };
+  }
+
+  const state = await readWebappPermissionState(permissionStorePath);
+  const marker = state.installMarkers[installMarkerKey({
+    ...devRequest,
+    dependencyFingerprint: webappPackage.dependencyFingerprint,
+    installCommand: webappPackage.installCommand,
+    installReason: "",
+  })];
+  if (marker === undefined) {
+    return { needed: false, reason: "Existing node_modules is treated as user-managed." };
+  }
+
+  if (recordMatchesInstallMarker(marker, webappPackage, devRequest)) {
+    return { needed: false, reason: "Webapp's previous install marker still matches." };
+  }
+
+  return { needed: true, reason: "Dependency metadata changed since Webapp last installed this package." };
+}
+
+function devServerGateRequest(request: DevServerPermissionRequest): AppifyHostGateRequest {
+  return {
+    title: "Run Webapp Dev Server?",
+    message: "This .webapp package wants to run local package code.",
+    details: [
+      `Package: ${request.packagePath}`,
+      `Command: bun ${request.command.join(" ")}`,
+      `scripts.dev: ${request.devScript}`,
+      "",
+      "Only continue if you trust this package.",
+    ].join("\n"),
+    severity: "warning",
+    approveButtonTitle: "Run Dev Server",
+    denyButtonTitle: "Cancel",
+  };
+}
+
+function installAndDevGateRequest(request: InstallAndDevPermissionRequest): AppifyHostGateRequest {
+  return {
+    title: "Install Dependencies and Run Webapp?",
+    message: "This .webapp package needs dependencies installed before its dev server can run.",
+    details: [
+      `Package: ${request.packagePath}`,
+      `Reason: ${request.installReason}`,
+      `Install: bun ${request.installCommand.join(" ")}`,
+      `Run: bun ${request.command.join(" ")}`,
+      `scripts.dev: ${request.devScript}`,
+      "",
+      "Installing dependencies changes node_modules on disk. Only continue if you trust this package and accept that risk.",
+    ].join("\n"),
+    severity: "warning",
+    approveButtonTitle: "Install and Run",
+    denyButtonTitle: "Cancel",
+  };
 }
 
 async function readPackageJson(packageJsonPath: string, documentPath: string): Promise<Record<string, unknown>> {
@@ -606,31 +814,43 @@ function devLogPath(documentPath: string): string {
   return join(documentPath, ".local", "dev.log");
 }
 
-async function defaultDevServerPermissionApprover(request: DevServerPermissionRequest): Promise<boolean> {
-  const message = [
-    "This .webapp package wants to run a local dev server.",
-    "",
-    `Package: ${request.packagePath}`,
-    `Command: bun ${request.command.join(" ")}`,
-    `scripts.dev: ${request.devScript}`,
-    "",
-    "Only run this if you trust the package code.",
-  ].join("\n");
-  const script = [
-    `display dialog ${appleScriptString(message)}`,
-    `with title ${appleScriptString("Run Webapp Dev Server?")}`,
-    `buttons {"Cancel", "Run Dev Server"}`,
-    `default button "Run Dev Server"`,
-    `cancel button "Cancel"`,
-    `with icon caution`,
-  ].join(" ");
+async function defaultAppifyHostGateClient(request: AppifyHostGateRequest): Promise<boolean> {
+  const directory = process.env[GATE_DIRECTORY_ENV_KEY];
+  const token = process.env[GATE_TOKEN_ENV_KEY];
+  if (!directory || !token) {
+    return false;
+  }
 
-  const child = Bun.spawn({
-    cmd: ["/usr/bin/osascript", "-e", script],
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-  return await child.exited === 0;
+  const id = crypto.randomUUID();
+  const requestPath = join(directory, `request-${id}.json`);
+  const temporaryRequestPath = `${requestPath}.tmp`;
+  const responsePath = join(directory, `response-${id}.json`);
+  const envelope = {
+    id,
+    token,
+    request,
+  };
+
+  try {
+    await writeFile(temporaryRequestPath, `${JSON.stringify(envelope)}\n`);
+    await rename(temporaryRequestPath, requestPath);
+
+    const deadline = Date.now() + GATE_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const response = await readGateResponse(responsePath);
+      if (response !== null) {
+        return response.id === id && response.approved === true;
+      }
+      await sleep(100);
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    await unlink(temporaryRequestPath).catch(() => {});
+    await unlink(requestPath).catch(() => {});
+    await unlink(responsePath).catch(() => {});
+  }
 }
 
 async function readWebappPermissionState(permissionStorePath: string): Promise<WebappPermissionState> {
@@ -645,7 +865,13 @@ async function readWebappPermissionState(permissionStorePath: string): Promise<W
   }
 
   const parsed = safeParseJSON5(source);
-  if (!isRecord(parsed) || parsed.version !== WEBAPP_PERMISSION_STATE_VERSION || !isRecord(parsed.devServers)) {
+  if (
+    !isRecord(parsed)
+    || parsed.version !== WEBAPP_PERMISSION_STATE_VERSION
+    || !isRecord(parsed.devServers)
+    || !isRecord(parsed.installAndDev)
+    || !isRecord(parsed.installMarkers)
+  ) {
     return emptyWebappPermissionState();
   }
 
@@ -655,10 +881,24 @@ async function readWebappPermissionState(permissionStorePath: string): Promise<W
       devServers[key] = value;
     }
   }
+  const installAndDev: Record<string, InstallAndDevPermissionRecord> = {};
+  for (const [key, value] of Object.entries(parsed.installAndDev)) {
+    if (isInstallAndDevPermissionRecord(value)) {
+      installAndDev[key] = value;
+    }
+  }
+  const installMarkers: Record<string, InstallMarkerRecord> = {};
+  for (const [key, value] of Object.entries(parsed.installMarkers)) {
+    if (isInstallMarkerRecord(value)) {
+      installMarkers[key] = value;
+    }
+  }
 
   return {
     version: WEBAPP_PERMISSION_STATE_VERSION,
     devServers,
+    installAndDev,
+    installMarkers,
   };
 }
 
@@ -671,6 +911,8 @@ function emptyWebappPermissionState(): WebappPermissionState {
   return {
     version: WEBAPP_PERMISSION_STATE_VERSION,
     devServers: {},
+    installAndDev: {},
+    installMarkers: {},
   };
 }
 
@@ -679,6 +921,30 @@ function devServerPermissionKey(request: DevServerPermissionRequest): string {
     .update(JSON.stringify({
       command: request.command,
       devScript: request.devScript,
+      hostBundleIdentifier: request.hostBundleIdentifier,
+      packageName: request.packageName,
+      packagePath: request.packagePath,
+    }))
+    .digest("hex");
+}
+
+function installAndDevPermissionKey(request: InstallAndDevPermissionRequest): string {
+  return createHash("sha256")
+    .update(JSON.stringify({
+      command: request.command,
+      dependencyFingerprint: request.dependencyFingerprint,
+      devScript: request.devScript,
+      hostBundleIdentifier: request.hostBundleIdentifier,
+      installCommand: request.installCommand,
+      packageName: request.packageName,
+      packagePath: request.packagePath,
+    }))
+    .digest("hex");
+}
+
+function installMarkerKey(request: Pick<InstallAndDevPermissionRequest, "hostBundleIdentifier" | "packageName" | "packagePath">): string {
+  return createHash("sha256")
+    .update(JSON.stringify({
       hostBundleIdentifier: request.hostBundleIdentifier,
       packageName: request.packageName,
       packagePath: request.packagePath,
@@ -698,6 +964,32 @@ function recordMatchesDevServerPermissionRequest(
     && arrayEquals(record.command, request.command);
 }
 
+function recordMatchesInstallAndDevPermissionRequest(
+  record: InstallAndDevPermissionRecord | undefined,
+  request: InstallAndDevPermissionRequest,
+): boolean {
+  return record?.allowed === true
+    && record.hostBundleIdentifier === request.hostBundleIdentifier
+    && record.packageName === request.packageName
+    && record.packagePath === request.packagePath
+    && record.devScript === request.devScript
+    && record.dependencyFingerprint === request.dependencyFingerprint
+    && arrayEquals(record.command, request.command)
+    && arrayEquals(record.installCommand, request.installCommand);
+}
+
+function recordMatchesInstallMarker(
+  record: InstallMarkerRecord,
+  webappPackage: EnsureWebappPackageResult,
+  devRequest: DevServerPermissionRequest,
+): boolean {
+  return record.hostBundleIdentifier === devRequest.hostBundleIdentifier
+    && record.packageName === devRequest.packageName
+    && record.packagePath === devRequest.packagePath
+    && record.dependencyFingerprint === webappPackage.dependencyFingerprint
+    && arrayEquals(record.installCommand, webappPackage.installCommand);
+}
+
 function isDevServerPermissionRecord(value: unknown): value is DevServerPermissionRecord {
   return isRecord(value)
     && value.allowed === true
@@ -710,12 +1002,27 @@ function isDevServerPermissionRecord(value: unknown): value is DevServerPermissi
     && typeof value.grantedAt === "string";
 }
 
-function arrayEquals(left: string[], right: string[]): boolean {
-  return left.length === right.length && left.every((value, index) => value === right[index]);
+function isInstallAndDevPermissionRecord(value: unknown): value is InstallAndDevPermissionRecord {
+  return isDevServerPermissionRecord(value)
+    && typeof value.dependencyFingerprint === "string"
+    && Array.isArray(value.installCommand)
+    && value.installCommand.every((item) => typeof item === "string")
+    && typeof value.installReason === "string";
 }
 
-function appleScriptString(value: string): string {
-  return `"${value.replaceAll("\\", "\\\\").replaceAll("\"", "\\\"").replaceAll("\n", "\\n")}"`;
+function isInstallMarkerRecord(value: unknown): value is InstallMarkerRecord {
+  return isRecord(value)
+    && typeof value.dependencyFingerprint === "string"
+    && typeof value.hostBundleIdentifier === "string"
+    && Array.isArray(value.installCommand)
+    && value.installCommand.every((item) => typeof item === "string")
+    && typeof value.installedAt === "string"
+    && typeof value.packageName === "string"
+    && typeof value.packagePath === "string";
+}
+
+function arrayEquals(left: string[], right: string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
 }
 
 function safeParseJSON5(source: string): unknown {
@@ -724,6 +1031,134 @@ function safeParseJSON5(source: string): unknown {
   } catch {
     return null;
   }
+}
+
+function safeParseJSON(source: string): unknown {
+  try {
+    return JSON.parse(source) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+async function dependencyFingerprint(documentPath: string, packageJson: Record<string, unknown>): Promise<string> {
+  const lockfiles = await Promise.all((await existingBunLockfileNames(documentPath)).map(async (name) => {
+    const content = await readFile(join(documentPath, name));
+    return {
+      name,
+      sha256: createHash("sha256").update(content).digest("hex"),
+    };
+  }));
+  return createHash("sha256")
+    .update(stableJSONString({
+      dependencyFields: dependencyFieldsForFingerprint(packageJson),
+      lockfiles,
+    }))
+    .digest("hex");
+}
+
+async function existingBunLockfileNames(documentPath: string): Promise<string[]> {
+  const candidates = ["bun.lock", "bun.lockb"];
+  const existing: string[] = [];
+  for (const name of candidates) {
+    const file = await stat(join(documentPath, name)).catch(() => null);
+    if (file?.isFile()) {
+      existing.push(name);
+    }
+  }
+  return existing;
+}
+
+function hasInstallableDependencies(packageJson: Record<string, unknown>): boolean {
+  return [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+  ].some((field) => isNonEmptyRecord(packageJson[field]));
+}
+
+function dependencyFieldsForFingerprint(packageJson: Record<string, unknown>): Record<string, unknown> {
+  const fields = [
+    "dependencies",
+    "devDependencies",
+    "optionalDependencies",
+    "peerDependencies",
+    "trustedDependencies",
+    "overrides",
+    "resolutions",
+    "workspaces",
+    "packageManager",
+  ];
+  const result: Record<string, unknown> = {};
+  for (const field of fields) {
+    if (packageJson[field] !== undefined) {
+      result[field] = stableValue(packageJson[field]);
+    }
+  }
+  return result;
+}
+
+function stableJSONString(value: unknown): string {
+  return JSON.stringify(stableValue(value));
+}
+
+function stableValue(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(stableValue);
+  }
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const sorted: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort((left, right) => left.localeCompare(right))) {
+    sorted[key] = stableValue(value[key]);
+  }
+  return sorted;
+}
+
+async function readGateResponse(responsePath: string): Promise<GateResponse | null> {
+  const source = await readFile(responsePath, "utf8").catch((error) => {
+    if (isNodeError(error) && error.code === "ENOENT") {
+      return null;
+    }
+    throw error;
+  });
+  if (source === null) {
+    return null;
+  }
+
+  const parsed = safeParseJSON(source);
+  if (!isRecord(parsed) || typeof parsed.id !== "string" || typeof parsed.approved !== "boolean") {
+    return { id: "", approved: false };
+  }
+  return {
+    id: parsed.id,
+    approved: parsed.approved,
+  };
+}
+
+export function sanitizeCommandEnvironment(
+  baseEnvironment: Record<string, string | undefined>,
+  specEnvironment: Record<string, string | undefined> | undefined,
+): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const [key, value] of Object.entries({ ...baseEnvironment, ...specEnvironment })) {
+    if (value === undefined || isPrivateGateEnvironmentKey(key)) {
+      continue;
+    }
+    result[key] = value;
+  }
+  return result;
+}
+
+function isPrivateGateEnvironmentKey(key: string): boolean {
+  return key === GATE_DIRECTORY_ENV_KEY || key === GATE_TOKEN_ENV_KEY;
+}
+
+async function sleep(milliseconds: number): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 async function isEmptyDirectory(path: string): Promise<boolean> {
@@ -812,6 +1247,10 @@ function stripTrailingURLPunctuation(value: string): string {
 
 function isNodeError(error: unknown): error is NodeJS.ErrnoException {
   return error instanceof Error && "code" in error;
+}
+
+function isNonEmptyRecord(value: unknown): value is Record<string, unknown> {
+  return isRecord(value) && Object.keys(value).length > 0;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

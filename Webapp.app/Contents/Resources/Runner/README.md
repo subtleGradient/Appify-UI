@@ -3,11 +3,19 @@
 This folder is the app-specific source for `Webapp.app`.
 
 The Bun runner opens `.webapp` package folders, scaffolds minimal package
-metadata when needed, asks before first running the package dev server, starts
-`bun --no-install run dev`, and loads the first loopback URL printed by the dev
-process. Dependency installation is left to Bun and the user; Webapp does not
-run `bun install` while opening a package. Dev-server approvals are stored in
-`~/.local/webappapp.json5` using `Bun.JSON5`.
+metadata when needed, requests native AppifyHost gate approval before running
+package code, starts `bun --no-install run dev`, and loads the first loopback
+URL printed by the dev process. If dependencies are present and Webapp can tell
+its own previous install is missing or stale, the user gets one just-in-time
+prompt for `bun install` followed by `bun --no-install run dev`; if
+`node_modules` already exists without a Webapp marker, it is treated as
+user-managed and Webapp does not install. Dev and install+dev approvals are
+fingerprinted and stored in `~/.local/webappapp.json5` using `Bun.JSON5`.
+
+The AppifyHost gate channel is a private per-runner file channel. Webapp fails
+closed when the channel is absent or malformed, and strips the gate environment
+before spawning `bun install` or `bun --no-install run dev` so package code
+cannot trigger native prompts directly.
 
 For HTTP loopback dev servers, Webapp uses the same visible-origin pattern as
 Web.app: WebKit loads a stable `*.localhost:55555` URL, while AppifyHost routes

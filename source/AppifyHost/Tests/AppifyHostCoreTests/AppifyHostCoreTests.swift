@@ -2,6 +2,58 @@ import XCTest
 @testable import AppifyHostCore
 
 final class AppifyHostCoreTests: XCTestCase {
+    func testGateEnvelopeParsesValidRequest() throws {
+        let request = try AppifyHostGateRequest(
+            title: "Run Dev Server?",
+            message: "A local package wants to run code.",
+            details: "Command: bun --no-install run dev",
+            severity: .warning,
+            approveButtonTitle: "Run",
+            denyButtonTitle: "Cancel"
+        )
+        let envelope = try AppifyHostGateEnvelope(id: "abc-123", token: "secret", request: request)
+        let data = try JSONEncoder().encode(envelope)
+
+        let parsed = try AppifyHostGateEnvelope.decode(data, expectedToken: "secret")
+
+        XCTAssertEqual(parsed, envelope)
+    }
+
+    func testGateEnvelopeRejectsWrongToken() throws {
+        let request = try AppifyHostGateRequest(
+            title: "Run Dev Server?",
+            message: "A local package wants to run code.",
+            severity: .warning,
+            approveButtonTitle: "Run",
+            denyButtonTitle: "Cancel"
+        )
+        let envelope = try AppifyHostGateEnvelope(id: "abc-123", token: "secret", request: request)
+        let data = try JSONEncoder().encode(envelope)
+
+        XCTAssertThrowsError(try AppifyHostGateEnvelope.decode(data, expectedToken: "other"))
+    }
+
+    func testGateRequestRejectsUnsafeText() {
+        XCTAssertThrowsError(try AppifyHostGateRequest(
+            title: "",
+            message: "A local package wants to run code.",
+            severity: .warning,
+            approveButtonTitle: "Run",
+            denyButtonTitle: "Cancel"
+        ))
+        XCTAssertThrowsError(try AppifyHostGateRequest(
+            title: "Run",
+            message: "bad\0message",
+            severity: .warning,
+            approveButtonTitle: "Run",
+            denyButtonTitle: "Cancel"
+        ))
+    }
+
+    func testGateResponseDefaultsToDenied() {
+        XCTAssertEqual(AppifyHostGateResponse.denied(id: "abc-123"), AppifyHostGateResponse(id: "abc-123", approved: false))
+    }
+
     func testLoadsContentPackageConfigurationFromInfoPlistFacts() throws {
         let config = try AppifyHostConfigurationLoader.load(
             infoDictionary: sampleInfoPlist(documentMode: "contentPackage"),

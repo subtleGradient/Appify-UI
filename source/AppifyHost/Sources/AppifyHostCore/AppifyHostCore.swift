@@ -116,6 +116,137 @@ public enum AppifyHostWindowContentSizing: String, Equatable, Sendable {
     case disabled
 }
 
+public enum AppifyHostGateSeverity: String, Codable, Equatable, Sendable {
+    case informational
+    case warning
+    case critical
+}
+
+public struct AppifyHostGateRequest: Codable, Equatable, Sendable {
+    public var title: String
+    public var message: String
+    public var details: String?
+    public var severity: AppifyHostGateSeverity
+    public var approveButtonTitle: String
+    public var denyButtonTitle: String
+
+    public init(
+        title: String,
+        message: String,
+        details: String? = nil,
+        severity: AppifyHostGateSeverity,
+        approveButtonTitle: String,
+        denyButtonTitle: String
+    ) throws {
+        self.title = try Self.validatedRequiredText(title, field: "title", maxLength: 160)
+        self.message = try Self.validatedRequiredText(message, field: "message", maxLength: 2_000)
+        self.details = try details.map { try Self.validatedOptionalText($0, field: "details", maxLength: 8_000) }
+        self.severity = severity
+        self.approveButtonTitle = try Self.validatedRequiredText(approveButtonTitle, field: "approveButtonTitle", maxLength: 80)
+        self.denyButtonTitle = try Self.validatedRequiredText(denyButtonTitle, field: "denyButtonTitle", maxLength: 80)
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            title: container.decode(String.self, forKey: .title),
+            message: container.decode(String.self, forKey: .message),
+            details: container.decodeIfPresent(String.self, forKey: .details),
+            severity: container.decode(AppifyHostGateSeverity.self, forKey: .severity),
+            approveButtonTitle: container.decode(String.self, forKey: .approveButtonTitle),
+            denyButtonTitle: container.decode(String.self, forKey: .denyButtonTitle)
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case title
+        case message
+        case details
+        case severity
+        case approveButtonTitle
+        case denyButtonTitle
+    }
+
+    private static func validatedRequiredText(_ value: String, field: String, maxLength: Int) throws -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            throw AppifyHostError.invalidGateRequest("Gate \(field) must not be empty.")
+        }
+        return try validatedOptionalText(trimmed, field: field, maxLength: maxLength)
+    }
+
+    private static func validatedOptionalText(_ value: String, field: String, maxLength: Int) throws -> String {
+        guard value.count <= maxLength else {
+            throw AppifyHostError.invalidGateRequest("Gate \(field) is too long.")
+        }
+        guard !value.contains("\0") else {
+            throw AppifyHostError.invalidGateRequest("Gate \(field) must not contain NULs.")
+        }
+        return value
+    }
+}
+
+public struct AppifyHostGateEnvelope: Codable, Equatable, Sendable {
+    public var id: String
+    public var token: String
+    public var request: AppifyHostGateRequest
+
+    public init(id: String, token: String, request: AppifyHostGateRequest) throws {
+        guard Self.isSafeIdentifier(id) else {
+            throw AppifyHostError.invalidGateRequest("Gate id must be a safe identifier.")
+        }
+        guard !token.isEmpty, !token.contains("\0") else {
+            throw AppifyHostError.invalidGateRequest("Gate token must not be empty.")
+        }
+        self.id = id
+        self.token = token
+        self.request = request
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            id: container.decode(String.self, forKey: .id),
+            token: container.decode(String.self, forKey: .token),
+            request: container.decode(AppifyHostGateRequest.self, forKey: .request)
+        )
+    }
+
+    public static func decode(_ data: Data, expectedToken: String) throws -> AppifyHostGateEnvelope {
+        let envelope = try JSONDecoder().decode(AppifyHostGateEnvelope.self, from: data)
+        guard envelope.token == expectedToken else {
+            throw AppifyHostError.invalidGateRequest("Gate token did not match.")
+        }
+        return envelope
+    }
+
+    public static func isSafeIdentifier(_ value: String) -> Bool {
+        !value.isEmpty && value.count <= 80 && value.allSatisfy { character in
+            character.isLetter || character.isNumber || character == "-"
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case token
+        case request
+    }
+}
+
+public struct AppifyHostGateResponse: Codable, Equatable, Sendable {
+    public var id: String
+    public var approved: Bool
+
+    public init(id: String, approved: Bool) {
+        self.id = id
+        self.approved = approved
+    }
+
+    public static func denied(id: String) -> AppifyHostGateResponse {
+        AppifyHostGateResponse(id: id, approved: false)
+    }
+}
+
 public enum AppifyHostDeepLinkCommand: String, Equatable, Sendable {
     case choose
     case open
@@ -336,6 +467,7 @@ public enum AppifyHostError: Error, Equatable, CustomStringConvertible, Sendable
     case invalidPackage(String)
     case unsafeConfigurationToken(String)
     case invalidOpenURL(String)
+    case invalidGateRequest(String)
 
     public var description: String {
         switch self {
@@ -349,6 +481,8 @@ public enum AppifyHostError: Error, Equatable, CustomStringConvertible, Sendable
             "AppifyHost configuration token is not allowed: \(token)"
         case .invalidOpenURL(let message):
             "Server produced an unsafe open URL: \(message)"
+        case .invalidGateRequest(let message):
+            "Invalid gate request: \(message)"
         }
     }
 }

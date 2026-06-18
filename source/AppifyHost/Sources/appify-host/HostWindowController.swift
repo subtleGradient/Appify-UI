@@ -240,6 +240,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     private var isWaitingForInitialContentFit = false
     private var initialContentFitTimeout: DispatchWorkItem?
     private var didRevealCurrentWebView = false
+    private var gateServer: AppifyHostGateServer?
 
     init(configuration: AppifyHostConfiguration, document: AppifyHostDocument) {
         self.configuration = configuration
@@ -889,6 +890,9 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             writeLog("Server cwd: \(command.currentDirectoryURL.path)\n")
             writeLog("Server: \(command.executableURL.path) \(command.arguments.joined(separator: " "))\n")
 
+            let gateServer = try AppifyHostGateServer(window: window) { [weak self] message in
+                self?.writeLog(message)
+            }
             let stdout = Pipe()
             let stderr = Pipe()
             let process = Process()
@@ -897,7 +901,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             process.executableURL = command.executableURL
             process.arguments = command.arguments
             process.currentDirectoryURL = command.currentDirectoryURL
-            process.environment = serverEnvironment(templateValues: templateValues)
+            process.environment = serverEnvironment(
+                templateValues: templateValues,
+                gateEnvironment: gateServer.environment
+            )
             process.standardOutput = stdout
             process.standardError = stderr
 
@@ -928,6 +935,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             }
 
             serverProcess = process
+            self.gateServer = gateServer
+            gateServer.start()
             try process.run()
             startupTimer = Timer.scheduledTimer(withTimeInterval: configuration.startupTimeoutSeconds, repeats: false) { [weak self] _ in
                 DispatchQueue.main.async { [weak self] in
@@ -936,6 +945,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             }
         } catch {
             serverProcess = nil
+            gateServer?.stop()
+            gateServer = nil
             detachProcessPipes()
             showError(title: "Could Not Open \(configuration.appName)", message: String(describing: error))
             writeLog("ERROR: \(String(describing: error))\n")
@@ -946,7 +957,10 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         (try? PackageDocument.resolvedURL(forPackage: documentURL)) ?? documentURL.standardizedFileURL
     }
 
-    private func serverEnvironment(templateValues: TemplateValues) -> [String: String] {
+    private func serverEnvironment(
+        templateValues: TemplateValues,
+        gateEnvironment: [String: String] = [:]
+    ) -> [String: String] {
         var additional = TemplateExpander.expand(
             configuration.environmentVariables,
             templateValues: templateValues
@@ -958,6 +972,9 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         additional["APPIFY_HOST_DOCUMENT_KIND"] = configuration.documentKindEnvironmentValue
         additional["APPIFY_HOST_BUNDLE_PATH"] = configuration.bundleURL.path
         additional["APPIFY_HOST_SERVER_DIR"] = configuration.serverDirectoryURL.path
+        for (key, value) in gateEnvironment {
+            additional[key] = value
+        }
 
         return ServerEnvironmentBuilder.build(
             base: ProcessInfo.processInfo.environment,
@@ -1063,6 +1080,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
 
         serverProcess = nil
         detachProcessPipes()
+        gateServer?.stop()
+        gateServer = nil
 
         guard !isClosing, !didLoadServerURL else {
             return
@@ -1104,6 +1123,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         }
         serverProcess = nil
         detachProcessPipes()
+        gateServer?.stop()
+        gateServer = nil
 
         guard process.isRunning else {
             return
