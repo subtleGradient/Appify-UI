@@ -1842,6 +1842,7 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
     ) {
         let alert = makeJavaScriptDialog(message: message, frame: frame)
         alert.addButton(withTitle: "OK")
+        configureDefaultAndCancelButtons(for: alert)
 
         presentWebDialog(alert) { _ in
             completionHandler()
@@ -1879,6 +1880,8 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         let textField = NSTextField(string: defaultText ?? "")
         textField.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
         textField.lineBreakMode = .byTruncatingTail
+        textField.target = alert.buttons.first
+        textField.action = #selector(NSButton.performClick(_:))
         alert.accessoryView = textField
         alert.window.initialFirstResponder = textField
 
