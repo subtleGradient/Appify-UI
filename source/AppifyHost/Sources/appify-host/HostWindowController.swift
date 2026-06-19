@@ -1826,6 +1826,87 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         return alert.runModal() == .alertFirstButtonReturn
     }
 
+    func webViewDidClose(_ webView: WKWebView) {
+        guard self.webView === webView else {
+            return
+        }
+
+        window?.performClose(nil)
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptAlertPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping () -> Void
+    ) {
+        let alert = makeJavaScriptDialog(message: message, frame: frame)
+        alert.addButton(withTitle: "OK")
+
+        presentWebDialog(alert) { _ in
+            completionHandler()
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptConfirmPanelWithMessage message: String,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (Bool) -> Void
+    ) {
+        let alert = makeJavaScriptDialog(message: message, frame: frame)
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        configureDefaultAndCancelButtons(for: alert)
+
+        presentWebDialog(alert) { response in
+            completionHandler(response == .alertFirstButtonReturn)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runJavaScriptTextInputPanelWithPrompt prompt: String,
+        defaultText: String?,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping (String?) -> Void
+    ) {
+        let alert = makeJavaScriptDialog(message: prompt, frame: frame)
+        alert.addButton(withTitle: "OK")
+        alert.addButton(withTitle: "Cancel")
+        configureDefaultAndCancelButtons(for: alert)
+
+        let textField = NSTextField(string: defaultText ?? "")
+        textField.frame = NSRect(x: 0, y: 0, width: 360, height: 24)
+        textField.lineBreakMode = .byTruncatingTail
+        alert.accessoryView = textField
+        alert.window.initialFirstResponder = textField
+
+        presentWebDialog(alert) { response in
+            completionHandler(response == .alertFirstButtonReturn ? textField.stringValue : nil)
+        }
+    }
+
+    func webView(
+        _ webView: WKWebView,
+        runOpenPanelWith parameters: WKOpenPanelParameters,
+        initiatedByFrame frame: WKFrameInfo,
+        completionHandler: @escaping ([URL]?) -> Void
+    ) {
+        let panel = NSOpenPanel()
+        panel.message = "\(javaScriptDialogSourceDescription(for: frame)) wants to choose a file."
+        panel.prompt = "Choose"
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = parameters.allowsDirectories
+        panel.allowsMultipleSelection = parameters.allowsMultipleSelection
+        panel.resolvesAliases = true
+        panel.directoryURL = webOpenPanelDirectoryURL()
+
+        presentWebOpenPanel(panel) { response in
+            completionHandler(response == .OK ? panel.urls : nil)
+        }
+    }
+
     func webView(
         _ webView: WKWebView,
         decidePolicyFor navigationAction: WKNavigationAction,
@@ -2006,6 +2087,74 @@ private extension HostWindowController {
         }
 
         alert.beginSheetModal(for: window)
+    }
+
+    func makeJavaScriptDialog(message: String, frame: WKFrameInfo) -> NSAlert {
+        let alert = NSAlert()
+        alert.alertStyle = .informational
+        alert.messageText = message.isEmpty ? "JavaScript Message" : message
+        alert.informativeText = "From \(javaScriptDialogSourceDescription(for: frame))"
+        return alert
+    }
+
+    func javaScriptDialogSourceDescription(for frame: WKFrameInfo) -> String {
+        guard let url = frame.request.url else {
+            return configuration.appName
+        }
+
+        if let scheme = url.scheme,
+           let host = url.host(percentEncoded: false)
+        {
+            if let port = url.port {
+                return "\(scheme)://\(host):\(port)"
+            }
+            return "\(scheme)://\(host)"
+        }
+
+        if url.isFileURL {
+            return url.path
+        }
+
+        return url.absoluteString
+    }
+
+    func configureDefaultAndCancelButtons(for alert: NSAlert) {
+        alert.buttons.first?.keyEquivalent = "\r"
+        alert.buttons.dropFirst().first?.keyEquivalent = "\u{1b}"
+    }
+
+    func presentWebDialog(_ alert: NSAlert, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        guard let window,
+              window.isVisible
+        else {
+            completion(alert.runModal())
+            return
+        }
+
+        alert.beginSheetModal(for: window, completionHandler: completion)
+    }
+
+    func presentWebOpenPanel(_ panel: NSOpenPanel, completion: @escaping (NSApplication.ModalResponse) -> Void) {
+        guard let window,
+              window.isVisible
+        else {
+            completion(panel.runModal())
+            return
+        }
+
+        panel.beginSheetModal(for: window, completionHandler: completion)
+    }
+
+    func webOpenPanelDirectoryURL() -> URL? {
+        guard let activeDocumentURL else {
+            return nil
+        }
+
+        if let workingDirectory = try? PackageDocument.workingDirectory(forPackage: activeDocumentURL, configuration: configuration) {
+            return workingDirectory
+        }
+
+        return activeDocumentURL.deletingLastPathComponent()
     }
 }
 
