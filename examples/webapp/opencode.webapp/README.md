@@ -3,25 +3,25 @@
 A minimal `.webapp` package that starts OpenCode's browser UI server without
 opening a browser.
 
-The package intentionally keeps OpenCode as an external tool, so install it
-first with one of the methods from the OpenCode docs. Then open this folder with
-`Webapp.app` or run:
+Install the package dependencies first, then open this folder with `Webapp.app`
+or run:
 
 ```sh
+bun install
 bun dev
 ```
 
 The package dev script starts a small Bun wrapper that reserves a free loopback
-port and runs:
+port and starts OpenCode through `@opencode-ai/sdk`:
 
-```sh
-opencode serve --hostname 127.0.0.1 --port <dynamic-port>
+```ts
+createOpencodeServer({ hostname: "127.0.0.1", port })
 ```
 
-Using `serve` avoids OpenCode's browser auto-open behavior. The wrapper ensures
-`OPENCODE_SERVER_PASSWORD` is non-empty before OpenCode starts. If you do not
-set one yourself, it generates a password for the run; the username defaults to
-`opencode` unless you set `OPENCODE_SERVER_USERNAME`.
+Using the SDK server path avoids OpenCode's browser auto-open behavior. The
+wrapper ensures `OPENCODE_SERVER_PASSWORD` is non-empty before OpenCode starts.
+If you do not set one yourself, it generates a password for the run; the
+username defaults to `opencode` unless you set `OPENCODE_SERVER_USERNAME`.
 
 When OpenCode is ready, the wrapper prints a URL with HTTP Basic credentials:
 

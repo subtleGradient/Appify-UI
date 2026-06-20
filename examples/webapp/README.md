@@ -32,10 +32,9 @@ bun dev
 After dependencies are installed, open the `.webapp` package with `Webapp.app`
 and approve its dev server when prompted.
 
-`opencode.webapp` expects `opencode` to already be installed on your `PATH`;
-it has no package dependencies to install, leaves OpenCode's port dynamic, and
-prints a URL with generated Basic auth credentials when you do not provide
-`OPENCODE_SERVER_PASSWORD`.
+`opencode.webapp` uses `@opencode-ai/sdk` and a package-local OpenCode binary,
+leaves OpenCode's port dynamic, and prints a URL with generated Basic auth
+credentials when you do not provide `OPENCODE_SERVER_PASSWORD`.
 
 For packages with static export support:
 

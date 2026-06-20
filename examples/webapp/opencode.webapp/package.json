@@ -5,5 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "bun scripts/run-opencode-web.ts"
+  },
+  "dependencies": {
+    "@opencode-ai/sdk": "1.17.8",
+    "opencode-ai": "1.17.8"
   }
 }

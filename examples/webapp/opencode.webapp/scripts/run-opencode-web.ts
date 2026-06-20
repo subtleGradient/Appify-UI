@@ -1,5 +1,8 @@
 import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { createOpencodeServer } from "@opencode-ai/sdk";
 
 const configuredPassword = process.env.OPENCODE_SERVER_PASSWORD;
 const hasConfiguredPassword = configuredPassword !== undefined && configuredPassword.length > 0;
@@ -9,34 +12,20 @@ const serverPassword = hasConfiguredPassword
 const serverUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const serverPort = await availableLoopbackPort();
 
+process.env.OPENCODE_SERVER_PASSWORD = serverPassword;
+process.env.OPENCODE_SERVER_USERNAME = serverUsername;
+process.env.PATH = pathWithLocalBin();
+
 console.error("Starting OpenCode without browser auto-open.");
 console.error(`OpenCode bind: 127.0.0.1:${serverPort}`);
 
-const child = Bun.spawn({
-  cmd: ["opencode", "serve", "--hostname", "127.0.0.1", "--port", String(serverPort)],
-  env: {
-    ...process.env,
-    OPENCODE_SERVER_PASSWORD: serverPassword,
-    OPENCODE_SERVER_USERNAME: serverUsername,
-  },
-  stdin: "inherit",
-  stdout: "pipe",
-  stderr: "pipe",
+const server = await createOpencodeServer({
+  hostname: "127.0.0.1",
+  port: serverPort,
 });
+console.log(`OpenCode Web URL: ${authenticatedURLFor(server.url)}`);
 
-const forwardSignal = (signal: "SIGINT" | "SIGTERM") => {
-  child.kill(signal);
-};
-
-process.on("SIGINT", () => forwardSignal("SIGINT"));
-process.on("SIGTERM", () => forwardSignal("SIGTERM"));
-
-const pumps = [
-  pumpOutput(child.stdout, process.stdout),
-  pumpOutput(child.stderr, process.stderr),
-];
-const [exitCode] = await Promise.all([child.exited, ...pumps]);
-process.exit(exitCode);
+await waitForShutdown(server.close);
 
 async function availableLoopbackPort(): Promise<number> {
   return await new Promise((resolve, reject) => {
@@ -62,55 +51,32 @@ async function availableLoopbackPort(): Promise<number> {
   });
 }
 
-async function pumpOutput(
-  stream: ReadableStream<Uint8Array> | null,
-  sink: NodeJS.WriteStream,
-): Promise<void> {
-  if (stream === null) {
-    return;
-  }
-
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for await (const chunk of stream) {
-    buffer += decoder.decode(chunk, { stream: true });
-    buffer = writeCompleteLines(buffer, sink);
-  }
-
-  buffer += decoder.decode();
-  if (buffer.length > 0) {
-    writeLine(buffer, sink, false);
-  }
-}
-
-function writeCompleteLines(buffer: string, sink: NodeJS.WriteStream): string {
-  let lineStart = 0;
-  for (;;) {
-    const newlineIndex = buffer.indexOf("\n", lineStart);
-    if (newlineIndex === -1) {
-      break;
-    }
-
-    writeLine(buffer.slice(lineStart, newlineIndex), sink, true);
-    lineStart = newlineIndex + 1;
-  }
-  return buffer.slice(lineStart);
-}
-
-function writeLine(line: string, sink: NodeJS.WriteStream, newline: boolean): void {
-  const match = line.match(/opencode server listening on (https?:\/\/[^\s]+)/);
-  if (match?.[1] !== undefined) {
-    const authenticatedURL = authenticatedURLFor(match[1]);
-    process.stdout.write(`OpenCode Web URL: ${authenticatedURL}\n`);
-    return;
-  }
-
-  sink.write(`${line}${newline ? "\n" : ""}`);
-}
-
 function authenticatedURLFor(rawURL: string): string {
   const url = new URL(rawURL);
   url.username = serverUsername;
   url.password = serverPassword;
   return url.href;
+}
+
+function pathWithLocalBin(): string {
+  const scriptDirectory = dirname(fileURLToPath(import.meta.url));
+  const packageDirectory = dirname(scriptDirectory);
+  const localBin = join(packageDirectory, "node_modules", ".bin");
+  const currentPath = process.env.PATH ?? "";
+  return currentPath.length > 0 ? `${localBin}:${currentPath}` : localBin;
+}
+
+async function waitForShutdown(closeServer: () => void): Promise<never> {
+  await new Promise<void>((resolve) => {
+    const shutdown = () => {
+      process.off("SIGINT", shutdown);
+      process.off("SIGTERM", shutdown);
+      closeServer();
+      resolve();
+    };
+
+    process.on("SIGINT", shutdown);
+    process.on("SIGTERM", shutdown);
+  });
+  process.exit(0);
 }
