@@ -19,19 +19,18 @@ createOpencodeServer({ hostname: "127.0.0.1", port })
 ```
 
 Using the SDK server path avoids OpenCode's browser auto-open behavior. The
-wrapper ensures `OPENCODE_SERVER_PASSWORD` is non-empty before OpenCode starts.
-If you do not set one yourself, it generates a password for the run; the
-username defaults to `opencode` unless you set `OPENCODE_SERVER_USERNAME`.
+wrapper clears `OPENCODE_SERVER_PASSWORD` before OpenCode starts because
+AppifyHost rejects URLs with embedded credentials. Instead, it binds OpenCode to
+`127.0.0.1`, so other machines on the LAN cannot connect to the server.
 
-When OpenCode is ready, the wrapper prints a URL with HTTP Basic credentials:
+When OpenCode is ready, the wrapper prints a credential-free loopback URL:
 
 ```text
-OpenCode Web URL: http://opencode:<password>@127.0.0.1:<port>/
+OpenCode Web URL: http://127.0.0.1:<port>/
 ```
 
-Opening that full URL should load the OpenCode interface directly instead of
-showing a password prompt. Each `bun dev` run chooses its own port, so multiple
-servers can run at the same time.
+Opening that URL loads the OpenCode interface directly. Each `bun dev` run
+chooses its own port, so multiple servers can run at the same time.
 
 `Webapp.app` will approve the package script, run `bun --no-install run dev`,
 and load the first loopback URL printed by the wrapper.

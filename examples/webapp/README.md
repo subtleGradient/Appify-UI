@@ -18,7 +18,7 @@ static export write sibling `.web` folders for `Web.app`.
   one hydrated React island, and a build that exports sibling `astro-blog.web`
   output for `Web.app`.
 - `opencode.webapp`: a minimal wrapper that starts OpenCode's browser UI server
-  without opening a browser, using a dynamic port and `OPENCODE_SERVER_PASSWORD`.
+  without opening a browser, using a dynamic loopback-only port.
 
 ## Try One
 
@@ -33,8 +33,8 @@ After dependencies are installed, open the `.webapp` package with `Webapp.app`
 and approve its dev server when prompted.
 
 `opencode.webapp` uses `@opencode-ai/sdk` and a package-local OpenCode binary,
-leaves OpenCode's port dynamic, and prints a URL with generated Basic auth
-credentials when you do not provide `OPENCODE_SERVER_PASSWORD`.
+leaves OpenCode's port dynamic, binds to `127.0.0.1`, and prints a
+credential-free loopback URL that AppifyHost can safely open.
 
 For packages with static export support:
 

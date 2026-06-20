@@ -1,29 +1,23 @@
-import { randomBytes } from "node:crypto";
 import { createServer } from "node:net";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createOpencodeServer } from "@opencode-ai/sdk";
 
-const configuredPassword = process.env.OPENCODE_SERVER_PASSWORD;
-const hasConfiguredPassword = configuredPassword !== undefined && configuredPassword.length > 0;
-const serverPassword = hasConfiguredPassword
-  ? configuredPassword
-  : randomBytes(24).toString("base64url");
-const serverUsername = process.env.OPENCODE_SERVER_USERNAME || "opencode";
 const serverPort = await availableLoopbackPort();
 
-process.env.OPENCODE_SERVER_PASSWORD = serverPassword;
-process.env.OPENCODE_SERVER_USERNAME = serverUsername;
+delete process.env.OPENCODE_SERVER_PASSWORD;
+delete process.env.OPENCODE_SERVER_USERNAME;
 process.env.PATH = pathWithLocalBin();
 
 console.error("Starting OpenCode without browser auto-open.");
 console.error(`OpenCode bind: 127.0.0.1:${serverPort}`);
+console.error("OpenCode is reachable only from this Mac through the loopback interface.");
 
 const server = await createOpencodeServer({
   hostname: "127.0.0.1",
   port: serverPort,
 });
-console.log(`OpenCode Web URL: ${authenticatedURLFor(server.url)}`);
+console.log(`OpenCode Web URL: ${server.url}`);
 
 await waitForShutdown(server.close);
 
@@ -49,13 +43,6 @@ async function availableLoopbackPort(): Promise<number> {
       });
     });
   });
-}
-
-function authenticatedURLFor(rawURL: string): string {
-  const url = new URL(rawURL);
-  url.username = serverUsername;
-  url.password = serverPassword;
-  return url.href;
 }
 
 function pathWithLocalBin(): string {
