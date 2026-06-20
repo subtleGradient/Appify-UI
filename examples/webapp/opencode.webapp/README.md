@@ -16,15 +16,21 @@ port, starts OpenCode through `@opencode-ai/sdk`, and creates a new session for
 this package directory:
 
 ```ts
-createOpencodeServer({ hostname: "127.0.0.1", port })
-createOpencodeClient({ baseUrl: server.url, directory })
-client.session.create({ body: { title } })
+createOpencodeServer({ hostname: "127.0.0.1", port: serverPort })
+createOpencodeClient({ baseUrl: server.url, directory: packageDirectory })
+client.session.create({
+  body: { title: basename(packageDirectory) },
+  throwOnError: true,
+})
 ```
 
-Using the SDK server path avoids OpenCode's browser auto-open behavior. The
-wrapper clears `OPENCODE_SERVER_PASSWORD` before OpenCode starts because
-AppifyHost rejects URLs with embedded credentials. Instead, it binds OpenCode to
-`127.0.0.1`, so other machines on the LAN cannot connect to the server.
+Before starting OpenCode, the wrapper prepends this package's
+`node_modules/.bin` directory to `PATH` so the SDK resolves the package-local
+`opencode-ai` binary. Using the SDK server path avoids OpenCode's browser
+auto-open behavior. The wrapper clears `OPENCODE_SERVER_USERNAME` and
+`OPENCODE_SERVER_PASSWORD` before OpenCode starts because AppifyHost rejects URLs
+with embedded credentials. Instead, it binds OpenCode to `127.0.0.1`, so other
+machines on the LAN cannot connect to the server.
 
 When OpenCode is ready, the wrapper prints a credential-free loopback URL for
 the newly created session:
