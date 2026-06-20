@@ -4,6 +4,6 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "opencode web"
+    "dev": "bun scripts/run-opencode-web.ts"
   }
 }
