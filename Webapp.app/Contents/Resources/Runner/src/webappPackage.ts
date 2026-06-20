@@ -392,8 +392,6 @@ export function stableWebappURL(documentPath: string, backendURL: URL, port = DE
   visibleURL.protocol = "http:";
   visibleURL.hostname = stableWebappHostname(documentPath);
   visibleURL.port = String(port);
-  visibleURL.username = "";
-  visibleURL.password = "";
   return visibleURL;
 }
 

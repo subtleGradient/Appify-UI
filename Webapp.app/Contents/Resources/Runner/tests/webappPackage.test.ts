@@ -626,6 +626,7 @@ describe("URL parsing", () => {
   test("accepts loopback HTTP URLs only", () => {
     expect(firstLoopbackHTTPURL("open http://localhost:3000/path")).toBe("http://localhost:3000/path");
     expect(firstLoopbackHTTPURL("open http://127.0.0.1:3000/path")).toBe("http://127.0.0.1:3000/path");
+    expect(firstLoopbackHTTPURL("open http://opencode:secret@127.0.0.1:3000/")).toBe("http://opencode:secret@127.0.0.1:3000/");
     expect(firstLoopbackHTTPURL("open https://example.com")).toBeNull();
   });
 });
@@ -642,6 +643,15 @@ describe("stable webapp origins", () => {
     expect(visibleURL.search).toBe("?q=1");
     expect(visibleURL.hash).toBe("#panel");
     expect(visibleURL.hostname).not.toBe(backendURL.hostname);
+  });
+
+  test("preserves backend URL credentials for authenticated dev servers", () => {
+    const backendURL = new URL("http://opencode:secret@127.0.0.1:3000/");
+    const visibleURL = stableWebappURL(root, backendURL);
+
+    expect(visibleURL.username).toBe("opencode");
+    expect(visibleURL.password).toBe("secret");
+    expect(visibleURL.hostname).toEndWith(".localhost");
   });
 
   test("maps only HTTP loopback backend URLs through the stable-origin tunnel", () => {
