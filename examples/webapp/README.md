@@ -17,6 +17,8 @@ static export write sibling `.web` folders for `Web.app`.
 - `astro-blog.webapp`: an Astro content blog with static React JSX composition,
   one hydrated React island, and a build that exports sibling `astro-blog.web`
   output for `Web.app`.
+- `opencode.webapp`: a minimal wrapper whose `dev` script starts OpenCode's
+  documented browser UI with `opencode web`.
 
 ## Try One
 
@@ -29,6 +31,9 @@ bun dev
 
 After dependencies are installed, open the `.webapp` package with `Webapp.app`
 and approve its dev server when prompted.
+
+`opencode.webapp` expects `opencode` to already be installed on your `PATH`;
+it has no package dependencies to install.
 
 For packages with static export support:
 
