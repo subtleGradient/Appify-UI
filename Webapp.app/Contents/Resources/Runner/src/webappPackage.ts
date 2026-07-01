@@ -340,7 +340,10 @@ export function createBunCommandExecutor(baseEnvironment: Record<string, string 
     const child = Bun.spawn({
       cmd: [spec.command === "bun" ? bunExecutable : spec.command, ...spec.args],
       cwd: spec.cwd,
-      env: sanitizeCommandEnvironment(baseEnvironment, spec.env),
+      env: commandEnvironmentWithBunPath(
+        sanitizeCommandEnvironment(baseEnvironment, spec.env),
+        bunExecutable,
+      ),
       stdout: "pipe",
       stderr: "pipe",
     });
@@ -1151,6 +1154,26 @@ export function sanitizeCommandEnvironment(
     result[key] = value;
   }
   return result;
+}
+
+export function commandEnvironmentWithBunPath(
+  environment: Record<string, string>,
+  bunExecutable: string,
+): Record<string, string> {
+  const bunDirectory = dirname(bunExecutable);
+  if (bunDirectory === "." || bunDirectory.length === 0) {
+    return environment;
+  }
+
+  return {
+    ...environment,
+    PATH: pathWithDirectoryAtFront(environment.PATH, bunDirectory),
+  };
+}
+
+function pathWithDirectoryAtFront(pathValue: string | undefined, directory: string): string {
+  const existing = pathValue?.split(":").filter((part) => part.length > 0 && part !== directory) ?? [];
+  return [directory, ...existing].join(":");
 }
 
 function isPrivateGateEnvironmentKey(key: string): boolean {

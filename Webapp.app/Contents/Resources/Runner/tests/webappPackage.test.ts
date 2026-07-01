@@ -5,6 +5,7 @@ import {
   type CommandExecutor,
   type ConnectTunnelStarter,
   type AppifyHostGateRequest,
+  commandEnvironmentWithBunPath,
   defaultStableWebappPort,
   devServerPermissionRequest,
   ensureWebappPackage,
@@ -694,6 +695,26 @@ describe("webapp command environment", () => {
     )).toEqual({
       KEEP_BASE: "1",
       KEEP_SPEC: "2",
+    });
+  });
+
+  test("puts the app server resolved Bun directory at the front of PATH", () => {
+    expect(commandEnvironmentWithBunPath(
+      {
+        KEEP: "1",
+        PATH: "/usr/bin:/custom/bin:/bin",
+      },
+      "/custom/bin/bun",
+    )).toEqual({
+      KEEP: "1",
+      PATH: "/custom/bin:/usr/bin:/bin",
+    });
+  });
+
+  test("sets PATH to the resolved Bun directory when the child environment has no PATH", () => {
+    expect(commandEnvironmentWithBunPath({ KEEP: "1" }, "/custom/bin/bun")).toEqual({
+      KEEP: "1",
+      PATH: "/custom/bin",
     });
   });
 });
