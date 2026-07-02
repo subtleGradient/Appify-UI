@@ -599,6 +599,26 @@ final class AppifyHostCoreTests: XCTestCase {
         XCTAssertThrowsError(try AppifyHostOpenURL.validateProxyURL(URL(string: "https://example.com/proxy")!))
     }
 
+    func testWebKitProxyRoutingPolicyDefaultsOffOnMacOS26() {
+        let macOS25 = OperatingSystemVersion(majorVersion: 25, minorVersion: 6, patchVersion: 0)
+        let macOS26 = OperatingSystemVersion(majorVersion: 26, minorVersion: 5, patchVersion: 1)
+
+        XCTAssertTrue(AppifyHostOpenURL.shouldUseWebKitProxyRouting(environment: [:], operatingSystemVersion: macOS25))
+        XCTAssertFalse(AppifyHostOpenURL.shouldUseWebKitProxyRouting(environment: [:], operatingSystemVersion: macOS26))
+        XCTAssertTrue(AppifyHostOpenURL.shouldUseWebKitProxyRouting(
+            environment: [AppifyHostOpenURL.webKitProxyRoutingEnvironmentKey: "enabled"],
+            operatingSystemVersion: macOS26
+        ))
+        XCTAssertFalse(AppifyHostOpenURL.shouldUseWebKitProxyRouting(
+            environment: [AppifyHostOpenURL.webKitProxyRoutingEnvironmentKey: "0"],
+            operatingSystemVersion: macOS25
+        ))
+        XCTAssertFalse(AppifyHostOpenURL.shouldUseWebKitProxyRouting(
+            environment: [AppifyHostOpenURL.webKitProxyRoutingEnvironmentKey: "unexpected"],
+            operatingSystemVersion: macOS26
+        ))
+    }
+
     func testDerivesStableVisibleWebspaceDataStoreIdentifiers() throws {
         let visibleA = URL(string: "http://repo--a1b2c3d4.localhost:55555/apps/dashboard.web/")!
         let visibleB = URL(string: "http://repo--a1b2c3d4.localhost:55555/other.web/")!

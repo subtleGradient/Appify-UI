@@ -677,6 +677,14 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
         var detail: String
     }
 
+    private struct WebViewLoadPlan {
+        var readyURL: URL
+        var loadURL: URL
+        var visibleWebspaceURL: URL
+        var proxyServerURL: URL?
+        var backendServerURL: URL?
+    }
+
     private func waitForCleanWebState(deadline: Date, completion: @escaping (CloseValidationResult) -> Void) {
         readWebDirtyState { [weak self] state in
             guard let self else {
@@ -1035,13 +1043,15 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             )
             let backendURL = try pendingBackendURL.map(AppifyHostOpenURL.validateBackendURL)
             let proxyURL = try pendingProxyURL.map(AppifyHostOpenURL.validateProxyURL)
-            if AppifyHostOpenURL.requiresProxyMapping(safeURL) && proxyURL == nil {
-                throw AppifyHostError.invalidOpenURL("Stable webspace origins require APPIFY_HOST_PROXY_URL.")
-            }
-            let loadURL = try AppifyHostOpenURL.readyURL(safeURL, routedTo: pendingDeepLinkRoute)
+            let loadPlan = try webViewLoadPlan(
+                visibleReadyURL: safeURL,
+                backendURL: backendURL,
+                proxyURL: proxyURL,
+                route: pendingDeepLinkRoute
+            )
             guard AppifyHostOpenURL.isAllowedNavigation(
-                loadURL,
-                readyURL: safeURL,
+                loadPlan.loadURL,
+                readyURL: loadPlan.readyURL,
                 documentURL: activeDocumentURL,
                 bundleURL: configuration.bundleURL,
                 restrictToReadyURLScope: configuration.restrictNavigationToReadyURLScope
@@ -1051,22 +1061,64 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
             }
 
             pendingDeepLinkRoute = nil
-            activeReadyURL = safeURL
-            activeBackendURL = backendURL
-            activeProxyURL = proxyURL
+            activeReadyURL = loadPlan.readyURL
+            activeBackendURL = loadPlan.backendServerURL
+            activeProxyURL = loadPlan.proxyServerURL
             didLoadServerURL = true
             startupTimer?.invalidate()
             startupTimer = nil
             loadWebView(
-                url: loadURL,
-                visibleWebspaceURL: safeURL,
-                proxyServerURL: proxyURL,
-                backendServerURL: backendURL
+                url: loadPlan.loadURL,
+                visibleWebspaceURL: loadPlan.visibleWebspaceURL,
+                proxyServerURL: loadPlan.proxyServerURL,
+                backendServerURL: loadPlan.backendServerURL
             )
         } catch {
             showError(title: "Server URL Was Rejected", message: String(describing: error))
             stopServer()
         }
+    }
+
+    private func webViewLoadPlan(
+        visibleReadyURL: URL,
+        backendURL: URL?,
+        proxyURL: URL?,
+        route: String?
+    ) throws -> WebViewLoadPlan {
+        let requiresProxyMapping = AppifyHostOpenURL.requiresProxyMapping(visibleReadyURL)
+        let useWebKitProxy = requiresProxyMapping && shouldUseWebKitProxyRouting
+        let readyURL: URL
+        let webViewProxyURL: URL?
+
+        if useWebKitProxy {
+            guard let proxyURL else {
+                throw AppifyHostError.invalidOpenURL("Stable webspace origins require APPIFY_HOST_PROXY_URL.")
+            }
+            readyURL = visibleReadyURL
+            webViewProxyURL = proxyURL
+        } else if requiresProxyMapping {
+            guard let backendURL else {
+                throw AppifyHostError.invalidOpenURL("Stable webspace origins require APPIFY_HOST_BACKEND_URL when WebKit proxy routing is disabled.")
+            }
+            readyURL = backendURL
+            webViewProxyURL = nil
+            writeLog("WARN: WebKit proxy routing disabled; loading backend \(backendURL.originDescription) instead of stable origin \(visibleReadyURL.originDescription).\n")
+        } else {
+            readyURL = visibleReadyURL
+            webViewProxyURL = nil
+        }
+
+        return WebViewLoadPlan(
+            readyURL: readyURL,
+            loadURL: try AppifyHostOpenURL.readyURL(readyURL, routedTo: route),
+            visibleWebspaceURL: visibleReadyURL,
+            proxyServerURL: webViewProxyURL,
+            backendServerURL: backendURL
+        )
+    }
+
+    private var shouldUseWebKitProxyRouting: Bool {
+        AppifyHostOpenURL.shouldUseWebKitProxyRouting()
     }
 
     private func handleServerTermination(_ process: Process) {
@@ -1311,7 +1363,6 @@ final class HostWindowController: NSWindowController, WKNavigationDelegate, WKUI
               let proxyServerPort = proxyServerURL.port,
               let proxyPort = NWEndpoint.Port(rawValue: UInt16(proxyServerPort))
         else {
-            dataStore.proxyConfigurations = []
             return
         }
 

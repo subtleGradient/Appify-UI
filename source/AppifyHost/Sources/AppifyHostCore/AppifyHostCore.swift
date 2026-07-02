@@ -1000,6 +1000,7 @@ public enum AppifyHostOpenURL {
     public static let outputPrefix = "APPIFY_HOST_OPEN_URL="
     public static let backendOutputPrefix = "APPIFY_HOST_BACKEND_URL="
     public static let proxyOutputPrefix = "APPIFY_HOST_PROXY_URL="
+    public static let webKitProxyRoutingEnvironmentKey = "APPIFY_HOST_WEBKIT_PROXY"
 
     // For Web.app, a ready URL can be the WebKit-visible stable origin
     // (*.localhost:55555). AppifyHost may route that origin to a separate
@@ -1034,6 +1035,40 @@ public enum AppifyHostOpenURL {
         let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix(proxyOutputPrefix) {
             return URL(string: String(trimmed.dropFirst(proxyOutputPrefix.count)))
+        }
+
+        return nil
+    }
+
+    public static func shouldUseWebKitProxyRouting(
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        operatingSystemVersion: OperatingSystemVersion = ProcessInfo.processInfo.operatingSystemVersion
+    ) -> Bool {
+        if let override = webKitProxyRoutingOverride(environment: environment) {
+            return override
+        }
+
+        // macOS 26.5 can crash inside Network.framework's networkd settings
+        // callback after WebKit proxy configurations are installed. Keep the
+        // stable-origin backend available, but avoid this process-wide crash by
+        // default on macOS 26 unless explicitly opted back in.
+        return operatingSystemVersion.majorVersion != 26
+    }
+
+    public static func webKitProxyRoutingOverride(environment: [String: String]) -> Bool? {
+        guard let value = environment[webKitProxyRoutingEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+              !value.isEmpty
+        else {
+            return nil
+        }
+
+        if ["1", "true", "yes", "on", "enable", "enabled"].contains(value) {
+            return true
+        }
+        if ["0", "false", "no", "off", "disable", "disabled"].contains(value) {
+            return false
         }
 
         return nil
