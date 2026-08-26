@@ -89,7 +89,26 @@ start_with_nix() {
   local base_path="$3"
   local command
   command="unset DEVELOPER_DIR SDKROOT; exec ttyd --interface 127.0.0.1 --port $(shell_quote "$port") --writable --check-origin --once --max-clients 1 --base-path $(shell_quote "$base_path") --cwd $(shell_quote "$WORKING_DIRECTORY") lazygit --path $(shell_quote "$WORKING_DIRECTORY")"
-  "$nix_shell" -p ttyd lazygit git git-lfs --run "$command" &
+  "$nix_shell" -p ttyd lazygit git --run "$command" &
+}
+
+install_homebrew_dependencies() {
+  local brew="$1"
+  local missing=()
+  local name
+
+  for name in ttyd lazygit git; do
+    if ! find_tool "$name" >/dev/null; then
+      missing+=("$name")
+    fi
+  done
+
+  if [[ "${#missing[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  printf '%s is installing missing Homebrew runtime dependencies: %s\n' "$APP_NAME" "${missing[*]}" >&2
+  HOMEBREW_NO_AUTO_UPDATE=1 "$brew" install "${missing[@]}"
 }
 
 start_direct() {
@@ -99,8 +118,11 @@ start_direct() {
   ttyd="$(find_tool ttyd)" || return 1
   lazygit="$(find_tool lazygit)" || return 1
   git="$(find_tool git)" || return 1
-  git_lfs="$(find_tool git-lfs)" || return 1
-  export PATH="$(dirname "$git"):$(dirname "$git_lfs"):$(dirname "$lazygit"):$(dirname "$ttyd"):${PATH:-}"
+  git_lfs="$(find_tool git-lfs || true)"
+  export PATH="$(dirname "$git"):$(dirname "$lazygit"):$(dirname "$ttyd"):${PATH:-}"
+  if [[ -n "$git_lfs" ]]; then
+    export PATH="$(dirname "$git_lfs"):$PATH"
+  fi
   "$ttyd" \
     --interface 127.0.0.1 \
     --port "$port" \
@@ -130,8 +152,15 @@ if start_direct "$PORT" "$BASE_PATH"; then
 elif NIX_SHELL="$(find_tool nix-shell)"; then
   start_with_nix "$NIX_SHELL" "$PORT" "$BASE_PATH"
   CHILD_PID="$!"
+elif HOMEBREW="$(find_tool brew)"; then
+  install_homebrew_dependencies "$HOMEBREW"
+  if ! start_direct "$PORT" "$BASE_PATH"; then
+    printf '%s could not start after Homebrew dependency installation. Required tools: ttyd, lazygit, and git.\n' "$APP_NAME" >&2
+    exit 1
+  fi
+  CHILD_PID="$!"
 else
-  printf '%s requires nix-shell or direct installations of ttyd, lazygit, git, and git-lfs.\n' "$APP_NAME" >&2
+  printf '%s requires Nix, Homebrew, or direct installations of ttyd, lazygit, and git.\n' "$APP_NAME" >&2
   exit 1
 fi
 

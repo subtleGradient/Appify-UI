@@ -3,9 +3,12 @@
 This folder is the app-specific source for `LazyGit.app`.
 
 `main.sh` starts a loopback `ttyd` server and runs `lazygit --path` in the
-folder that contains the opened `.lazygit` marker package. The shared Swift host
-only opens the document, starts this script, waits for `APPIFY_HOST_OPEN_URL`,
-and embeds that local URL in WebKit.
+folder that contains the opened `.lazygit` marker package. It uses installed
+tools first, falls back to a Nix shell, or installs missing runtime tools with
+Homebrew when Homebrew is the available package manager. Git LFS is supported
+when present but is not required. The shared Swift host only opens the document,
+starts this script, waits for `APPIFY_HOST_OPEN_URL`, and embeds that local URL
+in WebKit.
 
 ## Hack On It
 
