@@ -147,6 +147,9 @@ for app in "${thin_apps[@]}"; do
   native_execution="$(plutil -extract LSRequiresNativeExecution raw "$app_path/Contents/Info.plist" 2>/dev/null || true)"
   [[ "$native_execution" == "true" ]] \
     || fail "$app should set LSRequiresNativeExecution to true so LaunchServices does not use Rosetta"
+  architecture_priority="$(plutil -extract LSArchitecturePriority json -o - "$app_path/Contents/Info.plist" 2>/dev/null || true)"
+  [[ "$architecture_priority" == '["arm64","x86_64"]' ]] \
+    || fail "$app should prefer arm64 before x86_64 so LaunchServices runs its script launcher natively"
   [[ -x "$app_path/Contents/MacOS/main.sh" ]] \
     || fail "$app is missing executable Contents/MacOS/main.sh"
   cmp -s "$expected_shim" "$app_path/Contents/MacOS/main.sh" \

@@ -119,6 +119,11 @@
 	<string>0.1.0</string>
 	<key>LSMinimumSystemVersion</key>
 	<string>14.0</string>
+	<key>LSArchitecturePriority</key>
+	<array>
+		<string>arm64</string>
+		<string>x86_64</string>
+	</array>
 	<key>LSRequiresNativeExecution</key>
 	<true/>
 	<key>NSHighResolutionCapable</key>
